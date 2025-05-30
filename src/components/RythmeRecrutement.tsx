@@ -18,73 +18,73 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       id: 1,
       nom: "Nebilet",
       brick: "Nord-1",
-      venteRealisee: 85000,
-      objectif: 100000,
+      venteRealisee: 850,
+      objectif: 1000,
       pourcentage: 85,
-      rythmeNecessaire: 15
+      rythmeNecessaire: 3
     },
     {
       id: 2,
       nom: "Nebilet Plus",
       brick: "Nord-1",
-      venteRealisee: 62000,
-      objectif: 80000,
+      venteRealisee: 620,
+      objectif: 800,
       pourcentage: 77.5,
-      rythmeNecessaire: 18
+      rythmeNecessaire: 4
     },
     {
       id: 3,
       nom: "Zantipres",
       brick: "Nord-2",
-      venteRealisee: 45000,
-      objectif: 70000,
+      venteRealisee: 450,
+      objectif: 700,
       pourcentage: 64.3,
-      rythmeNecessaire: 25
+      rythmeNecessaire: 6
     },
     {
       id: 4,
       nom: "Zantipride",
       brick: "Nord-2",
-      venteRealisee: 38000,
-      objectif: 60000,
+      venteRealisee: 380,
+      objectif: 600,
       pourcentage: 63.3,
-      rythmeNecessaire: 22
+      rythmeNecessaire: 5
     },
     {
       id: 5,
       nom: "Nebilet",
       brick: "Sud-1",
-      venteRealisee: 72000,
-      objectif: 90000,
+      venteRealisee: 720,
+      objectif: 900,
       pourcentage: 80,
-      rythmeNecessaire: 20
+      rythmeNecessaire: 4
     },
     {
       id: 6,
       nom: "Nebilet Plus",
       brick: "Sud-1",
-      venteRealisee: 54000,
-      objectif: 75000,
+      venteRealisee: 540,
+      objectif: 750,
       pourcentage: 72,
-      rythmeNecessaire: 21
+      rythmeNecessaire: 5
     },
     {
       id: 7,
       nom: "Zantipres",
       brick: "Sud-2",
-      venteRealisee: 41000,
-      objectif: 65000,
+      venteRealisee: 410,
+      objectif: 650,
       pourcentage: 63.1,
-      rythmeNecessaire: 24
+      rythmeNecessaire: 6
     },
     {
       id: 8,
       nom: "Zantipride",
       brick: "Sud-2",
-      venteRealisee: 29000,
-      objectif: 50000,
+      venteRealisee: 290,
+      objectif: 500,
       pourcentage: 58,
-      rythmeNecessaire: 21
+      rythmeNecessaire: 7
     }
   ];
 
@@ -201,10 +201,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Vente Réalisée</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">Vente Réalisée (unités)</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif (unités)</th>
                     <th className="text-center py-3 px-4 font-medium text-gray-700">% Objectif</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Rythme Nécessaire</th>
+                    <th className="text-center py-3 px-4 font-medium text-gray-700">Nouvelles Prescriptions/mois</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -225,10 +225,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                         </div>
                       </td>
                       <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
-                        {produit.venteRealisee.toLocaleString()} €
+                        {produit.venteRealisee.toLocaleString()}
                       </td>
                       <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
-                        {produit.objectif.toLocaleString()} €
+                        {produit.objectif.toLocaleString()}
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center space-x-2">
@@ -249,7 +249,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                       <td className="py-4 px-4 text-center">
                         <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(produit.pourcentage)}`}>
                           <TrendingUp className="h-4 w-4" />
-                          <span className="font-medium">{produit.rythmeNecessaire}%</span>
+                          <span className="font-medium">{produit.rythmeNecessaire}</span>
                         </div>
                       </td>
                     </tr>
