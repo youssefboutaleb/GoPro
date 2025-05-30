@@ -17,12 +17,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 1,
       nom: "Dr. Martin Dubois",
       visites: {
-        janvier: 12,
-        fevrier: 15,
-        mars: 8,
-        avril: 18,
-        mai: 14,
-        juin: 11
+        janvier: 1,
+        fevrier: 2,
+        mars: 0,
+        avril: 2,
+        mai: 1,
+        juin: 1
       },
       status: "excellent"
     },
@@ -30,12 +30,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 2,
       nom: "Dr. Sophie Laurent",
       visites: {
-        janvier: 18,
-        fevrier: 20,
-        mars: 16,
-        avril: 22,
-        mai: 19,
-        juin: 17
+        janvier: 2,
+        fevrier: 2,
+        mars: 1,
+        avril: 2,
+        mai: 2,
+        juin: 2
       },
       status: "excellent"
     },
@@ -43,12 +43,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 3,
       nom: "Dr. Pierre Moreau",
       visites: {
-        janvier: 8,
-        fevrier: 10,
-        mars: 6,
-        avril: 12,
-        mai: 9,
-        juin: 7
+        janvier: 0,
+        fevrier: 1,
+        mars: 0,
+        avril: 1,
+        mai: 1,
+        juin: 0
       },
       status: "moyen"
     },
@@ -56,12 +56,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 4,
       nom: "Dr. Marie Leroy",
       visites: {
-        janvier: 4,
-        fevrier: 6,
-        mars: 3,
-        avril: 5,
-        mai: 4,
-        juin: 3
+        janvier: 0,
+        fevrier: 0,
+        mars: 0,
+        avril: 0,
+        mai: 0,
+        juin: 0
       },
       status: "faible"
     },
@@ -69,12 +69,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 5,
       nom: "Dr. Jean Dupont",
       visites: {
-        janvier: 10,
-        fevrier: 12,
-        mars: 9,
-        avril: 14,
-        mai: 11,
-        juin: 10
+        janvier: 1,
+        fevrier: 1,
+        mars: 1,
+        avril: 1,
+        mai: 1,
+        juin: 1
       },
       status: "moyen"
     },
@@ -82,12 +82,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 6,
       nom: "Dr. Anne Rousseau",
       visites: {
-        janvier: 16,
-        fevrier: 18,
-        mars: 15,
-        avril: 20,
-        mai: 17,
-        juin: 16
+        janvier: 2,
+        fevrier: 2,
+        mars: 1,
+        avril: 2,
+        mai: 2,
+        juin: 2
       },
       status: "excellent"
     },
@@ -95,12 +95,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 7,
       nom: "Dr. Paul Bernard",
       visites: {
-        janvier: 3,
-        fevrier: 4,
-        mars: 2,
-        avril: 5,
-        mai: 3,
-        juin: 2
+        janvier: 0,
+        fevrier: 0,
+        mars: 0,
+        avril: 0,
+        mai: 0,
+        juin: 0
       },
       status: "faible"
     },
@@ -108,12 +108,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 8,
       nom: "Dr. Claire Petit",
       visites: {
-        janvier: 20,
-        fevrier: 22,
-        mars: 19,
-        avril: 25,
-        mai: 21,
-        juin: 20
+        janvier: 2,
+        fevrier: 2,
+        mars: 2,
+        avril: 2,
+        mai: 2,
+        juin: 2
       },
       status: "excellent"
     },
@@ -121,12 +121,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 9,
       nom: "Dr. Marc Fournier",
       visites: {
-        janvier: 11,
-        fevrier: 13,
-        mars: 10,
-        avril: 15,
-        mai: 12,
-        juin: 11
+        janvier: 1,
+        fevrier: 1,
+        mars: 1,
+        avril: 1,
+        mai: 1,
+        juin: 1
       },
       status: "moyen"
     },
@@ -134,12 +134,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       id: 10,
       nom: "Dr. Julie Martinez",
       visites: {
-        janvier: 2,
-        fevrier: 3,
-        mars: 1,
-        avril: 4,
-        mai: 2,
-        juin: 2
+        janvier: 0,
+        fevrier: 0,
+        mars: 0,
+        avril: 0,
+        mai: 0,
+        juin: 0
       },
       status: "faible"
     }
