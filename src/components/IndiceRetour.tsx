@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -134,6 +133,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
+  // Calcul de l'indice de retour global moyen
+  const indiceRetourGlobal = Math.round(
+    filteredMedecins.reduce((sum, medecin) => sum + medecin.indiceRetour, 0) / filteredMedecins.length
+  );
+
   if (activeTab === 'rapport') {
     return <RapportMedecins onBack={() => setActiveTab('medecins')} />;
   }
@@ -158,13 +162,21 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </div>
               </div>
             </div>
-            <Button 
-              onClick={() => setActiveTab('rapport')}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Rapport détaillé
-            </Button>
+            <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-lg">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{indiceRetourGlobal}%</div>
+                  <div className="text-sm opacity-90">Indice Global</div>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setActiveTab('rapport')}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Rapport détaillé
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -255,7 +267,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,22 +285,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                         <div className={`flex items-center space-x-2 ${getStatusTextColor(medecin.status)}`}>
                           <MapPin className="h-4 w-4" />
                           <span>{medecin.brick}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-full bg-gray-200 rounded-full h-2.5`}>
-                            <div 
-                              className={`h-2.5 rounded-full ${
-                                medecin.status === 'excellent' ? 'bg-green-600' :
-                                medecin.status === 'moyen' ? 'bg-yellow-600' : 'bg-red-600'
-                              }`}
-                              style={{ width: `${medecin.indiceRetour}%` }}
-                            ></div>
-                          </div>
-                          <span className={`text-sm font-semibold ${getStatusTextColor(medecin.status)}`}>
-                            {medecin.indiceRetour}%
-                          </span>
                         </div>
                       </td>
                     </tr>
