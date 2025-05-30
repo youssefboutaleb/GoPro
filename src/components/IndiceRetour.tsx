@@ -4,13 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Search, Filter, User, Stethoscope, MapPin } from 'lucide-react';
+import { ArrowLeft, Search, Filter, User, Stethoscope, MapPin, FileText } from 'lucide-react';
+import RapportMedecins from './RapportMedecins';
 
 interface IndiceRetourProps {
   onBack: () => void;
 }
 
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
+  const [activeTab, setActiveTab] = useState('medecins');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedWeek, setSelectedWeek] = useState('1');
@@ -21,63 +23,109 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       id: 1,
       nom: "Dr. Martin Dubois",
       specialite: "Cardiologie",
-      brick: "Nord-1"
+      brick: "Nord-1",
+      indiceRetour: 85,
+      status: "excellent"
     },
     {
       id: 2,
       nom: "Dr. Sophie Laurent",
       specialite: "Médecine Générale",
-      brick: "Nord-2"
+      brick: "Nord-2",
+      indiceRetour: 92,
+      status: "excellent"
     },
     {
       id: 3,
       nom: "Dr. Pierre Moreau",
       specialite: "Diabétologie",
-      brick: "Sud-1"
+      brick: "Sud-1",
+      indiceRetour: 68,
+      status: "moyen"
     },
     {
       id: 4,
       nom: "Dr. Marie Leroy",
       specialite: "Cardiologie",
-      brick: "Nord-1"
+      brick: "Nord-1",
+      indiceRetour: 45,
+      status: "faible"
     },
     {
       id: 5,
       nom: "Dr. Jean Dupont",
       specialite: "Médecine Générale",
-      brick: "Sud-2"
+      brick: "Sud-2",
+      indiceRetour: 78,
+      status: "moyen"
     },
     {
       id: 6,
       nom: "Dr. Anne Rousseau",
       specialite: "Diabétologie",
-      brick: "Nord-2"
+      brick: "Nord-2",
+      indiceRetour: 88,
+      status: "excellent"
     },
     {
       id: 7,
       nom: "Dr. Paul Bernard",
       specialite: "Cardiologie",
-      brick: "Sud-1"
+      brick: "Sud-1",
+      indiceRetour: 35,
+      status: "faible"
     },
     {
       id: 8,
       nom: "Dr. Claire Petit",
       specialite: "Médecine Générale",
-      brick: "Nord-1"
+      brick: "Nord-1",
+      indiceRetour: 95,
+      status: "excellent"
     },
     {
       id: 9,
       nom: "Dr. Marc Fournier",
       specialite: "Diabétologie",
-      brick: "Sud-2"
+      brick: "Sud-2",
+      indiceRetour: 72,
+      status: "moyen"
     },
     {
       id: 10,
       nom: "Dr. Julie Martinez",
       specialite: "Cardiologie",
-      brick: "Nord-2"
+      brick: "Nord-2",
+      indiceRetour: 25,
+      status: "faible"
     }
   ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'excellent':
+        return 'bg-green-100 border-green-300';
+      case 'moyen':
+        return 'bg-yellow-100 border-yellow-300';
+      case 'faible':
+        return 'bg-red-100 border-red-300';
+      default:
+        return 'bg-gray-100 border-gray-300';
+    }
+  };
+
+  const getStatusTextColor = (status: string) => {
+    switch (status) {
+      case 'excellent':
+        return 'text-green-800';
+      case 'moyen':
+        return 'text-yellow-800';
+      case 'faible':
+        return 'text-red-800';
+      default:
+        return 'text-gray-800';
+    }
+  };
 
   const filteredMedecins = medecins.filter(medecin => {
     const matchesSearch = medecin.nom.toLowerCase().includes(searchTerm.toLowerCase());
@@ -85,6 +133,10 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     const matchesBrick = selectedBrick === 'all' || medecin.brick === selectedBrick;
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
+
+  if (activeTab === 'rapport') {
+    return <RapportMedecins onBack={() => setActiveTab('medecins')} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -106,6 +158,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </div>
               </div>
             </div>
+            <Button 
+              onClick={() => setActiveTab('rapport')}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Rapport détaillé
+            </Button>
           </div>
         </div>
       </div>
@@ -196,24 +255,41 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredMedecins.map((medecin) => (
-                    <tr key={medecin.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    <tr key={medecin.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(medecin.status)} border-2`}>
                       <td className="py-4 px-4">
                         <div className="flex items-center space-x-3">
                           <div className="p-2 bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg">
                             <Stethoscope className="h-4 w-4 text-purple-600" />
                           </div>
-                          <span className="font-medium text-gray-900">{medecin.nom}</span>
+                          <span className={`font-medium ${getStatusTextColor(medecin.status)}`}>{medecin.nom}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-gray-600">{medecin.specialite}</td>
+                      <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>{medecin.specialite}</td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center space-x-2 text-gray-600">
+                        <div className={`flex items-center space-x-2 ${getStatusTextColor(medecin.status)}`}>
                           <MapPin className="h-4 w-4" />
                           <span>{medecin.brick}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-full bg-gray-200 rounded-full h-2.5`}>
+                            <div 
+                              className={`h-2.5 rounded-full ${
+                                medecin.status === 'excellent' ? 'bg-green-600' :
+                                medecin.status === 'moyen' ? 'bg-yellow-600' : 'bg-red-600'
+                              }`}
+                              style={{ width: `${medecin.indiceRetour}%` }}
+                            ></div>
+                          </div>
+                          <span className={`text-sm font-semibold ${getStatusTextColor(medecin.status)}`}>
+                            {medecin.indiceRetour}%
+                          </span>
                         </div>
                       </td>
                     </tr>
