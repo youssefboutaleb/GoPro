@@ -13,7 +13,7 @@ interface IndiceRetourProps {
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
-  const [selectedWeek, setSelectedWeek] = useState('47');
+  const [selectedWeek, setSelectedWeek] = useState('1');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
   const medecins = [
@@ -156,10 +156,10 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                     <SelectValue placeholder="Sélectionner semaine" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="45">Semaine 45</SelectItem>
-                    <SelectItem value="46">Semaine 46</SelectItem>
-                    <SelectItem value="47">Semaine 47</SelectItem>
-                    <SelectItem value="48">Semaine 48</SelectItem>
+                    <SelectItem value="1">Semaine 1</SelectItem>
+                    <SelectItem value="2">Semaine 2</SelectItem>
+                    <SelectItem value="3">Semaine 3</SelectItem>
+                    <SelectItem value="4">Semaine 4</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
