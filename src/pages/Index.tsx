@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Package, TrendingUp, Target, Calendar, MapPin } from 'lucide-react';
+import { Users, Package, TrendingUp, Target, Calendar, MapPin, RotateCcw, UserPlus } from 'lucide-react';
 import MedecinsList from '@/components/MedecinsList';
 import ProductsList from '@/components/ProductsList';
+import IndiceRetour from '@/components/IndiceRetour';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -47,6 +48,10 @@ const Index = () => {
 
   if (activeTab === 'produits') {
     return <ProductsList onBack={() => setActiveTab('dashboard')} />;
+  }
+
+  if (activeTab === 'indice-retour') {
+    return <IndiceRetour onBack={() => setActiveTab('dashboard')} />;
   }
 
   return (
@@ -100,7 +105,7 @@ const Index = () => {
         </div>
 
         {/* Main Navigation Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
           <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105"
                 onClick={() => setActiveTab('medecins')}>
             <CardHeader>
@@ -172,6 +177,42 @@ const Index = () => {
               </Button>
             </CardContent>
           </Card>
+
+          <Card className="bg-gradient-to-br from-purple-600 to-purple-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105"
+                onClick={() => setActiveTab('indice-retour')}>
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <RotateCcw className="h-8 w-8" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-white">Indice de Retour</CardTitle>
+                  <CardDescription className="text-purple-100">
+                    Analyse des médecins par spécialité et brick
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-purple-100">Total médecins</span>
+                  <Badge variant="secondary" className="bg-white/20 text-white">342</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-purple-100">Par spécialité</span>
+                  <Badge variant="secondary" className="bg-white/20 text-white">3</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-purple-100">Par brick</span>
+                  <Badge variant="secondary" className="bg-white/20 text-white">4</Badge>
+                </div>
+              </div>
+              <Button variant="secondary" className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white border-white/30">
+                Consulter l'indice
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Actions */}
@@ -181,7 +222,7 @@ const Index = () => {
               <CardTitle className="text-lg text-gray-900">Actions Rapides</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Button variant="outline" className="h-12 flex items-center justify-center space-x-2 hover:bg-blue-50 hover:border-blue-300 transition-colors">
                   <Calendar className="h-4 w-4" />
                   <span>Rapport Hebdomadaire</span>
@@ -193,6 +234,10 @@ const Index = () => {
                 <Button variant="outline" className="h-12 flex items-center justify-center space-x-2 hover:bg-purple-50 hover:border-purple-300 transition-colors">
                   <Target className="h-4 w-4" />
                   <span>Objectifs Mensuel</span>
+                </Button>
+                <Button variant="outline" className="h-12 flex items-center justify-center space-x-2 hover:bg-orange-50 hover:border-orange-300 transition-colors">
+                  <UserPlus className="h-4 w-4" />
+                  <span>Rythme Recrutement</span>
                 </Button>
               </div>
             </CardContent>
