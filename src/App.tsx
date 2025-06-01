@@ -10,16 +10,20 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
+// Create QueryClient outside of component to avoid recreation
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 });
 
 const App = () => {
+  console.log('App component rendering');
+  
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
