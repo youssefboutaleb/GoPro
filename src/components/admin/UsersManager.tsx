@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type UserRole = Database['public']['Enums']['user_role'];
 
 interface UsersManagerProps {
   onBack: () => void;
@@ -45,7 +46,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: string) => {
+  const updateUserRole = async (userId: string, newRole: UserRole) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -153,7 +154,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                       <TableCell className="text-right">
                         <Select
                           value={user.role || 'user'}
-                          onValueChange={(newRole) => updateUserRole(user.id, newRole)}
+                          onValueChange={(newRole: UserRole) => updateUserRole(user.id, newRole)}
                         >
                           <SelectTrigger className="w-32">
                             <SelectValue />
