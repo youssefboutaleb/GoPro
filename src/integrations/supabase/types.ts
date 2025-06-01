@@ -9,16 +9,257 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bricks: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          region: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          region: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          region?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          active: boolean | null
+          address: string | null
+          brick_id: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          phone: string | null
+          specialty: Database["public"]["Enums"]["doctor_specialty"]
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          address?: string | null
+          brick_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          phone?: string | null
+          specialty: Database["public"]["Enums"]["doctor_specialty"]
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          address?: string | null
+          brick_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string | null
+          specialty?: Database["public"]["Enums"]["doctor_specialty"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctors_brick_id_fkey"
+            columns: ["brick_id"]
+            isOneToOne: false
+            referencedRelation: "bricks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_sales: {
+        Row: {
+          actual_sales: number
+          brick_id: string
+          created_at: string | null
+          id: string
+          month: number
+          product_id: string
+          target_sales: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          actual_sales?: number
+          brick_id: string
+          created_at?: string | null
+          id?: string
+          month: number
+          product_id: string
+          target_sales?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          actual_sales?: number
+          brick_id?: string
+          created_at?: string | null
+          id?: string
+          month?: number
+          product_id?: string
+          target_sales?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_sales_brick_id_fkey"
+            columns: ["brick_id"]
+            isOneToOne: false
+            referencedRelation: "bricks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      visits: {
+        Row: {
+          created_at: string | null
+          doctor_id: string
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["visit_status"] | null
+          updated_at: string | null
+          user_id: string
+          visit_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          doctor_id: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["visit_status"] | null
+          updated_at?: string | null
+          user_id: string
+          visit_date: string
+        }
+        Update: {
+          created_at?: string | null
+          doctor_id?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["visit_status"] | null
+          updated_at?: string | null
+          user_id?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      set_admin_role: {
+        Args: { user_email: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      doctor_specialty:
+        | "cardiologue"
+        | "generaliste"
+        | "interniste"
+        | "pneumologue"
+      user_role: "superuser" | "admin" | "user"
+      visit_status: "planifiee" | "realisee" | "annulee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +374,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      doctor_specialty: [
+        "cardiologue",
+        "generaliste",
+        "interniste",
+        "pneumologue",
+      ],
+      user_role: ["superuser", "admin", "user"],
+      visit_status: ["planifiee", "realisee", "annulee"],
+    },
   },
 } as const
