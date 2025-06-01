@@ -53,6 +53,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const ensureAdminProfile = async (user: User) => {
+    // Check if this is the admin user and ensure proper profile exists
+    if (user.email === 'admin@admin.com') {
+      try {
+        // Try to get existing profile
+        let { data: existingProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
+          console.error('Error fetching admin profile:', fetchError);
+          return null;
+        }
+
+        if (!existingProfile) {
+          // Create profile if it doesn't exist
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email!,
+              first_name: 'Admin',
+              last_name: 'User',
+              role: 'superuser'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Error creating admin profile:', insertError);
+            return null;
+          }
+          return newProfile;
+        } else if (existingProfile.role !== 'superuser') {
+          // Update existing profile to superuser if it's not already
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              role: 'superuser',
+              first_name: existingProfile.first_name || 'Admin',
+              last_name: existingProfile.last_name || 'User'
+            })
+            .eq('id', user.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Error updating admin profile:', updateError);
+            return existingProfile;
+          }
+          return updatedProfile;
+        }
+        
+        return existingProfile;
+      } catch (error) {
+        console.error('Error ensuring admin profile:', error);
+        return null;
+      }
+    }
+    
+    // For non-admin users, fetch normally
+    return fetchProfile(user.id);
+  };
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -60,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+        ensureAdminProfile(session.user).then(setProfile);
       }
       setLoading(false);
     });
@@ -68,11 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          const userProfile = await fetchProfile(session.user.id);
+          const userProfile = await ensureAdminProfile(session.user);
           setProfile(userProfile);
         } else {
           setProfile(null);
@@ -110,7 +177,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    console.log('Signing out...');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Sign out error:', error);
+    } else {
+      console.log('Successfully signed out');
+      // Clear local state immediately
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+    }
   };
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'superuser';
