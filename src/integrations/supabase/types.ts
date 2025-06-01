@@ -9,16 +9,451 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bricks: {
+        Row: {
+          id: string
+          nom: string
+          secteur_id: string | null
+        }
+        Insert: {
+          id?: string
+          nom: string
+          secteur_id?: string | null
+        }
+        Update: {
+          id?: string
+          nom?: string
+          secteur_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bricks_secteur_id_fkey"
+            columns: ["secteur_id"]
+            isOneToOne: false
+            referencedRelation: "secteurs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delegue_medecins: {
+        Row: {
+          delegue_id: string | null
+          frequence_visite: string | null
+          id: string
+          medecin_id: string | null
+        }
+        Insert: {
+          delegue_id?: string | null
+          frequence_visite?: string | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Update: {
+          delegue_id?: string | null
+          frequence_visite?: string | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegue_medecins_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delegue_medecins_medecin_id_fkey"
+            columns: ["medecin_id"]
+            isOneToOne: false
+            referencedRelation: "medecins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delegue_produits: {
+        Row: {
+          delegue_id: string | null
+          id: string
+          produit_id: string | null
+        }
+        Insert: {
+          delegue_id?: string | null
+          id?: string
+          produit_id?: string | null
+        }
+        Update: {
+          delegue_id?: string | null
+          id?: string
+          produit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegue_produits_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delegue_produits_produit_id_fkey"
+            columns: ["produit_id"]
+            isOneToOne: false
+            referencedRelation: "produits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delegues: {
+        Row: {
+          created_at: string | null
+          equipe_id: string | null
+          id: string
+          nom: string
+          prenom: string
+          secteur_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          equipe_id?: string | null
+          id?: string
+          nom: string
+          prenom: string
+          secteur_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          equipe_id?: string | null
+          id?: string
+          nom?: string
+          prenom?: string
+          secteur_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegues_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delegues_secteur_id_fkey"
+            columns: ["secteur_id"]
+            isOneToOne: false
+            referencedRelation: "secteurs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipes: {
+        Row: {
+          id: string
+          nom: string
+        }
+        Insert: {
+          id?: string
+          nom: string
+        }
+        Update: {
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
+      medecins: {
+        Row: {
+          brick_id: string | null
+          id: string
+          nom: string
+          prenom: string
+          specialite: string | null
+        }
+        Insert: {
+          brick_id?: string | null
+          id?: string
+          nom: string
+          prenom: string
+          specialite?: string | null
+        }
+        Update: {
+          brick_id?: string | null
+          id?: string
+          nom?: string
+          prenom?: string
+          specialite?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medecins_brick_id_fkey"
+            columns: ["brick_id"]
+            isOneToOne: false
+            referencedRelation: "bricks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      objectifs_produits: {
+        Row: {
+          delegue_id: string | null
+          id: string
+          objectif_annuel: number | null
+          objectif_mensuel: number | null
+          periode: string
+          produit_id: string | null
+        }
+        Insert: {
+          delegue_id?: string | null
+          id?: string
+          objectif_annuel?: number | null
+          objectif_mensuel?: number | null
+          periode: string
+          produit_id?: string | null
+        }
+        Update: {
+          delegue_id?: string | null
+          id?: string
+          objectif_annuel?: number | null
+          objectif_mensuel?: number | null
+          periode?: string
+          produit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objectifs_produits_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objectifs_produits_produit_id_fkey"
+            columns: ["produit_id"]
+            isOneToOne: false
+            referencedRelation: "produits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produits: {
+        Row: {
+          actif: boolean | null
+          classe_therapeutique: string | null
+          id: string
+          nom: string
+        }
+        Insert: {
+          actif?: boolean | null
+          classe_therapeutique?: string | null
+          id?: string
+          nom: string
+        }
+        Update: {
+          actif?: boolean | null
+          classe_therapeutique?: string | null
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
+      profils: {
+        Row: {
+          created_at: string | null
+          id: string
+          nom: string | null
+          prenom: string | null
+          secteur_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          nom?: string | null
+          prenom?: string | null
+          secteur_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nom?: string | null
+          prenom?: string | null
+          secteur_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profils_secteur_id_fkey"
+            columns: ["secteur_id"]
+            isOneToOne: false
+            referencedRelation: "secteurs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rapports_mensuels: {
+        Row: {
+          delegue_id: string | null
+          id: string
+          medecin_id: string | null
+          mois: string | null
+          nombre_visites: number | null
+          statut: string | null
+        }
+        Insert: {
+          delegue_id?: string | null
+          id?: string
+          medecin_id?: string | null
+          mois?: string | null
+          nombre_visites?: number | null
+          statut?: string | null
+        }
+        Update: {
+          delegue_id?: string | null
+          id?: string
+          medecin_id?: string | null
+          mois?: string | null
+          nombre_visites?: number | null
+          statut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapports_mensuels_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_mensuels_medecin_id_fkey"
+            columns: ["medecin_id"]
+            isOneToOne: false
+            referencedRelation: "medecins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      secteurs: {
+        Row: {
+          id: string
+          nom: string
+        }
+        Insert: {
+          id?: string
+          nom: string
+        }
+        Update: {
+          id?: string
+          nom?: string
+        }
+        Relationships: []
+      }
+      ventes_produits: {
+        Row: {
+          brick_id: string | null
+          delegue_id: string | null
+          id: string
+          montant: number
+          periode: string
+          produit_id: string | null
+          source: string | null
+        }
+        Insert: {
+          brick_id?: string | null
+          delegue_id?: string | null
+          id?: string
+          montant: number
+          periode: string
+          produit_id?: string | null
+          source?: string | null
+        }
+        Update: {
+          brick_id?: string | null
+          delegue_id?: string | null
+          id?: string
+          montant?: number
+          periode?: string
+          produit_id?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ventes_produits_brick_id_fkey"
+            columns: ["brick_id"]
+            isOneToOne: false
+            referencedRelation: "bricks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventes_produits_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ventes_produits_produit_id_fkey"
+            columns: ["produit_id"]
+            isOneToOne: false
+            referencedRelation: "produits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visites: {
+        Row: {
+          date_visite: string
+          delegue_id: string | null
+          id: string
+          medecin_id: string | null
+        }
+        Insert: {
+          date_visite: string
+          delegue_id?: string | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Update: {
+          date_visite?: string
+          delegue_id?: string | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visites_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visites_medecin_id_fkey"
+            columns: ["medecin_id"]
+            isOneToOne: false
+            referencedRelation: "medecins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      set_admin_role: {
+        Args: { user_email: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      doctor_specialty:
+        | "cardiologue"
+        | "generaliste"
+        | "interniste"
+        | "pneumologue"
+      user_role: "superuser" | "admin" | "user"
+      visit_status: "planifiee" | "realisee" | "annulee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +568,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      doctor_specialty: [
+        "cardiologue",
+        "generaliste",
+        "interniste",
+        "pneumologue",
+      ],
+      user_role: ["superuser", "admin", "user"],
+      visit_status: ["planifiee", "realisee", "annulee"],
+    },
   },
 } as const

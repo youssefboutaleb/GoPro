@@ -1,13 +1,41 @@
 
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, TrendingUp, Calendar, MapPin, Target } from 'lucide-react';
+import { RotateCcw, TrendingUp, Calendar, MapPin, Target, LogOut } from 'lucide-react';
 import IndiceRetour from '@/components/IndiceRetour';
 import RythmeRecrutement from '@/components/RythmeRecrutement';
 
 const Index = () => {
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-lg">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   if (activeTab === 'indice-retour') {
     return <IndiceRetour onBack={() => setActiveTab('dashboard')} />;
@@ -32,15 +60,21 @@ const Index = () => {
                 <p className="text-sm text-gray-600">Goal Performance Reporting Outil</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                <Calendar className="h-3 w-3" />
-                <span>Semaine 1</span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>Semaine 1</span>
+                </div>
+                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                  <MapPin className="h-3 w-3" />
+                  <span>Région Nord</span>
+                </div>
               </div>
-              <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                <MapPin className="h-3 w-3" />
-                <span>Région Nord</span>
-              </div>
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
             </div>
           </div>
         </div>
