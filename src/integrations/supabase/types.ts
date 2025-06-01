@@ -30,7 +30,7 @@ export type Database = {
             foreignKeyName: "bricks_secteur_id_fkey"
             columns: ["secteur_id"]
             isOneToOne: false
-            referencedRelation: "secteurs"
+            referencedRelation: "secteur"
             referencedColumns: ["id"]
           },
         ]
@@ -144,7 +144,7 @@ export type Database = {
             foreignKeyName: "delegues_secteur_id_fkey"
             columns: ["secteur_id"]
             isOneToOne: false
-            referencedRelation: "secteurs"
+            referencedRelation: "secteur"
             referencedColumns: ["id"]
           },
         ]
@@ -286,7 +286,7 @@ export type Database = {
             foreignKeyName: "profils_secteur_id_fkey"
             columns: ["secteur_id"]
             isOneToOne: false
-            referencedRelation: "secteurs"
+            referencedRelation: "secteur"
             referencedColumns: ["id"]
           },
         ]
@@ -333,7 +333,7 @@ export type Database = {
           },
         ]
       }
-      secteurs: {
+      secteur: {
         Row: {
           id: string
           nom: string
