@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +15,7 @@ const App = () => {
   console.log('App component rendering');
   
   // Create QueryClient inside component to avoid potential issues
-  const queryClient = React.useMemo(() => new QueryClient({
+  const queryClient = useMemo(() => new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000,
