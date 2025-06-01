@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,11 @@ const Index = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  // Empty function for onBack prop since we're using tabs
+  const handleBack = () => {
+    setActiveTab('dashboard');
   };
 
   if (!user) {
@@ -189,7 +195,7 @@ const Index = () => {
                       <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <IndiceRetour />
+                      <IndiceRetour onBack={handleBack} />
                     </CardContent>
                   </Card>
 
@@ -199,7 +205,7 @@ const Index = () => {
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <RythmeRecrutement />
+                      <RythmeRecrutement onBack={handleBack} />
                     </CardContent>
                   </Card>
 
@@ -209,7 +215,7 @@ const Index = () => {
                       <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <MedecinsList />
+                      <MedecinsList onBack={handleBack} />
                     </CardContent>
                   </Card>
 
@@ -219,7 +225,7 @@ const Index = () => {
                       <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <ProductsList />
+                      <ProductsList onBack={handleBack} />
                     </CardContent>
                   </Card>
                 </div>
@@ -230,7 +236,7 @@ const Index = () => {
                     <CardDescription>Vue d'ensemble des performances par médecin</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <RapportMedecins />
+                    <RapportMedecins onBack={handleBack} />
                   </CardContent>
                 </Card>
               </div>
@@ -260,12 +266,12 @@ const Index = () => {
               </div>
             )}
 
-            {activeTab === 'bricks' && <BricksManager />}
-            {activeTab === 'doctors' && <DoctorsManager />}
-            {activeTab === 'products' && <ProductsManager />}
-            {activeTab === 'visits' && <VisitsManager />}
-            {activeTab === 'users' && <UsersManager />}
-            {activeTab === 'reports' && <ReportsManager />}
+            {activeTab === 'bricks' && <BricksManager onBack={handleBack} />}
+            {activeTab === 'doctors' && <DoctorsManager onBack={handleBack} />}
+            {activeTab === 'products' && <ProductsManager onBack={handleBack} />}
+            {activeTab === 'visits' && <VisitsManager onBack={handleBack} />}
+            {activeTab === 'users' && <UsersManager onBack={handleBack} />}
+            {activeTab === 'reports' && <ReportsManager onBack={handleBack} />}
           </div>
         </main>
       </div>
