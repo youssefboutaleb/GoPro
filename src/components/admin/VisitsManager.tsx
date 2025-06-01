@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +14,14 @@ import { useAuth } from '@/contexts/AuthContext';
 
 type Visit = Database['public']['Tables']['visits']['Row'];
 type Doctor = Database['public']['Tables']['doctors']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
 type VisitStatus = Database['public']['Enums']['visit_status'];
+
+// Extended type for visit with joined data
+type VisitWithJoins = Visit & {
+  doctors?: Pick<Doctor, 'first_name' | 'last_name' | 'specialty'> | null;
+  profiles?: Pick<Profile, 'first_name' | 'last_name'> | null;
+};
 
 interface VisitsManagerProps {
   onBack: () => void;
@@ -23,7 +29,7 @@ interface VisitsManagerProps {
 
 const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const { user } = useAuth();
-  const [visits, setVisits] = useState<Visit[]>([]);
+  const [visits, setVisits] = useState<VisitWithJoins[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);

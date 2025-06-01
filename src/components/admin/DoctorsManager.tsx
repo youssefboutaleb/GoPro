@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,12 +15,17 @@ type Doctor = Database['public']['Tables']['doctors']['Row'];
 type Brick = Database['public']['Tables']['bricks']['Row'];
 type DoctorSpecialty = Database['public']['Enums']['doctor_specialty'];
 
+// Extended type for doctor with joined brick data
+type DoctorWithBrick = Doctor & {
+  bricks?: Pick<Brick, 'name' | 'region'> | null;
+};
+
 interface DoctorsManagerProps {
   onBack: () => void;
 }
 
 const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctors, setDoctors] = useState<DoctorWithBrick[]>([]);
   const [bricks, setBricks] = useState<Brick[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
