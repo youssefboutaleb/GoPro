@@ -1,40 +1,90 @@
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, TrendingUp, Calendar, MapPin, Target, LogOut } from 'lucide-react';
+import { RotateCcw, TrendingUp, Calendar, MapPin, Target, Settings, LogIn } from 'lucide-react';
 import IndiceRetour from '@/components/IndiceRetour';
 import RythmeRecrutement from '@/components/RythmeRecrutement';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
-  const { user, loading, signOut } = useAuth();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
-
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
-  }, [user, loading, navigate]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
+  const { user, profile, loading, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-lg">Chargement...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        {/* Header for non-authenticated users */}
+        <div className="bg-white shadow-lg border-b border-blue-100">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">GOPRO</h1>
+                  <p className="text-sm text-gray-600">Goal Performance Reporting Outil</p>
+                </div>
+              </div>
+              <Button onClick={() => navigate('/auth')} className="flex items-center space-x-2">
+                <LogIn className="h-4 w-4" />
+                <span>Se connecter</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            Bienvenue dans GOPRO
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
+            Votre outil de reporting de performance et de gestion des objectifs médicaux
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <RotateCcw className="h-5 w-5 text-purple-600" />
+                  <span>Indice de Retour</span>
+                </CardTitle>
+                <CardDescription>
+                  Analysez les données des médecins par spécialité et zone géographique
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Target className="h-5 w-5 text-green-600" />
+                  <span>Rythme de Recrutement</span>
+                </CardTitle>
+                <CardDescription>
+                  Suivez les ventes et objectifs par produit et zone
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+          <Button onClick={() => navigate('/auth')} size="lg" className="px-8">
+            Commencer maintenant
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (activeTab === 'indice-retour') {
@@ -44,6 +94,11 @@ const Index = () => {
   if (activeTab === 'rythme-recrutement') {
     return <RythmeRecrutement onBack={() => setActiveTab('dashboard')} />;
   }
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -71,10 +126,25 @@ const Index = () => {
                   <span>Région Nord</span>
                 </div>
               </div>
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Déconnexion
-              </Button>
+              <div className="flex items-center space-x-2">
+                {profile?.role && (profile.role === 'admin' || profile.role === 'superuser') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/admin')}
+                    className="flex items-center space-x-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Admin</span>
+                  </Button>
+                )}
+                <div className="text-sm text-gray-600">
+                  {profile?.first_name} {profile?.last_name}
+                </div>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  Déconnexion
+                </Button>
+              </div>
             </div>
           </div>
         </div>
