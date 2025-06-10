@@ -53,12 +53,14 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
         setLoading(true);
         setError(null);
 
+        console.log('Fetching delegue for user:', user.id);
+
         // First, get the current user's delegue record
         const { data: delegueData, error: delegueError } = await supabase
           .from('delegues')
           .select('id')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (delegueError) {
           console.error('Error fetching delegue:', delegueError);
@@ -67,9 +69,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
         }
 
         if (!delegueData) {
-          setError('Aucun délégué trouvé pour cet utilisateur');
+          console.log('No delegue found for user:', user.id);
+          setError('Aucun délégué trouvé pour cet utilisateur. Veuillez contacter l\'administrateur pour vous assigner un profil de délégué.');
           return;
         }
+
+        console.log('Delegue found:', delegueData);
 
         // Get all medecins assigned to this delegue with their frequence_visite
         const { data: delegueMedecins, error: dmError } = await supabase
@@ -91,6 +96,8 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
           return;
         }
 
+        console.log('Delegue medecins found:', delegueMedecins);
+
         // Get all visits for this delegue for the current year
         const currentYear = new Date().getFullYear();
         const startOfYear = `${currentYear}-01-01`;
@@ -108,6 +115,8 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
           setError('Erreur lors de la récupération des visites');
           return;
         }
+
+        console.log('Visites found:', visitesData);
 
         // Process the data
         const processedData: MedecinVisiteData[] = delegueMedecins?.map(dm => {
@@ -143,6 +152,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
           };
         }).filter(Boolean) as MedecinVisiteData[];
 
+        console.log('Processed rapport data:', processedData);
         setRapportData(processedData);
       } catch (err) {
         console.error('Unexpected error:', err);
