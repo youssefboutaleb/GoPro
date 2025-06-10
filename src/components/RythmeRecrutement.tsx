@@ -151,15 +151,15 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   // Calculate totals
   const totalMontant = filteredData.reduce((sum, item) => sum + item.montant, 0);
 
-  const getStatusColor = (rythme: number) => {
-    if (rythme >= 5) return 'bg-green-100 border-green-300';
-    if (rythme >= 3) return 'bg-yellow-100 border-yellow-300';
+  const getStatusColor = (objectifPourcentage: number) => {
+    if (objectifPourcentage >= 80) return 'bg-green-100 border-green-300';
+    if (objectifPourcentage >= 60) return 'bg-yellow-100 border-yellow-300';
     return 'bg-red-100 border-red-300';
   };
 
-  const getStatusTextColor = (rythme: number) => {
-    if (rythme >= 5) return 'text-green-800';
-    if (rythme >= 3) return 'text-yellow-800';
+  const getStatusTextColor = (objectifPourcentage: number) => {
+    if (objectifPourcentage >= 80) return 'text-green-800';
+    if (objectifPourcentage >= 60) return 'text-yellow-800';
     return 'text-red-800';
   };
 
@@ -309,29 +309,29 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                             <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
                               <Package className="h-4 w-4 text-green-600" />
                             </div>
-                            <span className={`font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>{item.produitNom}</span>
+                            <span className={`font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>{item.produitNom}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <div className={`flex items-center space-x-2 ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          <div className={`flex items-center space-x-2 ${getStatusTextColor(item.objectifPourcentage)}`}>
                             <MapPin className="h-4 w-4" />
                             <span>{item.brickNom}</span>
                           </div>
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
                           {item.montant.toLocaleString()}
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
                           {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()}` : 'N/A'}
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
                           {item.objectifAnnuel ? `${item.objectifAnnuel.toLocaleString()}` : 'N/A'}
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
                           {item.objectifPourcentage ? `${item.objectifPourcentage.toFixed(1)}%` : 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.objectifPourcentage)}`}>
                             <TrendingUp className="h-4 w-4" />
                             <span className="font-medium">{item.rythmeRecrutement}</span>
                           </div>
@@ -354,15 +354,15 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-200 border-2 border-green-300 rounded"></div>
-                <span className="text-sm text-green-800 font-medium">Excellent (≥5)</span>
+                <span className="text-sm text-green-800 font-medium">Excellent (≥80%)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-200 border-2 border-yellow-300 rounded"></div>
-                <span className="text-sm text-yellow-800 font-medium">Moyen (3-4)</span>
+                <span className="text-sm text-yellow-800 font-medium">Moyen (60-79%)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-200 border-2 border-red-300 rounded"></div>
-                <span className="text-sm text-red-800 font-medium">Faible (&lt;3)</span>
+                <span className="text-sm text-red-800 font-medium">Faible (&lt;60%)</span>
               </div>
             </div>
           </CardContent>
