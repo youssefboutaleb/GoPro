@@ -11,166 +11,108 @@ interface RythmeRecrutementProps {
   onBack: () => void;
 }
 
-interface ProduitData {
+interface VenteData {
   id: string;
-  nom: string;
-  brick: string;
-  venteRealisee: number;
-  objectif: number;
-  pourcentage: number;
-  rythmeNecessaire: number;
+  produitNom: string;
+  brickNom: string;
+  montantTotal: number;
+  nombreVentes: number;
+  rythmeRecrutement: number;
 }
 
 const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
-  // Fetch produits data
-  const { data: produits = [], isLoading: loadingProduits } = useQuery({
-    queryKey: ['produits'],
+  // Fetch ventes with product and brick names
+  const { data: ventesData = [], isLoading } = useQuery({
+    queryKey: ['ventes_with_details'],
     queryFn: async () => {
-      console.log('Fetching produits from Supabase...');
-      const { data, error } = await supabase
-        .from('produits')
-        .select('*')
-        .eq('actif', true);
-
-      if (error) {
-        console.error('Error fetching produits:', error);
-        throw error;
-      }
-
-      console.log('Fetched produits:', data);
-      return data || [];
-    }
-  });
-
-  // Fetch objectifs data
-  const { data: objectifs = [], isLoading: loadingObjectifs } = useQuery({
-    queryKey: ['objectifs_produits'],
-    queryFn: async () => {
-      console.log('Fetching objectifs_produits from Supabase...');
-      const { data, error } = await supabase
-        .from('objectifs_produits')
-        .select('*');
-
-      if (error) {
-        console.error('Error fetching objectifs:', error);
-        throw error;
-      }
-
-      console.log('Fetched objectifs:', data);
-      return data || [];
-    }
-  });
-
-  // Fetch ventes data
-  const { data: ventes = [], isLoading: loadingVentes } = useQuery({
-    queryKey: ['ventes_produits'],
-    queryFn: async () => {
-      console.log('Fetching ventes_produits from Supabase...');
-      const { data, error } = await supabase
+      console.log('Fetching ventes with product and brick details...');
+      
+      // Fetch ventes with joined data
+      const { data: ventes, error: ventesError } = await supabase
         .from('ventes_produits')
-        .select('*');
+        .select(`
+          *,
+          produits:produit_id(nom),
+          bricks:brick_id(nom)
+        `);
 
-      if (error) {
-        console.error('Error fetching ventes:', error);
-        throw error;
+      if (ventesError) {
+        console.error('Error fetching ventes:', ventesError);
+        throw ventesError;
       }
 
-      console.log('Fetched ventes:', data);
-      return data || [];
+      console.log('Fetched ventes with details:', ventes);
+      return ventes || [];
     }
   });
 
-  // Fetch bricks for brick names
-  const { data: bricks = [] } = useQuery({
-    queryKey: ['bricks'],
-    queryFn: async () => {
-      console.log('Fetching bricks from Supabase...');
-      const { data, error } = await supabase
-        .from('bricks')
-        .select('*');
+  // Process ventes data to group by product and brick
+  const processedData: VenteData[] = ventesData.reduce((acc, vente) => {
+    const produitNom = vente.produits?.nom || 'Produit inconnu';
+    const brickNom = vente.bricks?.nom || 'Brick inconnu';
+    const key = `${vente.produit_id}-${vente.brick_id}`;
 
-      if (error) {
-        console.error('Error fetching bricks:', error);
-        throw error;
-      }
+    const existingEntry = acc.find(item => 
+      item.produitNom === produitNom && item.brickNom === brickNom
+    );
 
-      console.log('Fetched bricks:', data);
-      return data || [];
+    if (existingEntry) {
+      existingEntry.montantTotal += Number(vente.montant) || 0;
+      existingEntry.nombreVentes += 1;
+      // Recalculate rythme based on updated data
+      existingEntry.rythmeRecrutement = Math.ceil(existingEntry.montantTotal / 1000);
+    } else {
+      acc.push({
+        id: key,
+        produitNom,
+        brickNom,
+        montantTotal: Number(vente.montant) || 0,
+        nombreVentes: 1,
+        rythmeRecrutement: Math.ceil((Number(vente.montant) || 0) / 1000)
+      });
     }
-  });
 
-  const isLoading = loadingProduits || loadingObjectifs || loadingVentes;
+    return acc;
+  }, [] as VenteData[]);
 
-  // Process and combine data
-  const produitsData: ProduitData[] = produits.map(produit => {
-    // Get objectifs for this product
-    const produitObjectifs = objectifs.filter(obj => obj.produit_id === produit.id);
-    const totalObjectif = produitObjectifs.reduce((sum, obj) => sum + (Number(obj.objectif_mensuel) || 0), 0);
+  console.log('Processed ventes data:', processedData);
 
-    // Get ventes for this product
-    const produitVentes = ventes.filter(vente => vente.produit_id === produit.id);
-    const totalVentes = produitVentes.reduce((sum, vente) => sum + (Number(vente.montant) || 0), 0);
-
-    // Get brick name - use the first brick found in ventes or objectifs
-    const brickId = produitVentes[0]?.brick_id || produitObjectifs[0]?.['id-brick'];
-    const brick = bricks.find(b => b.id === brickId);
-    const brickName = brick?.nom || 'Non assigné';
-
-    // Calculate percentage
-    const pourcentage = totalObjectif > 0 ? Math.round((totalVentes / totalObjectif) * 100) : 0;
-
-    // Calculate rythme necessaire (simplified logic)
-    const rythmeNecessaire = pourcentage < 100 ? Math.ceil((100 - pourcentage) / 10) : 1;
-
-    return {
-      id: produit.id,
-      nom: produit.nom,
-      brick: brickName,
-      venteRealisee: totalVentes,
-      objectif: totalObjectif,
-      pourcentage,
-      rythmeNecessaire
-    };
-  });
-
-  console.log('Processed produits data:', produitsData);
-
-  const getStatusColor = (pourcentage: number) => {
-    if (pourcentage >= 80) return 'bg-green-100 border-green-300';
-    if (pourcentage >= 60) return 'bg-yellow-100 border-yellow-300';
-    return 'bg-red-100 border-red-300';
-  };
-
-  const getStatusTextColor = (pourcentage: number) => {
-    if (pourcentage >= 80) return 'text-green-800';
-    if (pourcentage >= 60) return 'text-yellow-800';
-    return 'text-red-800';
-  };
-
-  const filteredProduits = produitsData.filter(produit => {
-    const matchesProduct = selectedProduct === 'all' || produit.nom === selectedProduct;
-    const matchesBrick = selectedBrick === 'all' || produit.brick === selectedBrick;
+  // Filter data based on selections
+  const filteredData = processedData.filter(item => {
+    const matchesProduct = selectedProduct === 'all' || item.produitNom === selectedProduct;
+    const matchesBrick = selectedBrick === 'all' || item.brickNom === selectedBrick;
     return matchesProduct && matchesBrick;
   });
 
-  // Calcul des totaux
-  const totalVente = filteredProduits.reduce((sum, produit) => sum + produit.venteRealisee, 0);
-  const totalObjectif = filteredProduits.reduce((sum, produit) => sum + produit.objectif, 0);
-  const pourcentageGlobal = totalObjectif > 0 ? Math.round((totalVente / totalObjectif) * 100) : 0;
+  // Get unique values for filters
+  const uniqueProducts = [...new Set(processedData.map(item => item.produitNom))];
+  const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))];
 
-  // Get unique product names and bricks for filters
-  const uniqueProducts = [...new Set(produitsData.map(p => p.nom))];
-  const uniqueBricks = [...new Set(produitsData.map(p => p.brick))];
+  // Calculate totals
+  const totalMontant = filteredData.reduce((sum, item) => sum + item.montantTotal, 0);
+  const totalVentes = filteredData.reduce((sum, item) => sum + item.nombreVentes, 0);
+
+  const getStatusColor = (rythme: number) => {
+    if (rythme >= 5) return 'bg-green-100 border-green-300';
+    if (rythme >= 3) return 'bg-yellow-100 border-yellow-300';
+    return 'bg-red-100 border-red-300';
+  };
+
+  const getStatusTextColor = (rythme: number) => {
+    if (rythme >= 5) return 'text-green-800';
+    if (rythme >= 3) return 'text-yellow-800';
+    return 'text-red-800';
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des données de rythme de recrutement...</p>
+          <p className="text-gray-600">Chargement des données de ventes...</p>
         </div>
       </div>
     );
@@ -192,15 +134,15 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement</h1>
-                  <p className="text-sm text-gray-600">{filteredProduits.length} produits trouvés sur {produitsData.length} total</p>
+                  <p className="text-sm text-gray-600">{filteredData.length} entrées trouvées sur {processedData.length} total</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{pourcentageGlobal}%</div>
-                  <div className="text-sm opacity-90">Objectif Global</div>
+                  <div className="text-2xl font-bold">{totalVentes}</div>
+                  <div className="text-sm opacity-90">Total Ventes</div>
                 </div>
               </div>
             </div>
@@ -252,36 +194,20 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           </CardContent>
         </Card>
 
-        {/* Debug Information */}
-        {produitsData.length === 0 && (
-          <Card className="bg-yellow-50 border-yellow-200 mb-6">
-            <CardContent className="pt-6">
-              <p className="text-yellow-800">
-                Debug: Aucune donnée trouvée. Vérifiez que des données existent dans les tables 'produits', 'objectifs_produits' et 'ventes_produits' dans Supabase.
-              </p>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p>Produits: {produits.length} | Objectifs: {objectifs.length} | Ventes: {ventes.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Results Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Suivi des Ventes par Produit</CardTitle>
+            <CardTitle className="text-lg text-gray-900">Rythme de Recrutement par Ventes</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredProduits.length === 0 ? (
+            {filteredData.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {produitsData.length === 0 ? 'Aucune donnée dans la base' : 'Aucun produit trouvé'}
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune donnée trouvée</h3>
                 <p className="text-gray-600">
-                  {produitsData.length === 0 
-                    ? 'Les tables produits, objectifs ou ventes semblent être vides. Ajoutez des données dans Supabase.'
-                    : 'Essayez de modifier vos critères de recherche.'
+                  {processedData.length === 0 
+                    ? 'Aucune vente trouvée dans la base de données.'
+                    : 'Essayez de modifier vos critères de filtrage.'
                   }
                 </p>
               </div>
@@ -292,55 +218,38 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Vente Réalisée (montant)</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif (montant)</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">% Objectif</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Nouvelles Prescriptions/mois</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Montant Total</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Nombre de Ventes</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Rythme de Recrutement</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProduits.map((produit) => (
-                      <tr key={produit.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(produit.pourcentage)} border-2`}>
+                    {filteredData.map((item) => (
+                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.rythmeRecrutement)} border-2`}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
                               <Package className="h-4 w-4 text-green-600" />
                             </div>
-                            <span className={`font-medium ${getStatusTextColor(produit.pourcentage)}`}>{produit.nom}</span>
+                            <span className={`font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>{item.produitNom}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <div className={`flex items-center space-x-2 ${getStatusTextColor(produit.pourcentage)}`}>
+                          <div className={`flex items-center space-x-2 ${getStatusTextColor(item.rythmeRecrutement)}`}>
                             <MapPin className="h-4 w-4" />
-                            <span>{produit.brick}</span>
+                            <span>{item.brickNom}</span>
                           </div>
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
-                          {produit.venteRealisee.toLocaleString()}
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          {item.montantTotal.toLocaleString()} €
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
-                          {produit.objectif.toLocaleString()}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <div className={`w-16 bg-gray-200 rounded-full h-2`}>
-                              <div 
-                                className={`h-2 rounded-full ${
-                                  produit.pourcentage >= 80 ? 'bg-green-600' :
-                                  produit.pourcentage >= 60 ? 'bg-yellow-600' : 'bg-red-600'
-                                }`}
-                                style={{ width: `${Math.min(produit.pourcentage, 100)}%` }}
-                              ></div>
-                            </div>
-                            <span className={`text-sm font-semibold ${getStatusTextColor(produit.pourcentage)}`}>
-                              {produit.pourcentage}%
-                            </span>
-                          </div>
+                        <td className={`py-4 px-4 text-center font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          {item.nombreVentes}
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(produit.pourcentage)}`}>
+                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.rythmeRecrutement)}`}>
                             <TrendingUp className="h-4 w-4" />
-                            <span className="font-medium">{produit.rythmeNecessaire}</span>
+                            <span className="font-medium">{item.rythmeRecrutement}</span>
                           </div>
                         </td>
                       </tr>
@@ -352,24 +261,47 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           </CardContent>
         </Card>
 
+        {/* Summary Card */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg text-gray-900">Résumé</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()} €</div>
+                <div className="text-sm text-gray-600">Montant Total</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{totalVentes}</div>
+                <div className="text-sm text-gray-600">Nombre de Ventes</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{filteredData.length}</div>
+                <div className="text-sm text-gray-600">Combinaisons Produit-Brick</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Légende */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Légende</CardTitle>
+            <CardTitle className="text-lg text-gray-900">Légende - Rythme de Recrutement</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-200 border-2 border-green-300 rounded"></div>
-                <span className="text-sm text-green-800 font-medium">Excellent (80%+)</span>
+                <span className="text-sm text-green-800 font-medium">Excellent (≥5)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-200 border-2 border-yellow-300 rounded"></div>
-                <span className="text-sm text-yellow-800 font-medium">Moyen (60-79%)</span>
+                <span className="text-sm text-yellow-800 font-medium">Moyen (3-4)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-200 border-2 border-red-300 rounded"></div>
-                <span className="text-sm text-red-800 font-medium">Faible (&lt;60%)</span>
+                <span className="text-sm text-red-800 font-medium">Faible (&lt;3)</span>
               </div>
             </div>
           </CardContent>
