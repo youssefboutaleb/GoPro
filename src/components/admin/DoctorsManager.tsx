@@ -60,9 +60,15 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
       }
 
       console.log('Fetched medecins:', data);
+      console.log('Number of medecins fetched:', data?.length || 0);
       return data as Medecin[];
     }
   });
+
+  // Log data for debugging
+  console.log('Current medecins state:', medecins);
+  console.log('Is loading:', isLoading);
+  console.log('Error:', error);
 
   const filteredMedecins = medecins.filter(medecin => {
     const fullName = `${medecin.prenom} ${medecin.nom}`.toLowerCase();
@@ -91,7 +97,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Erreur lors du chargement des médecins</p>
+          <p className="text-red-600 mb-4">Erreur lors du chargement des médecins: {error.message}</p>
           <Button onClick={onBack}>Retour</Button>
         </div>
       </div>
@@ -118,7 +124,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Liste des Médecins</h1>
-                <p className="text-sm text-gray-600">{filteredMedecins.length} médecins trouvés</p>
+                <p className="text-sm text-gray-600">{filteredMedecins.length} médecins trouvés sur {medecins.length} total</p>
               </div>
             </div>
           </div>
@@ -182,6 +188,18 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
           </CardContent>
         </Card>
 
+        {/* Debug Information */}
+        {medecins.length === 0 && (
+          <Card className="bg-yellow-50 border-yellow-200 mb-6">
+            <CardContent className="pt-6">
+              <p className="text-yellow-800">
+                Debug: Aucune donnée trouvée dans la table 'medecins'. 
+                Vérifiez que des données existent dans Supabase.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
@@ -197,8 +215,15 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
             {filteredMedecins.length === 0 ? (
               <div className="text-center py-12">
                 <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun médecin trouvé</h3>
-                <p className="text-gray-600">Essayez de modifier vos critères de recherche.</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {medecins.length === 0 ? 'Aucune donnée dans la base' : 'Aucun médecin trouvé'}
+                </h3>
+                <p className="text-gray-600">
+                  {medecins.length === 0 
+                    ? 'La table medecins semble être vide. Ajoutez des médecins dans Supabase.'
+                    : 'Essayez de modifier vos critères de recherche.'
+                  }
+                </p>
               </div>
             ) : (
               <Table>
