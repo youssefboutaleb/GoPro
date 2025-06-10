@@ -10,7 +10,8 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
@@ -95,9 +96,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password,
     });
 
-    if (error) {
-      throw error;
-    }
+    return { error };
+  };
+
+  const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
+
+    return { error };
   };
 
   const signOut = async () => {
@@ -115,6 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     profile,
     session,
     signIn,
+    signUp,
     signOut,
     loading,
     isAdmin,
