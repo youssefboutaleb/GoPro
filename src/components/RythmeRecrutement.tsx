@@ -15,8 +15,8 @@ interface VenteData {
   id: string;
   produitNom: string;
   brickNom: string;
-  montantTotal: number;
-  nombreVentes: number;
+  montant: number;
+  objectifMensuel: number | null;
   rythmeRecrutement: number;
 }
 
@@ -24,19 +24,20 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
-  // Fetch ventes with product and brick names
+  // Fetch ventes with product, brick names and objectives
   const { data: ventesData = [], isLoading } = useQuery({
-    queryKey: ['ventes_with_details'],
+    queryKey: ['ventes_with_objectives'],
     queryFn: async () => {
-      console.log('Fetching ventes with product and brick details...');
+      console.log('Fetching ventes with product, brick details and objectives...');
       
-      // Fetch ventes with joined data
+      // Fetch ventes with joined data including objectives
       const { data: ventes, error: ventesError } = await supabase
         .from('ventes_produits')
         .select(`
           *,
           produits:produit_id(nom),
-          bricks:brick_id(nom)
+          bricks:brick_id(nom),
+          objectifs_produits!inner(objectif_mensuel)
         `);
 
       if (ventesError) {
@@ -44,7 +45,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         throw ventesError;
       }
 
-      console.log('Fetched ventes with details:', ventes);
+      console.log('Fetched ventes with details and objectives:', ventes);
       return ventes || [];
     }
   });
@@ -59,19 +60,21 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       item.produitNom === produitNom && item.brickNom === brickNom
     );
 
+    const montant = Number(vente.montant) || 0;
+    const objectifMensuel = vente.objectifs_produits?.objectif_mensuel ? Number(vente.objectifs_produits.objectif_mensuel) : null;
+
     if (existingEntry) {
-      existingEntry.montantTotal += Number(vente.montant) || 0;
-      existingEntry.nombreVentes += 1;
+      existingEntry.montant += montant;
       // Recalculate rythme based on updated data
-      existingEntry.rythmeRecrutement = Math.ceil(existingEntry.montantTotal / 1000);
+      existingEntry.rythmeRecrutement = Math.ceil(existingEntry.montant / 1000);
     } else {
       acc.push({
         id: key,
         produitNom,
         brickNom,
-        montantTotal: Number(vente.montant) || 0,
-        nombreVentes: 1,
-        rythmeRecrutement: Math.ceil((Number(vente.montant) || 0) / 1000)
+        montant,
+        objectifMensuel,
+        rythmeRecrutement: Math.ceil(montant / 1000)
       });
     }
 
@@ -92,8 +95,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))];
 
   // Calculate totals
-  const totalMontant = filteredData.reduce((sum, item) => sum + item.montantTotal, 0);
-  const totalVentes = filteredData.reduce((sum, item) => sum + item.nombreVentes, 0);
+  const totalMontant = filteredData.reduce((sum, item) => sum + item.montant, 0);
 
   const getStatusColor = (rythme: number) => {
     if (rythme >= 5) return 'bg-green-100 border-green-300';
@@ -141,8 +143,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
             <div className="flex items-center space-x-4">
               <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{totalVentes}</div>
-                  <div className="text-sm opacity-90">Total Ventes</div>
+                  <div className="text-2xl font-bold">{filteredData.length}</div>
+                  <div className="text-sm opacity-90">Entrées</div>
                 </div>
               </div>
             </div>
@@ -218,8 +220,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Montant Total</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Nombre de Ventes</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Nombre de Ventes</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Mensuel</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Rythme de Recrutement</th>
                     </tr>
                   </thead>
@@ -241,10 +243,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                           </div>
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
-                          {item.montantTotal.toLocaleString()} €
+                          {item.montant.toLocaleString()} €
                         </td>
-                        <td className={`py-4 px-4 text-center font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
-                          {item.nombreVentes}
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()} €` : 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.rythmeRecrutement)}`}>
@@ -267,14 +269,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
             <CardTitle className="text-lg text-gray-900">Résumé</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()} €</div>
-                <div className="text-sm text-gray-600">Montant Total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{totalVentes}</div>
-                <div className="text-sm text-gray-600">Nombre de Ventes</div>
+                <div className="text-sm text-gray-600">Total Ventes</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{filteredData.length}</div>
