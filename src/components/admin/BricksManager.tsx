@@ -23,6 +23,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBrick, setEditingBrick] = useState<Brick | null>(null);
   const [formData, setFormData] = useState({
+    nom: '',
     name: '',
     region: '',
     description: '',
@@ -37,7 +38,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       const { data, error } = await supabase
         .from('bricks')
         .select('*')
-        .order('region', { ascending: true });
+        .order('nom', { ascending: true });
 
       if (error) throw error;
       setBricks(data || []);
@@ -58,10 +59,17 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
     setLoading(true);
 
     try {
+      const submitData = {
+        nom: formData.nom,
+        name: formData.name,
+        region: formData.region,
+        description: formData.description,
+      };
+
       if (editingBrick) {
         const { error } = await supabase
           .from('bricks')
-          .update(formData)
+          .update(submitData)
           .eq('id', editingBrick.id);
 
         if (error) throw error;
@@ -72,7 +80,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       } else {
         const { error } = await supabase
           .from('bricks')
-          .insert([formData]);
+          .insert([submitData]);
 
         if (error) throw error;
         toast({
@@ -83,7 +91,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
       setDialogOpen(false);
       setEditingBrick(null);
-      setFormData({ name: '', region: '', description: '' });
+      setFormData({ nom: '', name: '', region: '', description: '' });
       fetchBricks();
     } catch (error) {
       console.error('Error saving brick:', error);
@@ -98,7 +106,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   };
 
   const handleDelete = async (brick: Brick) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la brick "${brick.name}" ?`)) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer la brick "${brick.nom || brick.name}" ?`)) {
       try {
         const { error } = await supabase
           .from('bricks')
@@ -125,8 +133,9 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   const openEditDialog = (brick: Brick) => {
     setEditingBrick(brick);
     setFormData({
-      name: brick.name,
-      region: brick.region,
+      nom: brick.nom,
+      name: brick.name || '',
+      region: brick.region || '',
       description: brick.description || '',
     });
     setDialogOpen(true);
@@ -134,7 +143,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
   const openCreateDialog = () => {
     setEditingBrick(null);
-    setFormData({ name: '', region: '', description: '' });
+    setFormData({ nom: '', name: '', region: '', description: '' });
     setDialogOpen(true);
   };
 
@@ -185,13 +194,22 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Nom de la brick</Label>
+                      <Label htmlFor="nom">Nom de la brick (FR)</Label>
+                      <Input
+                        id="nom"
+                        value={formData.nom}
+                        onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                        placeholder="Ex: Nord-1"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nom de la brick (EN)</Label>
                       <Input
                         id="name"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Ex: Nord-1"
-                        required
+                        placeholder="Ex: North-1"
                       />
                     </div>
                     <div className="space-y-2">
@@ -201,7 +219,6 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                         value={formData.region}
                         onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                         placeholder="Ex: Nord"
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -233,7 +250,8 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
+                    <TableHead>Nom (FR)</TableHead>
+                    <TableHead>Nom (EN)</TableHead>
                     <TableHead>Région</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -242,9 +260,10 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {bricks.map((brick) => (
                     <TableRow key={brick.id}>
-                      <TableCell className="font-medium">{brick.name}</TableCell>
-                      <TableCell>{brick.region}</TableCell>
-                      <TableCell>{brick.description}</TableCell>
+                      <TableCell className="font-medium">{brick.nom}</TableCell>
+                      <TableCell>{brick.name || 'N/A'}</TableCell>
+                      <TableCell>{brick.region || 'N/A'}</TableCell>
+                      <TableCell>{brick.description || 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button

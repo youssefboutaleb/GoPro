@@ -11,18 +11,27 @@ export type Database = {
     Tables: {
       bricks: {
         Row: {
+          description: string | null
           id: string
+          name: string | null
           nom: string
+          region: string | null
           secteur_id: string | null
         }
         Insert: {
+          description?: string | null
           id?: string
+          name?: string | null
           nom: string
+          region?: string | null
           secteur_id?: string | null
         }
         Update: {
+          description?: string | null
           id?: string
+          name?: string | null
           nom?: string
+          region?: string | null
           secteur_id?: string | null
         }
         Relationships: [
@@ -266,6 +275,33 @@ export type Database = {
           classe_therapeutique?: string | null
           id?: string
           nom?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: []
       }
