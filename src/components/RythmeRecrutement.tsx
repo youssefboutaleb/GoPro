@@ -272,10 +272,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                           </div>
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
-                          {item.montant.toLocaleString()} €
+                          {item.montant.toLocaleString()}
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
-                          {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()} €` : 'N/A'}
+                          {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()}` : 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.rythmeRecrutement)}`}>
