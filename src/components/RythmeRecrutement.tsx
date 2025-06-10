@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,8 @@ interface VenteData {
   brickNom: string;
   montant: number;
   objectifMensuel: number | null;
+  objectifAnnuel: number | null;
+  objectifPourcentage: number | null;
   rythmeRecrutement: number;
 }
 
@@ -87,13 +88,20 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       obj.produit_id === vente.produit_id && obj['id-brick'] === vente.brick_id
     );
     const objectifMensuel = matchingObjective?.objectif_mensuel ? Number(matchingObjective.objectif_mensuel) : null;
+    const objectifAnnuel = objectifMensuel ? objectifMensuel * 12 : null;
+    const objectifPourcentage = objectifAnnuel && objectifAnnuel > 0 ? (montant / objectifAnnuel) * 100 : null;
 
     if (existingEntry) {
       existingEntry.montant += montant;
       // Update objective if we found a better match or if it was null
       if (objectifMensuel && !existingEntry.objectifMensuel) {
         existingEntry.objectifMensuel = objectifMensuel;
+        existingEntry.objectifAnnuel = objectifAnnuel;
       }
+      // Recalculate percentage based on updated data
+      existingEntry.objectifPourcentage = existingEntry.objectifAnnuel && existingEntry.objectifAnnuel > 0 
+        ? (existingEntry.montant / existingEntry.objectifAnnuel) * 100 
+        : null;
       // Recalculate rythme based on updated data
       existingEntry.rythmeRecrutement = Math.ceil(existingEntry.montant / 1000);
     } else {
@@ -103,6 +111,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         brickNom,
         montant,
         objectifMensuel,
+        objectifAnnuel,
+        objectifPourcentage,
         rythmeRecrutement: Math.ceil(montant / 1000)
       });
     }
@@ -251,6 +261,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Nombre de Ventes</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Mensuel</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Annuel</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif en %</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Rythme de Recrutement</th>
                     </tr>
                   </thead>
@@ -276,6 +288,12 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
                           {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()}` : 'N/A'}
+                        </td>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          {item.objectifAnnuel ? `${item.objectifAnnuel.toLocaleString()}` : 'N/A'}
+                        </td>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.rythmeRecrutement)}`}>
+                          {item.objectifPourcentage ? `${item.objectifPourcentage.toFixed(1)}%` : 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.rythmeRecrutement)}`}>
