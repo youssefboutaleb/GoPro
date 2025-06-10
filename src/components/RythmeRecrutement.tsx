@@ -24,20 +24,18 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
-  // Fetch ventes with product, brick names and objectives
-  const { data: ventesData = [], isLoading } = useQuery({
-    queryKey: ['ventes_with_objectives'],
+  // Fetch ventes with product and brick names
+  const { data: ventesData = [], isLoading: ventesLoading } = useQuery({
+    queryKey: ['ventes_with_details'],
     queryFn: async () => {
-      console.log('Fetching ventes with product, brick details and objectives...');
+      console.log('Fetching ventes with product and brick details...');
       
-      // Fetch ventes with joined data including objectives
       const { data: ventes, error: ventesError } = await supabase
         .from('ventes_produits')
         .select(`
           *,
           produits:produit_id(nom),
-          bricks:brick_id(nom),
-          objectifs_produits!inner(objectif_mensuel)
+          bricks:brick_id(nom)
         `);
 
       if (ventesError) {
@@ -45,12 +43,34 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         throw ventesError;
       }
 
-      console.log('Fetched ventes with details and objectives:', ventes);
+      console.log('Fetched ventes with details:', ventes);
       return ventes || [];
     }
   });
 
-  // Process ventes data to group by product and brick
+  // Fetch objectives separately
+  const { data: objectivesData = [], isLoading: objectivesLoading } = useQuery({
+    queryKey: ['objectifs_produits'],
+    queryFn: async () => {
+      console.log('Fetching objectives...');
+      
+      const { data: objectives, error: objectivesError } = await supabase
+        .from('objectifs_produits')
+        .select('*');
+
+      if (objectivesError) {
+        console.error('Error fetching objectives:', objectivesError);
+        throw objectivesError;
+      }
+
+      console.log('Fetched objectives:', objectives);
+      return objectives || [];
+    }
+  });
+
+  const isLoading = ventesLoading || objectivesLoading;
+
+  // Process ventes data to group by product and brick, and match with objectives
   const processedData: VenteData[] = ventesData.reduce((acc, vente) => {
     const produitNom = vente.produits?.nom || 'Produit inconnu';
     const brickNom = vente.bricks?.nom || 'Brick inconnu';
@@ -61,10 +81,19 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     );
 
     const montant = Number(vente.montant) || 0;
-    const objectifMensuel = vente.objectifs_produits?.objectif_mensuel ? Number(vente.objectifs_produits.objectif_mensuel) : null;
+
+    // Find matching objective based on produit_id and brick_id
+    const matchingObjective = objectivesData.find(obj => 
+      obj.produit_id === vente.produit_id && obj['id-brick'] === vente.brick_id
+    );
+    const objectifMensuel = matchingObjective?.objectif_mensuel ? Number(matchingObjective.objectif_mensuel) : null;
 
     if (existingEntry) {
       existingEntry.montant += montant;
+      // Update objective if we found a better match or if it was null
+      if (objectifMensuel && !existingEntry.objectifMensuel) {
+        existingEntry.objectifMensuel = objectifMensuel;
+      }
       // Recalculate rythme based on updated data
       existingEntry.rythmeRecrutement = Math.ceil(existingEntry.montant / 1000);
     } else {
