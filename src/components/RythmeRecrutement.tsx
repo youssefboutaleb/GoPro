@@ -25,6 +25,20 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
+  // Get current month number (1-12)
+  const currentMonth = new Date().getMonth() + 1;
+  const n = 13 - currentMonth;
+
+  // Calculate rythme de recrutement using the new formula
+  const calculateRythmeRecrutement = (objectifAnnuel: number | null, montant: number): number => {
+    if (!objectifAnnuel || objectifAnnuel <= 0 || n <= 0) return 0;
+    
+    const numerator = objectifAnnuel - montant;
+    const denominator = n * (n + 1) / 2;
+    
+    return denominator > 0 ? Math.ceil(numerator / denominator) : 0;
+  };
+
   // Fetch ventes with product and brick names
   const { data: ventesData = [], isLoading: ventesLoading } = useQuery({
     queryKey: ['ventes_with_details'],
@@ -102,8 +116,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       existingEntry.objectifPourcentage = existingEntry.objectifAnnuel && existingEntry.objectifAnnuel > 0 
         ? (existingEntry.montant / existingEntry.objectifAnnuel) * 100 
         : null;
-      // Recalculate rythme based on updated data
-      existingEntry.rythmeRecrutement = Math.ceil(existingEntry.montant / 1000);
+      // Recalculate rythme based on updated data using new formula
+      existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifAnnuel, existingEntry.montant);
     } else {
       acc.push({
         id: key,
@@ -113,7 +127,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         objectifMensuel,
         objectifAnnuel,
         objectifPourcentage,
-        rythmeRecrutement: Math.ceil(montant / 1000)
+        rythmeRecrutement: calculateRythmeRecrutement(objectifAnnuel, montant)
       });
     }
 
@@ -357,3 +371,5 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 };
 
 export default RythmeRecrutement;
+
+}
