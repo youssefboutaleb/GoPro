@@ -1,14 +1,30 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Search, Filter, User, Phone, MapPin, Calendar, Stethoscope } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface MedecinsListProps {
   onBack: () => void;
+}
+
+interface Medecin {
+  id: string;
+  nom: string;
+  prenom: string;
+  specialite: string | null;
+  brick_id: string | null;
+  bricks?: {
+    nom: string;
+    secteur?: {
+      nom: string;
+    };
+  };
 }
 
 const MedecinsList = ({ onBack }: MedecinsListProps) => {
@@ -17,102 +33,70 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
   const [selectedWeek, setSelectedWeek] = useState('47');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
-  const medecins = [
-    {
-      id: 1,
-      nom: "Dr. Martin Dubois",
-      specialite: "Cardiologie",
-      brick: "Nord-1",
-      telephone: "01.45.67.89.12",
-      adresse: "15 rue de la Paix, Paris",
-      derniereVisite: "2024-11-20",
-      statut: "Actif",
-      objectifMensuel: 12,
-      visitesRealisees: 8
-    },
-    {
-      id: 2,
-      nom: "Dr. Sophie Laurent",
-      specialite: "Médecine Générale",
-      brick: "Nord-2",
-      telephone: "01.45.67.89.13",
-      adresse: "32 avenue Victor Hugo, Lyon",
-      derniereVisite: "2024-11-18",
-      statut: "Actif",
-      objectifMensuel: 15,
-      visitesRealisees: 12
-    },
-    {
-      id: 3,
-      nom: "Dr. Pierre Moreau",
-      specialite: "Diabétologie",
-      brick: "Sud-1",
-      telephone: "01.45.67.89.14",
-      adresse: "8 place du Marché, Marseille",
-      derniereVisite: "2024-11-15",
-      statut: "En attente",
-      objectifMensuel: 10,
-      visitesRealisees: 6
-    },
-    {
-      id: 4,
-      nom: "Dr. Marie Leroy",
-      specialite: "Cardiologie",
-      brick: "Nord-1",
-      telephone: "01.45.67.89.15",
-      adresse: "25 boulevard Saint-Michel, Paris",
-      derniereVisite: "2024-11-22",
-      statut: "Actif",
-      objectifMensuel: 14,
-      visitesRealisees: 11
-    },
-    {
-      id: 5,
-      nom: "Dr. Jean Dupont",
-      specialite: "Médecine Générale",
-      brick: "Sud-2",
-      telephone: "01.45.67.89.16",
-      adresse: "12 rue de la République, Nice",
-      derniereVisite: "2024-11-19",
-      statut: "Actif",
-      objectifMensuel: 18,
-      visitesRealisees: 15
-    },
-    {
-      id: 6,
-      nom: "Dr. Anne Rousseau",
-      specialite: "Diabétologie",
-      brick: "Nord-2",
-      telephone: "01.45.67.89.17",
-      adresse: "45 cours Lafayette, Lyon",
-      derniereVisite: "2024-11-17",
-      statut: "Actif",
-      objectifMensuel: 8,
-      visitesRealisees: 9
+  const { data: medecins = [], isLoading, error } = useQuery({
+    queryKey: ['medecins'],
+    queryFn: async () => {
+      console.log('Fetching medecins from Supabase...');
+      
+      const { data, error } = await supabase
+        .from('medecins')
+        .select(`
+          id,
+          nom,
+          prenom,
+          specialite,
+          brick_id,
+          bricks:brick_id (
+            nom,
+            secteur:secteur_id (
+              nom
+            )
+          )
+        `);
+
+      if (error) {
+        console.error('Error fetching medecins:', error);
+        throw error;
+      }
+
+      console.log('Fetched medecins:', data);
+      return data as Medecin[];
     }
-  ];
+  });
 
   const filteredMedecins = medecins.filter(medecin => {
-    const matchesSearch = medecin.nom.toLowerCase().includes(searchTerm.toLowerCase());
+    const fullName = `${medecin.prenom} ${medecin.nom}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase());
     const matchesSpecialty = selectedSpecialty === 'all' || medecin.specialite === selectedSpecialty;
-    const matchesBrick = selectedBrick === 'all' || medecin.brick === selectedBrick;
+    const matchesBrick = selectedBrick === 'all' || medecin.bricks?.nom === selectedBrick;
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
-  const getStatutColor = (statut: string) => {
-    switch (statut) {
-      case 'Actif': return 'bg-green-100 text-green-800';
-      case 'En attente': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // Get unique specialties and bricks for filters
+  const specialties = [...new Set(medecins.map(m => m.specialite).filter(Boolean))];
+  const bricks = [...new Set(medecins.map(m => m.bricks?.nom).filter(Boolean))];
 
-  const getPerformanceColor = (realisees: number, objectif: number) => {
-    const pourcentage = (realisees / objectif) * 100;
-    if (pourcentage >= 90) return 'text-green-600';
-    if (pourcentage >= 70) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des médecins...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Erreur lors du chargement des médecins</p>
+          <Button onClick={onBack}>Retour</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -170,9 +154,9 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Toutes spécialités</SelectItem>
-                    <SelectItem value="Cardiologie">Cardiologie</SelectItem>
-                    <SelectItem value="Médecine Générale">Médecine Générale</SelectItem>
-                    <SelectItem value="Diabétologie">Diabétologie</SelectItem>
+                    {specialties.map(specialty => (
+                      <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -200,10 +184,9 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les bricks</SelectItem>
-                    <SelectItem value="Nord-1">Nord-1</SelectItem>
-                    <SelectItem value="Nord-2">Nord-2</SelectItem>
-                    <SelectItem value="Sud-1">Sud-1</SelectItem>
-                    <SelectItem value="Sud-2">Sud-2</SelectItem>
+                    {bricks.map(brick => (
+                      <SelectItem key={brick} value={brick!}>{brick}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -222,12 +205,14 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
                       <Stethoscope className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg text-gray-900">{medecin.nom}</CardTitle>
-                      <p className="text-sm text-gray-600">{medecin.specialite}</p>
+                      <CardTitle className="text-lg text-gray-900">
+                        Dr. {medecin.prenom} {medecin.nom}
+                      </CardTitle>
+                      <p className="text-sm text-gray-600">{medecin.specialite || 'Spécialité non renseignée'}</p>
                     </div>
                   </div>
-                  <Badge className={getStatutColor(medecin.statut)}>
-                    {medecin.statut}
+                  <Badge className="bg-green-100 text-green-800">
+                    Actif
                   </Badge>
                 </div>
               </CardHeader>
@@ -235,38 +220,33 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{medecin.telephone}</span>
+                    <span className="text-gray-600">Non renseigné</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{medecin.brick}</span>
+                    <span className="text-gray-600">{medecin.bricks?.nom || 'Brick non assigné'}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{medecin.derniereVisite}</span>
+                    <span className="text-gray-600">Dernière visite: N/A</span>
                   </div>
                 </div>
                 
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-gray-700">Performance mensuelle</span>
-                    <span className={`text-sm font-bold ${getPerformanceColor(medecin.visitesRealisees, medecin.objectifMensuel)}`}>
-                      {Math.round((medecin.visitesRealisees / medecin.objectifMensuel) * 100)}%
-                    </span>
+                    <span className="text-sm font-bold text-gray-600">N/A</span>
                   </div>
                   <div className="flex justify-between text-xs text-gray-600">
-                    <span>Visites: {medecin.visitesRealisees}/{medecin.objectifMensuel}</span>
-                    <span>Restant: {Math.max(0, medecin.objectifMensuel - medecin.visitesRealisees)}</span>
+                    <span>Visites: N/A</span>
+                    <span>Secteur: {medecin.bricks?.secteur?.nom || 'Non assigné'}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, (medecin.visitesRealisees / medecin.objectifMensuel) * 100)}%` }}
-                    ></div>
+                    <div className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full w-0"></div>
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-500">{medecin.adresse}</p>
+                <p className="text-xs text-gray-500">ID: {medecin.id}</p>
               </CardContent>
             </Card>
           ))}
