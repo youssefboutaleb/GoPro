@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { ArrowLeft, Search, Filter, User, Stethoscope, MapPin, FileText } from '
 import RapportMedecins from './RapportMedecins';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface IndiceRetourProps {
   onBack: () => void;
@@ -28,6 +28,9 @@ interface Medecin {
   // Calculated fields for indice de retour
   indiceRetour: number;
   status: string;
+  totalVisits: number;
+  expectedVisits: number;
+  frequenceVisite: number;
 }
 
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
@@ -36,61 +39,129 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedWeek, setSelectedWeek] = useState('1');
   const [selectedBrick, setSelectedBrick] = useState('all');
+  const { user } = useAuth();
 
-  const { data: rawMedecins = [], isLoading, error } = useQuery({
-    queryKey: ['medecins-indice-retour'],
+  const { data: medecins = [], isLoading, error } = useQuery({
+    queryKey: ['medecins-indice-retour', user?.id],
     queryFn: async () => {
-      console.log('Fetching medecins for indice retour from Supabase...');
-      
-      const { data, error } = await supabase
-        .from('medecins')
+      if (!user) return [];
+
+      console.log('Fetching indice retour data for user:', user.id);
+
+      // First, get the current user's delegue record
+      const { data: delegueData, error: delegueError } = await supabase
+        .from('delegues')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (delegueError) {
+        console.error('Error fetching delegue:', delegueError);
+        throw delegueError;
+      }
+
+      if (!delegueData) {
+        console.log('No delegue found for user:', user.id);
+        return [];
+      }
+
+      console.log('Delegue found:', delegueData);
+
+      // Get all medecins assigned to this delegue with their frequence_visite
+      const { data: delegueMedecins, error: dmError } = await supabase
+        .from('delegue_medecins')
         .select(`
-          id,
-          nom,
-          prenom,
-          specialite,
-          brick_id,
-          bricks:brick_id (
+          medecin_id,
+          frequence_visite,
+          medecins (
+            id,
             nom,
-            secteur:secteur_id (
-              nom
+            prenom,
+            specialite,
+            brick_id,
+            bricks:brick_id (
+              nom,
+              secteur:secteur_id (
+                nom
+              )
             )
           )
         `)
-        .order('nom', { ascending: true });
+        .eq('delegue_id', delegueData.id);
 
-      if (error) {
-        console.error('Error fetching medecins for indice retour:', error);
-        throw error;
+      if (dmError) {
+        console.error('Error fetching delegue_medecins:', dmError);
+        throw dmError;
       }
 
-      console.log('Fetched medecins for indice retour:', data);
-      console.log('Number of medecins fetched:', data?.length || 0);
-      return data;
-    }
-  });
+      console.log('Delegue medecins found:', delegueMedecins);
 
-  // Transform raw data to include calculated indice retour values
-  const medecins: Medecin[] = rawMedecins.map((medecin, index) => {
-    // Generate pseudo-random but consistent indice retour based on medecin ID
-    const hash = medecin.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const indiceRetour = 25 + (hash % 70); // Range from 25 to 95
-    
-    let status = 'faible';
-    if (indiceRetour >= 80) status = 'excellent';
-    else if (indiceRetour >= 60) status = 'moyen';
-    
-    return {
-      ...medecin,
-      indiceRetour,
-      status
-    };
-  });
+      if (!delegueMedecins || delegueMedecins.length === 0) {
+        return [];
+      }
 
-  // Log data for debugging
-  console.log('Current medecins with indice retour:', medecins);
-  console.log('Is loading:', isLoading);
-  console.log('Error:', error);
+      // Get all visits for this delegue for the current year
+      const currentYear = new Date().getFullYear();
+      const startOfYear = `${currentYear}-01-01`;
+      const endOfYear = `${currentYear}-12-31`;
+
+      const { data: visitesData, error: visitesError } = await supabase
+        .from('visites')
+        .select('medecin_id, date_visite')
+        .eq('delegue_id', delegueData.id)
+        .gte('date_visite', startOfYear)
+        .lte('date_visite', endOfYear);
+
+      if (visitesError) {
+        console.error('Error fetching visites:', visitesError);
+        throw visitesError;
+      }
+
+      console.log('Visites found:', visitesData);
+
+      // Calculate current month number (1-12)
+      const currentMonth = new Date().getMonth() + 1;
+
+      // Process the data to calculate real indice de retour
+      const processedMedecins: Medecin[] = delegueMedecins.map(dm => {
+        const medecin = dm.medecins;
+        if (!medecin) return null;
+
+        // Count total visits for this medecin in the current year
+        const totalVisits = visitesData?.filter(v => v.medecin_id === dm.medecin_id).length || 0;
+        
+        // Calculate expected visits from beginning of year to current month
+        const frequenceVisite = parseInt(dm.frequence_visite || '1');
+        const expectedVisits = frequenceVisite * currentMonth;
+        
+        // Calculate indice de retour as percentage
+        const indiceRetour = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+        
+        // Determine status based on percentage
+        let status = 'faible';
+        if (indiceRetour >= 80) status = 'excellent';
+        else if (indiceRetour >= 60) status = 'moyen';
+
+        return {
+          id: medecin.id,
+          nom: medecin.nom,
+          prenom: medecin.prenom,
+          specialite: medecin.specialite,
+          brick_id: medecin.brick_id,
+          bricks: medecin.bricks,
+          indiceRetour,
+          status,
+          totalVisits,
+          expectedVisits,
+          frequenceVisite
+        };
+      }).filter(Boolean) as Medecin[];
+
+      console.log('Processed medecins with real indice retour:', processedMedecins);
+      return processedMedecins;
+    },
+    enabled: !!user
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -277,8 +348,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Debug: Aucune donnée trouvée dans la table 'medecins'. 
-                Vérifiez que des données existent dans Supabase.
+                Debug: Aucune donnée trouvée. Vérifiez qu'un délégué est assigné à cet utilisateur et que des médecins sont assignés au délégué.
               </p>
             </CardContent>
           </Card>
@@ -298,7 +368,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </h3>
                 <p className="text-gray-600">
                   {medecins.length === 0 
-                    ? 'La table medecins semble être vide. Ajoutez des médecins dans Supabase.'
+                    ? 'Aucun délégué ou médecin assigné trouvé pour cet utilisateur.'
                     : 'Essayez de modifier vos critères de recherche.'
                   }
                 </p>
@@ -311,6 +381,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Visites</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                     </tr>
                   </thead>
@@ -334,6 +405,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                           <div className={`flex items-center space-x-2 ${getStatusTextColor(medecin.status)}`}>
                             <MapPin className="h-4 w-4" />
                             <span>{medecin.bricks?.nom || 'Non assigné'}</span>
+                          </div>
+                        </td>
+                        <td className={`py-4 px-4 text-center ${getStatusTextColor(medecin.status)}`}>
+                          <div className="text-sm">
+                            <div className="font-medium">{medecin.totalVisits} / {medecin.expectedVisits}</div>
+                            <div className="text-xs opacity-75">réalisées / attendues</div>
                           </div>
                         </td>
                         <td className="py-4 px-4">

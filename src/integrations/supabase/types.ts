@@ -47,19 +47,25 @@ export type Database = {
       delegue_medecins: {
         Row: {
           delegue_id: string | null
-          frequence_visite: string | null
+          frequence_visite:
+            | Database["public"]["Enums"]["frequence_visite"]
+            | null
           id: string
           medecin_id: string | null
         }
         Insert: {
           delegue_id?: string | null
-          frequence_visite?: string | null
+          frequence_visite?:
+            | Database["public"]["Enums"]["frequence_visite"]
+            | null
           id?: string
           medecin_id?: string | null
         }
         Update: {
           delegue_id?: string | null
-          frequence_visite?: string | null
+          frequence_visite?:
+            | Database["public"]["Enums"]["frequence_visite"]
+            | null
           id?: string
           medecin_id?: string | null
         }
