@@ -36,7 +36,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     const numerator = objectifAnnuel - montant;
     const denominator = n * (n + 1) / 2;
 
-    return numerator < 0 ? 0;
+    if (numerator < 0) return 0;
     return denominator > 0 ? Math.ceil(numerator / denominator) : 0;
   };
 
