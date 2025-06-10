@@ -371,5 +371,3 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 };
 
 export default RythmeRecrutement;
-
-}
