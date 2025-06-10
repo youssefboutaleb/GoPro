@@ -502,6 +502,7 @@ export type Database = {
         | "generaliste"
         | "interniste"
         | "pneumologue"
+      frequence_visite: "1" | "2"
       user_role: "superuser" | "admin" | "user"
       visit_status: "planifiee" | "realisee" | "annulee"
     }
@@ -625,6 +626,7 @@ export const Constants = {
         "interniste",
         "pneumologue",
       ],
+      frequence_visite: ["1", "2"],
       user_role: ["superuser", "admin", "user"],
       visit_status: ["planifiee", "realisee", "annulee"],
     },
