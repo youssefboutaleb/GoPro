@@ -208,7 +208,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       <div className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Summary Card */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900">Résumé</CardTitle>
           </CardHeader>
