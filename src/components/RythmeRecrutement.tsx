@@ -206,6 +206,26 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+
+        {/* Summary Card */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg text-gray-900">Résumé</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()}</div>
+                <div className="text-sm text-gray-600">Total Ventes</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{filteredData.length}</div>
+                <div className="text-sm text-gray-600">Combinaisons Produit-Brick</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Filters */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
           <CardHeader>
@@ -321,25 +341,6 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Summary Card */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
-          <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Résumé</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Total Ventes</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{filteredData.length}</div>
-                <div className="text-sm text-gray-600">Combinaisons Produit-Brick</div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
