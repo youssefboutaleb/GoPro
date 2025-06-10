@@ -487,6 +487,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
       set_admin_role: {
         Args: { user_email: string }
         Returns: undefined
