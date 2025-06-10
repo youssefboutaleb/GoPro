@@ -4,89 +4,139 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Target, Filter, MapPin, Package, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface RythmeRecrutementProps {
   onBack: () => void;
+}
+
+interface ProduitData {
+  id: string;
+  nom: string;
+  brick: string;
+  venteRealisee: number;
+  objectif: number;
+  pourcentage: number;
+  rythmeNecessaire: number;
 }
 
 const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
 
-  const produitsData = [
-    {
-      id: 1,
-      nom: "Nebilet",
-      brick: "Nord-1",
-      venteRealisee: 850,
-      objectif: 1000,
-      pourcentage: 85,
-      rythmeNecessaire: 3
-    },
-    {
-      id: 2,
-      nom: "Nebilet Plus",
-      brick: "Nord-1",
-      venteRealisee: 620,
-      objectif: 800,
-      pourcentage: 77.5,
-      rythmeNecessaire: 4
-    },
-    {
-      id: 3,
-      nom: "Zantipres",
-      brick: "Nord-2",
-      venteRealisee: 450,
-      objectif: 700,
-      pourcentage: 64.3,
-      rythmeNecessaire: 6
-    },
-    {
-      id: 4,
-      nom: "Zantipride",
-      brick: "Nord-2",
-      venteRealisee: 380,
-      objectif: 600,
-      pourcentage: 63.3,
-      rythmeNecessaire: 5
-    },
-    {
-      id: 5,
-      nom: "Nebilet",
-      brick: "Sud-1",
-      venteRealisee: 720,
-      objectif: 900,
-      pourcentage: 80,
-      rythmeNecessaire: 4
-    },
-    {
-      id: 6,
-      nom: "Nebilet Plus",
-      brick: "Sud-1",
-      venteRealisee: 540,
-      objectif: 750,
-      pourcentage: 72,
-      rythmeNecessaire: 5
-    },
-    {
-      id: 7,
-      nom: "Zantipres",
-      brick: "Sud-2",
-      venteRealisee: 410,
-      objectif: 650,
-      pourcentage: 63.1,
-      rythmeNecessaire: 6
-    },
-    {
-      id: 8,
-      nom: "Zantipride",
-      brick: "Sud-2",
-      venteRealisee: 290,
-      objectif: 500,
-      pourcentage: 58,
-      rythmeNecessaire: 7
+  // Fetch produits data
+  const { data: produits = [], isLoading: loadingProduits } = useQuery({
+    queryKey: ['produits'],
+    queryFn: async () => {
+      console.log('Fetching produits from Supabase...');
+      const { data, error } = await supabase
+        .from('produits')
+        .select('*')
+        .eq('actif', true);
+
+      if (error) {
+        console.error('Error fetching produits:', error);
+        throw error;
+      }
+
+      console.log('Fetched produits:', data);
+      return data || [];
     }
-  ];
+  });
+
+  // Fetch objectifs data
+  const { data: objectifs = [], isLoading: loadingObjectifs } = useQuery({
+    queryKey: ['objectifs_produits'],
+    queryFn: async () => {
+      console.log('Fetching objectifs_produits from Supabase...');
+      const { data, error } = await supabase
+        .from('objectifs_produits')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching objectifs:', error);
+        throw error;
+      }
+
+      console.log('Fetched objectifs:', data);
+      return data || [];
+    }
+  });
+
+  // Fetch ventes data
+  const { data: ventes = [], isLoading: loadingVentes } = useQuery({
+    queryKey: ['ventes_produits'],
+    queryFn: async () => {
+      console.log('Fetching ventes_produits from Supabase...');
+      const { data, error } = await supabase
+        .from('ventes_produits')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching ventes:', error);
+        throw error;
+      }
+
+      console.log('Fetched ventes:', data);
+      return data || [];
+    }
+  });
+
+  // Fetch bricks for brick names
+  const { data: bricks = [] } = useQuery({
+    queryKey: ['bricks'],
+    queryFn: async () => {
+      console.log('Fetching bricks from Supabase...');
+      const { data, error } = await supabase
+        .from('bricks')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching bricks:', error);
+        throw error;
+      }
+
+      console.log('Fetched bricks:', data);
+      return data || [];
+    }
+  });
+
+  const isLoading = loadingProduits || loadingObjectifs || loadingVentes;
+
+  // Process and combine data
+  const produitsData: ProduitData[] = produits.map(produit => {
+    // Get objectifs for this product
+    const produitObjectifs = objectifs.filter(obj => obj.produit_id === produit.id);
+    const totalObjectif = produitObjectifs.reduce((sum, obj) => sum + (Number(obj.objectif_mensuel) || 0), 0);
+
+    // Get ventes for this product
+    const produitVentes = ventes.filter(vente => vente.produit_id === produit.id);
+    const totalVentes = produitVentes.reduce((sum, vente) => sum + (Number(vente.montant) || 0), 0);
+
+    // Get brick name - use the first brick found in ventes or objectifs
+    const brickId = produitVentes[0]?.brick_id || produitObjectifs[0]?.['id-brick'];
+    const brick = bricks.find(b => b.id === brickId);
+    const brickName = brick?.nom || 'Non assigné';
+
+    // Calculate percentage
+    const pourcentage = totalObjectif > 0 ? Math.round((totalVentes / totalObjectif) * 100) : 0;
+
+    // Calculate rythme necessaire (simplified logic)
+    const rythmeNecessaire = pourcentage < 100 ? Math.ceil((100 - pourcentage) / 10) : 1;
+
+    return {
+      id: produit.id,
+      nom: produit.nom,
+      brick: brickName,
+      venteRealisee: totalVentes,
+      objectif: totalObjectif,
+      pourcentage,
+      rythmeNecessaire
+    };
+  });
+
+  console.log('Processed produits data:', produitsData);
 
   const getStatusColor = (pourcentage: number) => {
     if (pourcentage >= 80) return 'bg-green-100 border-green-300';
@@ -109,7 +159,22 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   // Calcul des totaux
   const totalVente = filteredProduits.reduce((sum, produit) => sum + produit.venteRealisee, 0);
   const totalObjectif = filteredProduits.reduce((sum, produit) => sum + produit.objectif, 0);
-  const pourcentageGlobal = Math.round((totalVente / totalObjectif) * 100);
+  const pourcentageGlobal = totalObjectif > 0 ? Math.round((totalVente / totalObjectif) * 100) : 0;
+
+  // Get unique product names and bricks for filters
+  const uniqueProducts = [...new Set(produitsData.map(p => p.nom))];
+  const uniqueBricks = [...new Set(produitsData.map(p => p.brick))];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données de rythme de recrutement...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -127,7 +192,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement</h1>
-                  <p className="text-sm text-gray-600">{filteredProduits.length} produits trouvés</p>
+                  <p className="text-sm text-gray-600">{filteredProduits.length} produits trouvés sur {produitsData.length} total</p>
                 </div>
               </div>
             </div>
@@ -162,10 +227,9 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les produits</SelectItem>
-                    <SelectItem value="Nebilet">Nebilet</SelectItem>
-                    <SelectItem value="Nebilet Plus">Nebilet Plus</SelectItem>
-                    <SelectItem value="Zantipres">Zantipres</SelectItem>
-                    <SelectItem value="Zantipride">Zantipride</SelectItem>
+                    {uniqueProducts.map(product => (
+                      <SelectItem key={product} value={product}>{product}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -178,10 +242,9 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les bricks</SelectItem>
-                    <SelectItem value="Nord-1">Nord-1</SelectItem>
-                    <SelectItem value="Nord-2">Nord-2</SelectItem>
-                    <SelectItem value="Sud-1">Sud-1</SelectItem>
-                    <SelectItem value="Sud-2">Sud-2</SelectItem>
+                    {uniqueBricks.map(brick => (
+                      <SelectItem key={brick} value={brick}>{brick}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -189,86 +252,105 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           </CardContent>
         </Card>
 
+        {/* Debug Information */}
+        {produitsData.length === 0 && (
+          <Card className="bg-yellow-50 border-yellow-200 mb-6">
+            <CardContent className="pt-6">
+              <p className="text-yellow-800">
+                Debug: Aucune donnée trouvée. Vérifiez que des données existent dans les tables 'produits', 'objectifs_produits' et 'ventes_produits' dans Supabase.
+              </p>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>Produits: {produits.length} | Objectifs: {objectifs.length} | Ventes: {ventes.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Results Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900">Suivi des Ventes par Produit</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Vente Réalisée (unités)</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif (unités)</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">% Objectif</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Nouvelles Prescriptions/mois</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProduits.map((produit) => (
-                    <tr key={produit.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(produit.pourcentage)} border-2`}>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
-                            <Package className="h-4 w-4 text-green-600" />
-                          </div>
-                          <span className={`font-medium ${getStatusTextColor(produit.pourcentage)}`}>{produit.nom}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className={`flex items-center space-x-2 ${getStatusTextColor(produit.pourcentage)}`}>
-                          <MapPin className="h-4 w-4" />
-                          <span>{produit.brick}</span>
-                        </div>
-                      </td>
-                      <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
-                        {produit.venteRealisee.toLocaleString()}
-                      </td>
-                      <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
-                        {produit.objectif.toLocaleString()}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <div className={`w-16 bg-gray-200 rounded-full h-2`}>
-                            <div 
-                              className={`h-2 rounded-full ${
-                                produit.pourcentage >= 80 ? 'bg-green-600' :
-                                produit.pourcentage >= 60 ? 'bg-yellow-600' : 'bg-red-600'
-                              }`}
-                              style={{ width: `${Math.min(produit.pourcentage, 100)}%` }}
-                            ></div>
-                          </div>
-                          <span className={`text-sm font-semibold ${getStatusTextColor(produit.pourcentage)}`}>
-                            {produit.pourcentage}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(produit.pourcentage)}`}>
-                          <TrendingUp className="h-4 w-4" />
-                          <span className="font-medium">{produit.rythmeNecessaire}</span>
-                        </div>
-                      </td>
+            {filteredProduits.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {produitsData.length === 0 ? 'Aucune donnée dans la base' : 'Aucun produit trouvé'}
+                </h3>
+                <p className="text-gray-600">
+                  {produitsData.length === 0 
+                    ? 'Les tables produits, objectifs ou ventes semblent être vides. Ajoutez des données dans Supabase.'
+                    : 'Essayez de modifier vos critères de recherche.'
+                  }
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Vente Réalisée (montant)</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif (montant)</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">% Objectif</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Nouvelles Prescriptions/mois</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredProduits.map((produit) => (
+                      <tr key={produit.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(produit.pourcentage)} border-2`}>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
+                              <Package className="h-4 w-4 text-green-600" />
+                            </div>
+                            <span className={`font-medium ${getStatusTextColor(produit.pourcentage)}`}>{produit.nom}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className={`flex items-center space-x-2 ${getStatusTextColor(produit.pourcentage)}`}>
+                            <MapPin className="h-4 w-4" />
+                            <span>{produit.brick}</span>
+                          </div>
+                        </td>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
+                          {produit.venteRealisee.toLocaleString()}
+                        </td>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(produit.pourcentage)}`}>
+                          {produit.objectif.toLocaleString()}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <div className={`w-16 bg-gray-200 rounded-full h-2`}>
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  produit.pourcentage >= 80 ? 'bg-green-600' :
+                                  produit.pourcentage >= 60 ? 'bg-yellow-600' : 'bg-red-600'
+                                }`}
+                                style={{ width: `${Math.min(produit.pourcentage, 100)}%` }}
+                              ></div>
+                            </div>
+                            <span className={`text-sm font-semibold ${getStatusTextColor(produit.pourcentage)}`}>
+                              {produit.pourcentage}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(produit.pourcentage)}`}>
+                            <TrendingUp className="h-4 w-4" />
+                            <span className="font-medium">{produit.rythmeNecessaire}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {filteredProduits.length === 0 && (
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
-            <CardContent className="text-center py-12">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun produit trouvé</h3>
-              <p className="text-gray-600">Essayez de modifier vos critères de recherche.</p>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Légende */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
