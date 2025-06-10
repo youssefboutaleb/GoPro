@@ -303,7 +303,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   </thead>
                   <tbody>
                     {filteredData.map((item) => (
-                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.rythmeRecrutement)} border-2`}>
+                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.objectifPourcentage)} border-2`}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
