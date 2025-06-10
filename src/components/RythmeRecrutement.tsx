@@ -300,7 +300,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()} €</div>
+                <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()}</div>
                 <div className="text-sm text-gray-600">Total Ventes</div>
               </div>
               <div className="text-center">
