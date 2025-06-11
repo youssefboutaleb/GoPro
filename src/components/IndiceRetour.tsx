@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -488,12 +489,14 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Fréquence de visites</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Visites à faire</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredMedecins.map((medecin) => {
                       const frequenceRequise = parseInt(medecin.frequence_visite) || 1;
+                      const visitesRestantes = frequenceRequise - medecin.visites_ce_mois;
                       
                       return (
                         <tr 
@@ -546,8 +549,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                             </div>
                           </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                              {frequenceRequise}
+                            </span>
+                          </td>
+                          <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
                             <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-sm font-medium">
-                              {medecin.visites_ce_mois}/{frequenceRequise}
+                              {visitesRestantes}
                             </span>
                           </td>
                         </tr>
