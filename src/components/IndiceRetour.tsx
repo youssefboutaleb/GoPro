@@ -413,8 +413,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Fréquence/mois</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Visites</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -443,22 +441,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
                             {medecin.frequence_visite}/mois
                           </span>
-                        </td>
-                        <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
-                          <span className="text-sm">
-                            {medecin.visites_effectuees} / {medecin.visites_attendues}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center space-x-2">
-                            <div className={`w-3 h-3 rounded-full ${
-                              medecin.status === 'excellent' ? 'bg-green-500' :
-                              medecin.status === 'moyen' ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}></div>
-                            <span className={`font-semibold ${getStatusTextColor(medecin.status)}`}>
-                              {medecin.indiceRetour}%
-                            </span>
-                          </div>
                         </td>
                       </tr>
                     ))}

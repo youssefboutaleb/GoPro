@@ -15,12 +15,18 @@ interface MedecinVisiteData {
   medecin_id: string;
   medecin_nom: string;
   medecin_prenom: string;
+  medecin_specialite: string | null;
   frequence_visite: string;
   visites_par_mois: { [key: string]: number };
+  // New fields for indice de retour calculation
+  visites_effectuees: number;
+  visites_attendues: number;
+  indiceRetour: number;
 }
 
 const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
   const [selectedMonth, setSelectedMonth] = useState('janvier');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [rapportData, setRapportData] = useState<MedecinVisiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +82,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
 
         console.log('Delegue found:', delegueData);
 
-        // Get all medecins assigned to this delegue with their frequence_visite
+        // Get all medecins assigned to this delegue with their frequence_visite and specialite
         const { data: delegueMedecins, error: dmError } = await supabase
           .from('delegue_medecins')
           .select(`
@@ -85,7 +91,8 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
             medecins (
               id,
               nom,
-              prenom
+              prenom,
+              specialite
             )
           `)
           .eq('delegue_id', delegueData.id);
@@ -143,12 +150,22 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
             }
           });
 
+          // Calculate indice de retour data
+          const visitesEffectuees = Object.values(visitesParMois).reduce((sum, visites) => sum + visites, 0);
+          const frequence = parseInt(dm.frequence_visite || '1');
+          const visitesAttendues = frequence * currentMonth;
+          const indiceRetour = visitesAttendues > 0 ? Math.round((visitesEffectuees / visitesAttendues) * 100) : 0;
+
           return {
             medecin_id: dm.medecin_id,
             medecin_nom: medecin.nom,
             medecin_prenom: medecin.prenom,
+            medecin_specialite: medecin.specialite,
             frequence_visite: dm.frequence_visite || '1',
-            visites_par_mois: visitesParMois
+            visites_par_mois: visitesParMois,
+            visites_effectuees: visitesEffectuees,
+            visites_attendues: visitesAttendues,
+            indiceRetour
           };
         }).filter(Boolean) as MedecinVisiteData[];
 
@@ -165,23 +182,24 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
     fetchRapportData();
   }, [user]);
 
-  const getStatusColor = (medecin: MedecinVisiteData) => {
-    const total = Object.values(medecin.visites_par_mois).reduce((sum, visites) => sum + visites, 0);
-    const frequence = parseInt(medecin.frequence_visite);
-    const expectedTotal = frequence * currentMonth;
-    const percentage = expectedTotal > 0 ? (total / expectedTotal) * 100 : 0;
+  // Filter data by specialty
+  const filteredRapportData = rapportData.filter(medecin => {
+    if (selectedSpecialty === 'all') return true;
+    return medecin.medecin_specialite === selectedSpecialty;
+  });
 
+  // Get unique specialties for filter
+  const specialties = [...new Set(rapportData.map(m => m.medecin_specialite).filter(Boolean))];
+
+  const getStatusColor = (medecin: MedecinVisiteData) => {
+    const percentage = medecin.indiceRetour;
     if (percentage >= 80) return 'bg-green-100 border-green-300';
     if (percentage >= 50) return 'bg-yellow-100 border-yellow-300';
     return 'bg-red-100 border-red-300';
   };
 
   const getStatusTextColor = (medecin: MedecinVisiteData) => {
-    const total = Object.values(medecin.visites_par_mois).reduce((sum, visites) => sum + visites, 0);
-    const frequence = parseInt(medecin.frequence_visite);
-    const expectedTotal = frequence * currentMonth;
-    const percentage = expectedTotal > 0 ? (total / expectedTotal) * 100 : 0;
-
+    const percentage = medecin.indiceRetour;
     if (percentage >= 80) return 'text-green-800';
     if (percentage >= 50) return 'text-yellow-800';
     return 'text-red-800';
@@ -263,6 +281,19 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center space-x-2">
+                <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Toutes spécialités" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes spécialités</SelectItem>
+                    {specialties.map(specialty => (
+                      <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
@@ -277,7 +308,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {rapportData.length === 0 ? (
+            {filteredRapportData.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-600">Aucun médecin assigné trouvé</p>
               </div>
@@ -287,6 +318,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Médecin</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Fréquence de visite</th>
                       {monthsToShow.map((month) => (
                         <th key={month.value} className="text-center py-3 px-4 font-medium text-gray-700">
@@ -294,10 +326,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                         </th>
                       ))}
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Total</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Visites</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rapportData.map((medecin) => {
+                    {filteredRapportData.map((medecin) => {
                       const total = Object.values(medecin.visites_par_mois).reduce((sum, visites) => sum + visites, 0);
                       return (
                         <tr key={medecin.medecin_id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(medecin)} border-2`}>
@@ -305,6 +339,9 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                             <span className={`font-medium ${getStatusTextColor(medecin)}`}>
                               Dr. {medecin.medecin_prenom} {medecin.medecin_nom}
                             </span>
+                          </td>
+                          <td className={`py-4 px-4 ${getStatusTextColor(medecin)}`}>
+                            {medecin.medecin_specialite || 'Non renseigné'}
                           </td>
                           <td className={`py-4 px-4 text-center ${getStatusTextColor(medecin)}`}>
                             <span className="px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">
@@ -320,6 +357,22 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                           ))}
                           <td className={`py-4 px-4 text-center font-bold ${getStatusTextColor(medecin)}`}>
                             {total}
+                          </td>
+                          <td className={`py-4 px-4 text-center ${getStatusTextColor(medecin)}`}>
+                            <span className="text-sm">
+                              {medecin.visites_effectuees} / {medecin.visites_attendues}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <div className="flex items-center justify-center space-x-2">
+                              <div className={`w-3 h-3 rounded-full ${
+                                medecin.indiceRetour >= 80 ? 'bg-green-500' :
+                                medecin.indiceRetour >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}></div>
+                              <span className={`font-semibold ${getStatusTextColor(medecin)}`}>
+                                {medecin.indiceRetour}%
+                              </span>
+                            </div>
                           </td>
                         </tr>
                       );
