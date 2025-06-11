@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Target, Filter, MapPin, Package, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RythmeRecrutementProps {
   onBack: () => void;
@@ -24,6 +26,7 @@ interface VenteData {
 const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
+  const { user } = useAuth();
 
   // Get current month number (1-12)
   const currentMonth = new Date().getMonth() + 1;
@@ -40,11 +43,41 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     return denominator > 0 ? Math.ceil(numerator / denominator) : 0;
   };
 
-  // Fetch ventes with product and brick names
-  const { data: ventesData = [], isLoading: ventesLoading } = useQuery({
-    queryKey: ['ventes_with_details'],
+  // Fetch current user's delegue info
+  const { data: currentDelegue } = useQuery({
+    queryKey: ['current_delegue', user?.id],
     queryFn: async () => {
-      console.log('Fetching ventes with product and brick details...');
+      if (!user?.id) return null;
+      
+      console.log('Fetching delegue for user:', user.id);
+      
+      const { data: delegue, error } = await supabase
+        .from('delegues')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching delegue:', error);
+        throw error;
+      }
+
+      console.log('Found delegue:', delegue);
+      return delegue;
+    },
+    enabled: !!user?.id
+  });
+
+  // Fetch ventes with product and brick names, filtered by current delegue
+  const { data: ventesData = [], isLoading: ventesLoading } = useQuery({
+    queryKey: ['ventes_with_details', currentDelegue?.id],
+    queryFn: async () => {
+      if (!currentDelegue?.id) {
+        console.log('No delegue found, returning empty array');
+        return [];
+      }
+      
+      console.log('Fetching ventes for delegue:', currentDelegue.id);
       
       const { data: ventes, error: ventesError } = await supabase
         .from('ventes_produits')
@@ -52,39 +85,48 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           *,
           produits:produit_id(nom),
           bricks:brick_id(nom)
-        `);
+        `)
+        .eq('delegue_id', currentDelegue.id);
 
       if (ventesError) {
         console.error('Error fetching ventes:', ventesError);
         throw ventesError;
       }
 
-      console.log('Fetched ventes with details:', ventes);
+      console.log('Fetched ventes with details for delegue:', ventes);
       return ventes || [];
-    }
+    },
+    enabled: !!currentDelegue?.id
   });
 
-  // Fetch objectives separately
+  // Fetch objectives separately, filtered by current delegue
   const { data: objectivesData = [], isLoading: objectivesLoading } = useQuery({
-    queryKey: ['objectifs_produits'],
+    queryKey: ['objectifs_produits', currentDelegue?.id],
     queryFn: async () => {
-      console.log('Fetching objectives...');
+      if (!currentDelegue?.id) {
+        console.log('No delegue found for objectives, returning empty array');
+        return [];
+      }
+      
+      console.log('Fetching objectives for delegue:', currentDelegue.id);
       
       const { data: objectives, error: objectivesError } = await supabase
         .from('objectifs_produits')
-        .select('*');
+        .select('*')
+        .eq('delegue_id', currentDelegue.id);
 
       if (objectivesError) {
         console.error('Error fetching objectives:', objectivesError);
         throw objectivesError;
       }
 
-      console.log('Fetched objectives:', objectives);
+      console.log('Fetched objectives for delegue:', objectives);
       return objectives || [];
-    }
+    },
+    enabled: !!currentDelegue?.id
   });
 
-  const isLoading = ventesLoading || objectivesLoading;
+  const isLoading = ventesLoading || objectivesLoading || !currentDelegue;
 
   // Process ventes data to group by product and brick, and match with objectives
   const processedData: VenteData[] = ventesData.reduce((acc, vente) => {
@@ -186,6 +228,24 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement des données de ventes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentDelegue) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Accès non autorisé</h3>
+          <p className="text-gray-600 mb-4">
+            Vous devez être associé à un délégué pour accéder à cette section.
+          </p>
+          <Button onClick={onBack} variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour
+          </Button>
         </div>
       </div>
     );
@@ -299,7 +359,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune donnée trouvée</h3>
                 <p className="text-gray-600">
                   {processedData.length === 0 
-                    ? 'Aucune vente trouvée dans la base de données.'
+                    ? 'Aucune vente trouvée pour ce délégué.'
                     : 'Essayez de modifier vos critères de filtrage.'
                   }
                 </p>
