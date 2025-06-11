@@ -193,17 +193,6 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   // Calculate totals
   const totalMontant = filteredData.reduce((sum, item) => sum + item.montant, 0);
 
-  // Calculate global objective percentage
-  const globalObjectivePercentage = (() => {
-    const itemsWithObjectives = filteredData.filter(item => item.objectifAnnuel && item.objectifAnnuel > 0);
-    if (itemsWithObjectives.length === 0) return 0;
-    
-    const totalObjectifAnnuel = itemsWithObjectives.reduce((sum, item) => sum + (item.objectifAnnuel || 0), 0);
-    const totalMontantWithObjectives = itemsWithObjectives.reduce((sum, item) => sum + item.montant, 0);
-    
-    return totalObjectifAnnuel > 0 ? (totalMontantWithObjectives / totalObjectifAnnuel) * 100 : 0;
-  })();
-
   const getStatusColor = (objectifPourcentage: number) => {
     if (objectifPourcentage >= 80) return 'bg-green-100 border-green-300';
     if (objectifPourcentage >= 60) return 'bg-yellow-100 border-yellow-300';
@@ -271,38 +260,11 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{globalObjectivePercentage.toFixed(1)}%</div>
-                  <div className="text-sm opacity-90">Objectif Global</div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-
-        {/* Summary Card */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Résumé</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totalMontant.toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Total Ventes</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{filteredData.length}</div>
-                <div className="text-sm text-gray-600">Combinaisons Produit-Brick</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Filters */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
