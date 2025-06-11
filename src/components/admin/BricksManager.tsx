@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Brick = Database['public']['Tables']['bricks']['Row'];
@@ -54,13 +54,25 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.nom.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Le nom de la brick est requis",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const submitData = {
-        nom: formData.nom,
-        description: formData.description,
+        nom: formData.nom.trim(),
+        description: formData.description.trim() || null,
       };
+
+      console.log('Submitting data:', submitData);
 
       if (editingBrick) {
         const { error } = await supabase
@@ -68,7 +80,11 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           .update(submitData)
           .eq('id', editingBrick.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Update error:', error);
+          throw error;
+        }
+        
         toast({
           title: "Succès",
           description: "Brick mise à jour avec succès",
@@ -78,7 +94,11 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           .from('bricks')
           .insert([submitData]);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Insert error:', error);
+          throw error;
+        }
+        
         toast({
           title: "Succès",
           description: "Brick créée avec succès",
@@ -88,7 +108,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       setDialogOpen(false);
       setEditingBrick(null);
       setFormData({ nom: '', description: '' });
-      fetchBricks();
+      await fetchBricks();
     } catch (error) {
       console.error('Error saving brick:', error);
       toast({
@@ -110,11 +130,12 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           .eq('id', brick.id);
 
         if (error) throw error;
+        
         toast({
           title: "Succès",
           description: "Brick supprimée avec succès",
         });
-        fetchBricks();
+        await fetchBricks();
       } catch (error) {
         console.error('Error deleting brick:', error);
         toast({
