@@ -469,8 +469,8 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Recherche</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -483,7 +483,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </div>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Spécialité</label>
                 <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                   <SelectTrigger>
@@ -498,7 +498,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </Select>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Brick</label>
                 <Select value={selectedBrick} onValueChange={setSelectedBrick}>
                   <SelectTrigger>
