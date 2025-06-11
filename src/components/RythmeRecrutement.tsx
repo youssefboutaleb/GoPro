@@ -324,7 +324,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
-                              <Package className={'h-4 w-4 ${getStatusTextColor(item.objectifPourcentage)}'} />
+                              <Package className={`h-4 w-4 ${getStatusTextColor(item.objectifPourcentage)}`}/>
                             </div>
                             <span className={`font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>{item.produitNom}</span>
                           </div>
