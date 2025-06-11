@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { ArrowLeft, Search, Filter, User, Stethoscope, MapPin, FileText } from '
 import RapportMedecins from './RapportMedecins';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface IndiceRetourProps {
   onBack: () => void;
@@ -28,6 +28,8 @@ interface Medecin {
   // Calculated fields for indice de retour
   indiceRetour: number;
   status: string;
+  visites_effectuees: number;
+  visites_attendues: number;
 }
 
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
@@ -36,11 +38,42 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedWeek, setSelectedWeek] = useState('1');
   const [selectedBrick, setSelectedBrick] = useState('all');
+  const { user } = useAuth();
+
+  // First, get the current user's delegue information
+  const { data: currentDelegue } = useQuery({
+    queryKey: ['current-delegue', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      console.log('Fetching delegue for user:', user.id);
+      
+      const { data, error } = await supabase
+        .from('delegues')
+        .select('id, nom, prenom')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching delegue:', error);
+        throw error;
+      }
+
+      console.log('Current delegue:', data);
+      return data;
+    },
+    enabled: !!user?.id
+  });
 
   const { data: rawMedecins = [], isLoading, error } = useQuery({
-    queryKey: ['medecins-indice-retour'],
+    queryKey: ['medecins-indice-retour', currentDelegue?.id],
     queryFn: async () => {
-      console.log('Fetching medecins for indice retour from Supabase...');
+      if (!currentDelegue?.id) {
+        console.log('No delegue found, returning empty array');
+        return [];
+      }
+
+      console.log('Fetching medecins for delegue:', currentDelegue.id);
       
       const { data, error } = await supabase
         .from('medecins')
@@ -55,42 +88,103 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
             secteur:secteur_id (
               nom
             )
+          ),
+          delegue_medecins!inner (
+            frequence_visite,
+            delegue_id
           )
         `)
+        .eq('delegue_medecins.delegue_id', currentDelegue.id)
         .order('nom', { ascending: true });
 
       if (error) {
-        console.error('Error fetching medecins for indice retour:', error);
+        console.error('Error fetching medecins for delegue:', error);
         throw error;
       }
 
-      console.log('Fetched medecins for indice retour:', data);
+      console.log('Fetched medecins for delegue:', data);
       console.log('Number of medecins fetched:', data?.length || 0);
       return data;
-    }
+    },
+    enabled: !!currentDelegue?.id
   });
 
   // Transform raw data to include calculated indice retour values
-  const medecins: Medecin[] = rawMedecins.map((medecin, index) => {
-    // Generate pseudo-random but consistent indice retour based on medecin ID
-    const hash = medecin.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const indiceRetour = 25 + (hash % 70); // Range from 25 to 95
-    
-    let status = 'faible';
-    if (indiceRetour >= 80) status = 'excellent';
-    else if (indiceRetour >= 60) status = 'moyen';
-    
-    return {
-      ...medecin,
-      indiceRetour,
-      status
-    };
+  const { data: medecinsWithIndice = [] } = useQuery({
+    queryKey: ['medecins-with-indice', rawMedecins, currentDelegue?.id],
+    queryFn: async () => {
+      if (!rawMedecins.length || !currentDelegue?.id) return [];
+
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+
+      const medecinsPromises = rawMedecins.map(async (medecin: any) => {
+        // Get visits count for this year
+        const { data: visites, error: visitesError } = await supabase
+          .from('visites')
+          .select('id')
+          .eq('medecin_id', medecin.id)
+          .eq('delegue_id', currentDelegue.id)
+          .gte('date_visite', `${currentYear}-01-01`)
+          .lte('date_visite', `${currentYear}-12-31`);
+
+        if (visitesError) {
+          console.error('Error fetching visits for medecin:', medecin.id, visitesError);
+        }
+
+        const visitesEffectuees = visites?.length || 0;
+
+        // Calculate expected visits based on frequency
+        const frequenceVisite = medecin.delegue_medecins[0]?.frequence_visite || '1';
+        let visitesParMois = 1;
+        
+        switch (frequenceVisite) {
+          case '1':
+            visitesParMois = 1;
+            break;
+          case '2':
+            visitesParMois = 2;
+            break;
+          case '3':
+            visitesParMois = 3;
+            break;
+          case '4':
+            visitesParMois = 4;
+            break;
+          default:
+            visitesParMois = 1;
+        }
+
+        const visitesAttendues = visitesParMois * currentMonth;
+        const indiceRetour = visitesAttendues > 0 ? Math.round((visitesEffectuees / visitesAttendues) * 100) : 0;
+        
+        let status = 'faible';
+        if (indiceRetour >= 80) status = 'excellent';
+        else if (indiceRetour >= 50) status = 'moyen';
+
+        return {
+          ...medecin,
+          indiceRetour,
+          status,
+          visites_effectuees: visitesEffectuees,
+          visites_attendues: visitesAttendues
+        };
+      });
+
+      const results = await Promise.all(medecinsPromises);
+      console.log('Calculated indice retour for medecins:', results);
+      return results;
+    },
+    enabled: !!rawMedecins.length && !!currentDelegue?.id
   });
+
+  const medecins: Medecin[] = medecinsWithIndice;
 
   // Log data for debugging
   console.log('Current medecins with indice retour:', medecins);
   console.log('Is loading:', isLoading);
   console.log('Error:', error);
+  console.log('Current delegue:', currentDelegue);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -161,6 +255,17 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     );
   }
 
+  if (!currentDelegue) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Aucun délégué trouvé pour cet utilisateur.</p>
+          <Button onClick={onBack}>Retour</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -177,7 +282,9 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
-                  <p className="text-sm text-gray-600">{filteredMedecins.length} médecins trouvés sur {medecins.length} total</p>
+                  <p className="text-sm text-gray-600">
+                    {filteredMedecins.length} médecins trouvés sur {medecins.length} total - Délégué: {currentDelegue.prenom} {currentDelegue.nom}
+                  </p>
                 </div>
               </div>
             </div>
@@ -273,12 +380,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         </Card>
 
         {/* Debug Information */}
-        {medecins.length === 0 && (
+        {medecins.length === 0 && currentDelegue && (
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Debug: Aucune donnée trouvée dans la table 'medecins'. 
-                Vérifiez que des données existent dans Supabase.
+                Aucun médecin assigné à ce délégué ({currentDelegue.prenom} {currentDelegue.nom}). 
+                Vérifiez les assignations dans la table 'delegue_medecins'.
               </p>
             </CardContent>
           </Card>
@@ -294,11 +401,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
               <div className="text-center py-12">
                 <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {medecins.length === 0 ? 'Aucune donnée dans la base' : 'Aucun médecin trouvé'}
+                  {medecins.length === 0 ? 'Aucun médecin assigné' : 'Aucun médecin trouvé'}
                 </h3>
                 <p className="text-gray-600">
                   {medecins.length === 0 
-                    ? 'La table medecins semble être vide. Ajoutez des médecins dans Supabase.'
+                    ? 'Aucun médecin n\'est assigné à votre délégué. Contactez votre administrateur.'
                     : 'Essayez de modifier vos critères de recherche.'
                   }
                 </p>
@@ -311,6 +418,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Visites</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                     </tr>
                   </thead>
@@ -335,6 +443,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                             <MapPin className="h-4 w-4" />
                             <span>{medecin.bricks?.nom || 'Non assigné'}</span>
                           </div>
+                        </td>
+                        <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                          <span className="text-sm">
+                            {medecin.visites_effectuees} / {medecin.visites_attendues}
+                          </span>
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-2">

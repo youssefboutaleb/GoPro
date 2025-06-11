@@ -13,25 +13,19 @@ export type Database = {
         Row: {
           description: string | null
           id: string
-          name: string | null
           nom: string
-          region: string | null
           secteur_id: string | null
         }
         Insert: {
           description?: string | null
           id?: string
-          name?: string | null
           nom: string
-          region?: string | null
           secteur_id?: string | null
         }
         Update: {
           description?: string | null
           id?: string
-          name?: string | null
           nom?: string
-          region?: string | null
           secteur_id?: string | null
         }
         Relationships: [
