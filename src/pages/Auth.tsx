@@ -129,7 +129,8 @@ const Auth = () => {
                   <div className="flex items-center space-x-2">
                     <AlertCircle className="h-4 w-4 text-blue-600" />
                     <p className="text-sm text-blue-700">
-                      <strong>Admin par défaut:</strong> admin@admin.com / adminadmin
+                      <strong>Admin Ahmed Guargouri:</strong> admin@admin.com / adminadmin <br></br>
+                      <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali
                     </p>
                   </div>
                 </div>
