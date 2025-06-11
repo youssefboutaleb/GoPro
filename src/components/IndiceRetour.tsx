@@ -469,28 +469,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           </CardContent>
         </Card>
 
-        {/* Légende */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
-          <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Légende</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-200 border-2 border-green-300 rounded"></div>
-                <span className="text-sm text-green-800 font-medium">Excellent (80%+)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-yellow-200 border-2 border-yellow-300 rounded"></div>
-                <span className="text-sm text-yellow-800 font-medium">Moyen (50-79%)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-200 border-2 border-red-300 rounded"></div>
-                <span className="text-sm text-red-800 font-medium">Faible (&lt;50%)</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
