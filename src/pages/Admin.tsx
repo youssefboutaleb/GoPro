@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, MapPin, Stethoscope, Package, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, Users, MapPin, Stethoscope, Package, BarChart3, Calendar, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BricksManager from '@/components/admin/BricksManager';
 import DoctorsManager from '@/components/admin/DoctorsManager';
@@ -12,6 +11,7 @@ import ProductsManager from '@/components/admin/ProductsManager';
 import VisitsManager from '@/components/admin/VisitsManager';
 import ReportsManager from '@/components/admin/ReportsManager';
 import UsersManager from '@/components/admin/UsersManager';
+import EquipesManager from '@/components/admin/EquipesManager';
 
 const Admin = () => {
   const { profile, signOut, isAdmin } = useAuth();
@@ -51,6 +51,7 @@ const Admin = () => {
       products: <ProductsManager onBack={() => setActiveTab('overview')} />,
       visits: <VisitsManager onBack={() => setActiveTab('overview')} />,
       reports: <ReportsManager onBack={() => setActiveTab('overview')} />,
+      equipes: <EquipesManager onBack={() => setActiveTab('overview')} />,
     };
     
     return components[activeTab as keyof typeof components] || null;
@@ -168,6 +169,22 @@ const Admin = () => {
             </CardHeader>
           </Card>
 
+          {/* Equipes Management */}
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab('equipes')}>
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-100 rounded-lg">
+                  <Shield className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Gestion des Équipes</CardTitle>
+                  <CardDescription>Gérer les équipes et assigner les délégués</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
           {/* Reports Management */}
           <Card className="cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => setActiveTab('reports')}>
@@ -190,3 +207,5 @@ const Admin = () => {
 };
 
 export default Admin;
+
+}
