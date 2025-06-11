@@ -32,6 +32,7 @@ interface Medecin {
   status: string;
   visites_effectuees: number;
   visites_attendues: number;
+  visites_ce_mois: number;
   frequence_visite: string;
 }
 
@@ -137,7 +138,21 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           console.error('Error fetching visits for medecin:', medecin.id, visitesError);
         }
 
+        // Get visits count for current month only
+        const { data: visitesCeMois, error: visitesCeMoisError } = await supabase
+          .from('visites')
+          .select('id')
+          .eq('medecin_id', medecin.id)
+          .eq('delegue_id', currentDelegue.id)
+          .gte('date_visite', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+          .lt('date_visite', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+
+        if (visitesCeMoisError) {
+          console.error('Error fetching current month visits for medecin:', medecin.id, visitesCeMoisError);
+        }
+
         const visitesEffectuees = visites?.length || 0;
+        const visitesCeMoisCount = visitesCeMois?.length || 0;
 
         // Calculate expected visits based on frequency (excluding current month)
         const frequenceVisite = medecin.delegue_medecins[0]?.frequence_visite || '1';
@@ -174,13 +189,21 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           status,
           visites_effectuees: visitesEffectuees,
           visites_attendues: visitesAttendues,
+          visites_ce_mois: visitesCeMoisCount,
           frequence_visite: frequenceVisite
         };
       });
 
       const results = await Promise.all(medecinsPromises);
-      console.log('Calculated indice retour for medecins:', results);
-      return results;
+      
+      // Filter to show only doctors who haven't met their frequency for current month
+      const filteredResults = results.filter(medecin => {
+        const frequenceRequise = parseInt(medecin.frequence_visite) || 1;
+        return medecin.visites_ce_mois < frequenceRequise;
+      });
+      
+      console.log('Calculated indice retour for medecins (filtered):', filteredResults);
+      return filteredResults;
     },
     enabled: !!rawMedecins.length && !!currentDelegue?.id
   });
@@ -268,17 +291,16 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
-  // Calculate global index with new formula (excluding current month)
+  // Calculate global index with new formula for current month visits
   const currentMonth = new Date().getMonth() + 1;
-  const totalVisitesEffectuees = filteredMedecins.reduce((sum, medecin) => sum + medecin.visites_effectuees, 0);
-  const totalVisitesPossibles = filteredMedecins.reduce((sum, medecin) => {
+  const totalVisitesCeMois = filteredMedecins.reduce((sum, medecin) => sum + medecin.visites_ce_mois, 0);
+  const totalVisitesPossiblesCeMois = filteredMedecins.reduce((sum, medecin) => {
     const frequence = parseInt(medecin.frequence_visite) || 1;
-    // Calculate for months up to but not including current month
-    return sum + (frequence * (currentMonth - 1));
+    return sum + frequence;
   }, 0);
   
-  const indiceRetourGlobal = totalVisitesPossibles > 0 
-    ? Math.round((totalVisitesEffectuees / totalVisitesPossibles) * 100)
+  const indiceRetourGlobal = totalVisitesPossiblesCeMois > 0 
+    ? Math.round((totalVisitesCeMois / totalVisitesPossiblesCeMois) * 100)
     : 0;
 
   // Get unique specialties and bricks for filters
@@ -344,7 +366,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                   <p className="text-sm text-gray-600">
-                    {filteredMedecins.length} médecins trouvés sur {medecins.length} total - Délégué: {currentDelegue.prenom} {currentDelegue.nom}
+                    {filteredMedecins.length} médecins nécessitant des visites ce mois - Délégué: {currentDelegue?.prenom} {currentDelegue?.nom}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
                     💡 Glissez une ligne vers la droite pour enregistrer une visite aujourd'hui
@@ -433,8 +455,8 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Aucun médecin assigné à ce délégué ({currentDelegue.prenom} {currentDelegue.nom}). 
-                Vérifiez les assignations dans la table 'delegue_medecins'.
+                Aucun médecin nécessitant des visites ce mois pour ce délégué ({currentDelegue.prenom} {currentDelegue.nom}). 
+                Tous les médecins ont atteint leur fréquence de visite pour ce mois.
               </p>
             </CardContent>
           </Card>
@@ -443,18 +465,18 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         {/* Results Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Liste des Médecins</CardTitle>
+            <CardTitle className="text-lg text-gray-900">Médecins nécessitant des visites ce mois</CardTitle>
           </CardHeader>
           <CardContent>
             {filteredMedecins.length === 0 ? (
               <div className="text-center py-12">
                 <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {medecins.length === 0 ? 'Aucun médecin assigné' : 'Aucun médecin trouvé'}
+                  {medecins.length === 0 ? 'Aucun médecin nécessitant des visites' : 'Aucun médecin trouvé'}
                 </h3>
                 <p className="text-gray-600">
                   {medecins.length === 0 
-                    ? 'Aucun médecin n\'est assigné à votre délégué. Contactez votre administrateur.'
+                    ? 'Tous les médecins ont atteint leur fréquence de visite pour ce mois.'
                     : 'Essayez de modifier vos critères de recherche.'
                   }
                 </p>
@@ -467,67 +489,72 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Fréquence/mois</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Visites à faire</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMedecins.map((medecin) => (
-                      <tr 
-                        key={medecin.id} 
-                        className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative ${getStatusColor(medecin.status)} border-2 ${
-                          swipedRows.has(medecin.id) ? 'bg-green-50 border-green-300' : ''
-                        }`}
-                        onClick={() => handleSwipe(medecin.id)}
-                        style={{
-                          touchAction: 'pan-y'
-                        }}
-                        onTouchStart={(e) => {
-                          const touch = e.touches[0];
-                          (e.currentTarget as any).startX = touch.clientX;
-                        }}
-                        onTouchEnd={(e) => {
-                          const touch = e.changedTouches[0];
-                          const startX = (e.currentTarget as any).startX;
-                          const endX = touch.clientX;
-                          const diff = endX - startX;
-                          
-                          if (diff > 100) { // Swipe right threshold
-                            handleSwipe(medecin.id);
-                          }
-                        }}
-                      >
-                        <td className="py-4 px-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg">
-                              <Stethoscope className="h-4 w-4 text-purple-600" />
-                            </div>
-                            <span className={`font-medium ${getStatusTextColor(medecin.status)}`}>
-                              {medecin.prenom} {medecin.nom}
-                            </span>
-                            {swipedRows.has(medecin.id) && (
-                              <div className="flex items-center space-x-1 text-green-600">
-                                <Check className="h-4 w-4" />
-                                <span className="text-sm font-medium">Visite enregistrée</span>
+                    {filteredMedecins.map((medecin) => {
+                      const frequenceRequise = parseInt(medecin.frequence_visite) || 1;
+                      const visitesRestantes = frequenceRequise - medecin.visites_ce_mois;
+                      
+                      return (
+                        <tr 
+                          key={medecin.id} 
+                          className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative ${getStatusColor(medecin.status)} border-2 ${
+                            swipedRows.has(medecin.id) ? 'bg-green-50 border-green-300' : ''
+                          }`}
+                          onClick={() => handleSwipe(medecin.id)}
+                          style={{
+                            touchAction: 'pan-y'
+                          }}
+                          onTouchStart={(e) => {
+                            const touch = e.touches[0];
+                            (e.currentTarget as any).startX = touch.clientX;
+                          }}
+                          onTouchEnd={(e) => {
+                            const touch = e.changedTouches[0];
+                            const startX = (e.currentTarget as any).startX;
+                            const endX = touch.clientX;
+                            const diff = endX - startX;
+                            
+                            if (diff > 100) { // Swipe right threshold
+                              handleSwipe(medecin.id);
+                            }
+                          }}
+                        >
+                          <td className="py-4 px-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg">
+                                <Stethoscope className="h-4 w-4 text-purple-600" />
                               </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
-                          {medecin.specialite || 'Non renseigné'}
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className={`flex items-center space-x-2 ${getStatusTextColor(medecin.status)}`}>
-                            <MapPin className="h-4 w-4" />
-                            <span>{medecin.bricks?.nom || 'Non assigné'}</span>
-                          </div>
-                        </td>
-                        <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
-                            {medecin.frequence_visite}/mois
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                              <span className={`font-medium ${getStatusTextColor(medecin.status)}`}>
+                                {medecin.prenom} {medecin.nom}
+                              </span>
+                              {swipedRows.has(medecin.id) && (
+                                <div className="flex items-center space-x-1 text-green-600">
+                                  <Check className="h-4 w-4" />
+                                  <span className="text-sm font-medium">Visite enregistrée</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                            {medecin.specialite || 'Non renseigné'}
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className={`flex items-center space-x-2 ${getStatusTextColor(medecin.status)}`}>
+                              <MapPin className="h-4 w-4" />
+                              <span>{medecin.bricks?.nom || 'Non assigné'}</span>
+                            </div>
+                          </td>
+                          <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-sm font-medium">
+                              {medecin.visites_ce_mois}/{frequenceRequise} ({visitesRestantes} restante{visitesRestantes > 1 ? 's' : ''})
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
