@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +6,67 @@ import { RotateCcw, TrendingUp, Calendar, MapPin, Target, Settings, LogIn } from
 import IndiceRetour from '@/components/IndiceRetour';
 import RythmeRecrutement from '@/components/RythmeRecrutement';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentWeek, setCurrentWeek] = useState('Semaine 1');
+  const [currentMonth, setCurrentMonth] = useState('');
+  const [secteurName, setSecteurName] = useState('Région Nord');
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // Calculate current week of the month and month name
+  useEffect(() => {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dayOfMonth = now.getDate();
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Calculate which week of the month we're in
+    const weekNumber = Math.ceil((dayOfMonth + firstDayWeekday) / 7);
+    setCurrentWeek(`Semaine ${weekNumber}`);
+    
+    // Get month name in French
+    const monthNames = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    setCurrentMonth(monthNames[now.getMonth()]);
+  }, []);
+
+  // Fetch delegue's secteur name
+  useEffect(() => {
+    const fetchDeleagueSecteur = async () => {
+      if (!user) return;
+
+      try {
+        const { data: delegue, error } = await supabase
+          .from('delegues')
+          .select(`
+            secteur_id,
+            secteur:secteur_id (
+              nom
+            )
+          `)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching delegue secteur:', error);
+          return;
+        }
+
+        if (delegue?.secteur?.nom) {
+          setSecteurName(delegue.secteur.nom);
+        }
+      } catch (error) {
+        console.error('Error in fetchDeleagueSecteur:', error);
+      }
+    };
+
+    fetchDeleagueSecteur();
+  }, [user]);
 
   if (loading) {
     return (
@@ -119,11 +174,15 @@ const Index = () => {
               <div className="flex items-center space-x-2">
                 <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
                   <Calendar className="h-3 w-3" />
-                  <span>Semaine 1</span>
+                  <span>{currentWeek}</span>
+                </div>
+                <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>{currentMonth}</span>
                 </div>
                 <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
                   <MapPin className="h-3 w-3" />
-                  <span>Région Nord</span>
+                  <span>{secteurName}</span>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
