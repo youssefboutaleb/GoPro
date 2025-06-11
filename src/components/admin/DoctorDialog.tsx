@@ -51,14 +51,14 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
         nom: doctor.nom,
         prenom: doctor.prenom,
         specialite: doctor.specialite || '',
-        brick_id: doctor.brick_id || ''
+        brick_id: doctor.brick_id || 'no-brick'
       });
     } else {
       setFormData({
         nom: '',
         prenom: '',
         specialite: '',
-        brick_id: ''
+        brick_id: 'no-brick'
       });
     }
   }, [doctor]);
@@ -71,7 +71,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
           nom: data.nom,
           prenom: data.prenom,
           specialite: data.specialite || null,
-          brick_id: data.brick_id || null
+          brick_id: data.brick_id === 'no-brick' ? null : data.brick_id
         });
       
       if (error) throw error;
@@ -95,7 +95,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
           nom: data.nom,
           prenom: data.prenom,
           specialite: data.specialite || null,
-          brick_id: data.brick_id || null
+          brick_id: data.brick_id === 'no-brick' ? null : data.brick_id
         })
         .eq('id', doctor!.id);
       
@@ -176,7 +176,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
                 <SelectValue placeholder="Sélectionner un brick" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucun brick</SelectItem>
+                <SelectItem value="no-brick">Aucun brick</SelectItem>
                 {bricks.map(brick => (
                   <SelectItem key={brick.id} value={brick.id}>{brick.nom}</SelectItem>
                 ))}

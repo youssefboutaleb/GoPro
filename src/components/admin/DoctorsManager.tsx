@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -247,7 +246,6 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
           </Card>
         )}
 
-        {/* Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
