@@ -148,6 +148,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
+      
+      // Calculate last month and month before last month
+      const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+      const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+      const monthBeforeLastMonth = lastMonth === 1 ? 12 : lastMonth - 1;
+      const monthBeforeLastYear = lastMonth === 1 ? lastMonthYear - 1 : lastMonthYear;
 
       const medecinsPromises = rawMedecins.map(async (medecin: any) => {
         // Get visits count for this year EXCLUDING current month
@@ -176,8 +182,36 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           console.error('Error fetching current month visits for medecin:', medecin.id, visitesCeMoisError);
         }
 
+        // Get visits for last month
+        const { data: visitesLastMonth, error: visitesLastMonthError } = await supabase
+          .from('visites')
+          .select('id')
+          .eq('medecin_id', medecin.id)
+          .eq('delegue_id', currentDelegue.id)
+          .gte('date_visite', `${lastMonthYear}-${lastMonth.toString().padStart(2, '0')}-01`)
+          .lt('date_visite', `${lastMonthYear}-${(lastMonth + 1).toString().padStart(2, '0')}-01`);
+
+        if (visitesLastMonthError) {
+          console.error('Error fetching last month visits for medecin:', medecin.id, visitesLastMonthError);
+        }
+
+        // Get visits for month before last month
+        const { data: visitesMonthBeforeLast, error: visitesMonthBeforeLastError } = await supabase
+          .from('visites')
+          .select('id')
+          .eq('medecin_id', medecin.id)
+          .eq('delegue_id', currentDelegue.id)
+          .gte('date_visite', `${monthBeforeLastYear}-${monthBeforeLastMonth.toString().padStart(2, '0')}-01`)
+          .lt('date_visite', `${monthBeforeLastYear}-${(monthBeforeLastMonth + 1).toString().padStart(2, '0')}-01`);
+
+        if (visitesMonthBeforeLastError) {
+          console.error('Error fetching month before last visits for medecin:', medecin.id, visitesMonthBeforeLastError);
+        }
+
         const visitesEffectuees = visites?.length || 0;
         const visitesCeMoisCount = visitesCeMois?.length || 0;
+        const visitesLastMonthCount = visitesLastMonth?.length || 0;
+        const visitesMonthBeforeLastCount = visitesMonthBeforeLast?.length || 0;
 
         // Calculate expected visits based on frequency (excluding current month)
         const frequenceVisite = medecin.delegue_medecins[0]?.frequence_visite || '1';
@@ -204,9 +238,14 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         const visitesAttendues = visitesParMois * (currentMonth - 1);
         const indiceRetour = visitesAttendues > 0 ? Math.round((visitesEffectuees / visitesAttendues) * 100) : 0;
         
-        let status = 'faible';
-        if (indiceRetour >= 80) status = 'excellent';
-        else if (indiceRetour >= 50) status = 'moyen';
+        // Determine status based on visit history
+        let status = 'red'; // Default: no visits in last two months
+        
+        if (visitesLastMonthCount > 0) {
+          status = 'green'; // Visited last month
+        } else if (visitesMonthBeforeLastCount > 0) {
+          status = 'yellow'; // Visited month before last but not last month
+        }
 
         return {
           ...medecin,
@@ -285,11 +324,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'excellent':
+      case 'green':
         return 'bg-green-100 border-green-300';
-      case 'moyen':
+      case 'yellow':
         return 'bg-yellow-100 border-yellow-300';
-      case 'faible':
+      case 'red':
         return 'bg-red-100 border-red-300';
       default:
         return 'bg-gray-100 border-gray-300';
@@ -298,11 +337,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
   const getStatusTextColor = (status: string) => {
     switch (status) {
-      case 'excellent':
+      case 'green':
         return 'text-green-800';
-      case 'moyen':
+      case 'yellow':
         return 'text-yellow-800';
-      case 'faible':
+      case 'red':
         return 'text-red-800';
       default:
         return 'text-gray-800';
