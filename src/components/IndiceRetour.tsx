@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -495,7 +494,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                   <tbody>
                     {filteredMedecins.map((medecin) => {
                       const frequenceRequise = parseInt(medecin.frequence_visite) || 1;
-                      const visitesRestantes = frequenceRequise - medecin.visites_ce_mois;
                       
                       return (
                         <tr 
@@ -549,7 +547,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                           </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
                             <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-sm font-medium">
-                              {medecin.visites_ce_mois}/{frequenceRequise} ({visitesRestantes} restante{visitesRestantes > 1 ? 's' : ''})
+                              {medecin.visites_ce_mois}/{frequenceRequise}
                             </span>
                           </td>
                         </tr>
