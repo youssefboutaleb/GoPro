@@ -174,10 +174,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     return 'text-red-800';
   };
 
-  const getStatusBoxColor = (objectifPourcentage: number) => {
-    if (objectifPourcentage >= 80) return 'text-green-800';
-    if (objectifPourcentage >= 60) return 'text-yellow-800';
-    return 'text-red-800';
+  const getStatusPackageColor = (objectifPourcentage: number) => {
+    if (objectifPourcentage >= 80) return 'from-green-100 to-green-200';
+    if (objectifPourcentage >= 60) return 'from-yellow-100 to-yellow-200';
+    return 'from-red-100 to-red-200';
   };
 
   if (isLoading) {
@@ -323,7 +323,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                       <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.objectifPourcentage)} border-2`}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
+                            <div className={`p-2 bg-gradient-to-r ${getStatusPackageColor(item.objectifPourcentage)} rounded-lg`}>
                               <Package className={`h-4 w-4 ${getStatusTextColor(item.objectifPourcentage)}`}/>
                             </div>
                             <span className={`font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>{item.produitNom}</span>
