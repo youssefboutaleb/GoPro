@@ -1,13 +1,15 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Search, Filter, User, Stethoscope, MapPin, FileText } from 'lucide-react';
+import { ArrowLeft, Search, Filter, User, Stethoscope, MapPin, FileText, Check } from 'lucide-react';
 import RapportMedecins from './RapportMedecins';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface IndiceRetourProps {
   onBack: () => void;
@@ -39,7 +41,9 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedWeek, setSelectedWeek] = useState('1');
   const [selectedBrick, setSelectedBrick] = useState('all');
+  const [swipedRows, setSwipedRows] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // First, get the current user's delegue information
   const { data: currentDelegue } = useQuery({
@@ -120,14 +124,14 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       const currentMonth = new Date().getMonth() + 1;
 
       const medecinsPromises = rawMedecins.map(async (medecin: any) => {
-        // Get visits count for this year
+        // Get visits count for this year EXCLUDING current month
         const { data: visites, error: visitesError } = await supabase
           .from('visites')
           .select('id')
           .eq('medecin_id', medecin.id)
           .eq('delegue_id', currentDelegue.id)
           .gte('date_visite', `${currentYear}-01-01`)
-          .lte('date_visite', `${currentYear}-12-31`);
+          .lt('date_visite', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`);
 
         if (visitesError) {
           console.error('Error fetching visits for medecin:', medecin.id, visitesError);
@@ -135,7 +139,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
         const visitesEffectuees = visites?.length || 0;
 
-        // Calculate expected visits based on frequency
+        // Calculate expected visits based on frequency (excluding current month)
         const frequenceVisite = medecin.delegue_medecins[0]?.frequence_visite || '1';
         let visitesParMois = 1;
         
@@ -156,7 +160,8 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
             visitesParMois = 1;
         }
 
-        const visitesAttendues = visitesParMois * currentMonth;
+        // Calculate expected visits for months up to but not including current month
+        const visitesAttendues = visitesParMois * (currentMonth - 1);
         const indiceRetour = visitesAttendues > 0 ? Math.round((visitesEffectuees / visitesAttendues) * 100) : 0;
         
         let status = 'faible';
@@ -178,6 +183,47 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       return results;
     },
     enabled: !!rawMedecins.length && !!currentDelegue?.id
+  });
+
+  // Mutation to record a visit
+  const recordVisitMutation = useMutation({
+    mutationFn: async (medecinId: string) => {
+      if (!currentDelegue?.id) throw new Error('No delegue found');
+
+      const today = new Date().toISOString().split('T')[0];
+
+      const { error } = await supabase
+        .from('visites')
+        .insert({
+          medecin_id: medecinId,
+          delegue_id: currentDelegue.id,
+          date_visite: today
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: (_, medecinId) => {
+      // Add to swiped rows to show visual feedback
+      setSwipedRows(prev => new Set(prev).add(medecinId));
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['medecins-with-indice'] });
+      
+      toast.success('Visite enregistrée avec succès!');
+      
+      // Remove from swiped rows after 2 seconds
+      setTimeout(() => {
+        setSwipedRows(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(medecinId);
+          return newSet;
+        });
+      }, 2000);
+    },
+    onError: (error) => {
+      console.error('Error recording visit:', error);
+      toast.error('Erreur lors de l\'enregistrement de la visite');
+    }
   });
 
   const medecins: Medecin[] = medecinsWithIndice;
@@ -222,12 +268,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
-  // Calculate global index with new formula
+  // Calculate global index with new formula (excluding current month)
   const currentMonth = new Date().getMonth() + 1;
   const totalVisitesEffectuees = filteredMedecins.reduce((sum, medecin) => sum + medecin.visites_effectuees, 0);
   const totalVisitesPossibles = filteredMedecins.reduce((sum, medecin) => {
     const frequence = parseInt(medecin.frequence_visite) || 1;
-    return sum + (frequence * currentMonth);
+    // Calculate for months up to but not including current month
+    return sum + (frequence * (currentMonth - 1));
   }, 0);
   
   const indiceRetourGlobal = totalVisitesPossibles > 0 
@@ -237,6 +284,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   // Get unique specialties and bricks for filters
   const specialties = [...new Set(medecins.map(m => m.specialite).filter(Boolean))];
   const bricks = [...new Set(medecins.map(m => m.bricks?.nom).filter(Boolean))];
+
+  // Handle swipe gesture
+  const handleSwipe = (medecinId: string) => {
+    recordVisitMutation.mutate(medecinId);
+  };
 
   if (activeTab === 'rapport') {
     return <RapportMedecins onBack={() => setActiveTab('medecins')} />;
@@ -293,6 +345,9 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                   <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                   <p className="text-sm text-gray-600">
                     {filteredMedecins.length} médecins trouvés sur {medecins.length} total - Délégué: {currentDelegue.prenom} {currentDelegue.nom}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    💡 Glissez une ligne vers la droite pour enregistrer une visite aujourd'hui
                   </p>
                 </div>
               </div>
@@ -417,7 +472,30 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                   </thead>
                   <tbody>
                     {filteredMedecins.map((medecin) => (
-                      <tr key={medecin.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(medecin.status)} border-2`}>
+                      <tr 
+                        key={medecin.id} 
+                        className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative ${getStatusColor(medecin.status)} border-2 ${
+                          swipedRows.has(medecin.id) ? 'bg-green-50 border-green-300' : ''
+                        }`}
+                        onClick={() => handleSwipe(medecin.id)}
+                        style={{
+                          touchAction: 'pan-y'
+                        }}
+                        onTouchStart={(e) => {
+                          const touch = e.touches[0];
+                          (e.currentTarget as any).startX = touch.clientX;
+                        }}
+                        onTouchEnd={(e) => {
+                          const touch = e.changedTouches[0];
+                          const startX = (e.currentTarget as any).startX;
+                          const endX = touch.clientX;
+                          const diff = endX - startX;
+                          
+                          if (diff > 100) { // Swipe right threshold
+                            handleSwipe(medecin.id);
+                          }
+                        }}
+                      >
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg">
@@ -426,6 +504,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                             <span className={`font-medium ${getStatusTextColor(medecin.status)}`}>
                               {medecin.prenom} {medecin.nom}
                             </span>
+                            {swipedRows.has(medecin.id) && (
+                              <div className="flex items-center space-x-1 text-green-600">
+                                <Check className="h-4 w-4" />
+                                <span className="text-sm font-medium">Visite enregistrée</span>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
