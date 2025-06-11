@@ -71,6 +71,31 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     enabled: !!user?.id
   });
 
+  // Query to get total visits by current delegue in current year
+  const { data: totalVisitesAnnee = 0 } = useQuery({
+    queryKey: ['total-visits-year', currentDelegue?.id],
+    queryFn: async () => {
+      if (!currentDelegue?.id) return 0;
+
+      const currentYear = new Date().getFullYear();
+
+      const { data: visites, error } = await supabase
+        .from('visites')
+        .select('id')
+        .eq('delegue_id', currentDelegue.id)
+        .gte('date_visite', `${currentYear}-01-01`)
+        .lt('date_visite', `${currentYear + 1}-01-01`);
+
+      if (error) {
+        console.error('Error fetching total visits for year:', error);
+        return 0;
+      }
+
+      return visites?.length || 0;
+    },
+    enabled: !!currentDelegue?.id
+  });
+
   const { data: rawMedecins = [], isLoading, error } = useQuery({
     queryKey: ['medecins-indice-retour', currentDelegue?.id],
     queryFn: async () => {
@@ -231,6 +256,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['medecins-with-indice'] });
+      queryClient.invalidateQueries({ queryKey: ['total-visits-year'] });
       
       toast.success('Visite enregistrée avec succès!');
       
@@ -291,16 +317,17 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
-  // Calculate global index with new formula for current month visits
+  // Calculate global index with new formula: n/f where
+  // n = total visits by current delegue in current year
+  // f = sum of (frequence_visite * current month number) for all associated medecins
   const currentMonth = new Date().getMonth() + 1;
-  const totalVisitesCeMois = filteredMedecins.reduce((sum, medecin) => sum + medecin.visites_ce_mois, 0);
-  const totalVisitesPossiblesCeMois = filteredMedecins.reduce((sum, medecin) => {
-    const frequence = parseInt(medecin.frequence_visite) || 1;
-    return sum + frequence;
+  const totalExpectedVisits = rawMedecins.reduce((sum, medecin) => {
+    const frequence = parseInt(medecin.delegue_medecins[0]?.frequence_visite) || 1;
+    return sum + (frequence * currentMonth);
   }, 0);
   
-  const indiceRetourGlobal = totalVisitesPossiblesCeMois > 0 
-    ? Math.round((totalVisitesCeMois / totalVisitesPossiblesCeMois) * 100)
+  const indiceRetourGlobal = totalExpectedVisits > 0 
+    ? Math.round((totalVisitesAnnee / totalExpectedVisits) * 100)
     : 0;
 
   // Get unique specialties and bricks for filters
