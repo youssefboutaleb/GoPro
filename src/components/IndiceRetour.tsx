@@ -30,6 +30,7 @@ interface Medecin {
   status: string;
   visites_effectuees: number;
   visites_attendues: number;
+  frequence_visite: string;
 }
 
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
@@ -167,7 +168,8 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           indiceRetour,
           status,
           visites_effectuees: visitesEffectuees,
-          visites_attendues: visitesAttendues
+          visites_attendues: visitesAttendues,
+          frequence_visite: frequenceVisite
         };
       });
 
@@ -220,10 +222,17 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
-  // Calcul de l'indice de retour global moyen
-  const indiceRetourGlobal = Math.round(
-    filteredMedecins.reduce((sum, medecin) => sum + medecin.indiceRetour, 0) / filteredMedecins.length
-  ) || 0;
+  // Calculate global index with new formula
+  const currentMonth = new Date().getMonth() + 1;
+  const totalVisitesEffectuees = filteredMedecins.reduce((sum, medecin) => sum + medecin.visites_effectuees, 0);
+  const totalVisitesPossibles = filteredMedecins.reduce((sum, medecin) => {
+    const frequence = parseInt(medecin.frequence_visite) || 1;
+    return sum + (frequence * currentMonth);
+  }, 0);
+  
+  const indiceRetourGlobal = totalVisitesPossibles > 0 
+    ? Math.round((totalVisitesEffectuees / totalVisitesPossibles) * 100)
+    : 0;
 
   // Get unique specialties and bricks for filters
   const specialties = [...new Set(medecins.map(m => m.specialite).filter(Boolean))];
@@ -346,7 +355,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </Select>
               </div>
 
-
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Brick</label>
                 <Select value={selectedBrick} onValueChange={setSelectedBrick}>
@@ -404,6 +412,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Fréquence/mois</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Visites</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
                     </tr>
@@ -429,6 +438,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                             <MapPin className="h-4 w-4" />
                             <span>{medecin.bricks?.nom || 'Non assigné'}</span>
                           </div>
+                        </td>
+                        <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                            {medecin.frequence_visite}/mois
+                          </span>
                         </td>
                         <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
                           <span className="text-sm">
