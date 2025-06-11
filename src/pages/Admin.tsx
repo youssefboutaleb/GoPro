@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -207,5 +208,3 @@ const Admin = () => {
 };
 
 export default Admin;
-
-}
