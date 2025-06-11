@@ -346,20 +346,6 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Semaine</label>
-                <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner semaine" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Semaine 1</SelectItem>
-                    <SelectItem value="2">Semaine 2</SelectItem>
-                    <SelectItem value="3">Semaine 3</SelectItem>
-                    <SelectItem value="4">Semaine 4</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Brick</label>
