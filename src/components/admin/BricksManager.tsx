@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Brick = Database['public']['Tables']['bricks']['Row'];
+type Secteur = Database['public']['Tables']['secteur']['Row'];
 
 interface BricksManagerProps {
   onBack: () => void;
@@ -19,32 +21,51 @@ interface BricksManagerProps {
 
 const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   const [bricks, setBricks] = useState<Brick[]>([]);
+  const [secteurs, setSecteurs] = useState<Secteur[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBrick, setEditingBrick] = useState<Brick | null>(null);
   const [formData, setFormData] = useState({
     nom: '',
     description: '',
+    secteur_id: '',
   });
 
   useEffect(() => {
-    fetchBricks();
+    fetchData();
   }, []);
 
-  const fetchBricks = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch bricks with secteur information
+      const { data: bricksData, error: bricksError } = await supabase
         .from('bricks')
+        .select(`
+          *,
+          secteur:secteur_id (
+            id,
+            nom
+          )
+        `)
+        .order('nom', { ascending: true });
+
+      if (bricksError) throw bricksError;
+
+      // Fetch all secteurs for the dropdown
+      const { data: secteursData, error: secteursError } = await supabase
+        .from('secteur')
         .select('*')
         .order('nom', { ascending: true });
 
-      if (error) throw error;
-      setBricks(data || []);
+      if (secteursError) throw secteursError;
+
+      setBricks(bricksData || []);
+      setSecteurs(secteursData || []);
     } catch (error) {
-      console.error('Error fetching bricks:', error);
+      console.error('Error fetching data:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les bricks",
+        description: "Impossible de charger les données",
         variant: "destructive",
       });
     } finally {
@@ -70,6 +91,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       const submitData = {
         nom: formData.nom.trim(),
         description: formData.description.trim() || null,
+        secteur_id: formData.secteur_id || null,
       };
 
       console.log('Submitting data:', submitData);
@@ -107,8 +129,8 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
       setDialogOpen(false);
       setEditingBrick(null);
-      setFormData({ nom: '', description: '' });
-      await fetchBricks();
+      setFormData({ nom: '', description: '', secteur_id: '' });
+      await fetchData();
     } catch (error) {
       console.error('Error saving brick:', error);
       toast({
@@ -135,7 +157,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           title: "Succès",
           description: "Brick supprimée avec succès",
         });
-        await fetchBricks();
+        await fetchData();
       } catch (error) {
         console.error('Error deleting brick:', error);
         toast({
@@ -152,14 +174,19 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
     setFormData({
       nom: brick.nom,
       description: brick.description || '',
+      secteur_id: brick.secteur_id || '',
     });
     setDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingBrick(null);
-    setFormData({ nom: '', description: '' });
+    setFormData({ nom: '', description: '', secteur_id: '' });
     setDialogOpen(true);
+  };
+
+  const getSecteurName = (brick: any) => {
+    return brick.secteur?.nom || 'N/A';
   };
 
   return (
@@ -219,6 +246,24 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="secteur">Secteur</Label>
+                      <Select
+                        value={formData.secteur_id}
+                        onValueChange={(value) => setFormData({ ...formData, secteur_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un secteur" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {secteurs.map((secteur) => (
+                            <SelectItem key={secteur.id} value={secteur.id}>
+                              {secteur.nom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
                       <Input
                         id="description"
@@ -248,6 +293,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nom</TableHead>
+                    <TableHead>Secteur</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -256,6 +302,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                   {bricks.map((brick) => (
                     <TableRow key={brick.id}>
                       <TableCell className="font-medium">{brick.nom}</TableCell>
+                      <TableCell>{getSecteurName(brick)}</TableCell>
                       <TableCell>{brick.description || 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
