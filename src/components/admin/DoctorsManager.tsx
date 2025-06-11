@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Search, Filter, User, Stethoscope } from 'lucide-react';
+import { ArrowLeft, Search, Filter, User, Stethoscope, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import DoctorDialog from './DoctorDialog';
 
 interface DoctorsManagerProps {
   onBack: () => void;
@@ -31,6 +33,10 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState<Medecin | null>(null);
+
+  const queryClient = useQueryClient();
 
   const { data: medecins = [], isLoading, error } = useQuery({
     queryKey: ['medecins'],
@@ -65,6 +71,25 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (doctorId: string) => {
+      const { error } = await supabase
+        .from('medecins')
+        .delete()
+        .eq('id', doctorId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medecins'] });
+      toast.success('Médecin supprimé avec succès');
+    },
+    onError: (error) => {
+      console.error('Error deleting doctor:', error);
+      toast.error('Erreur lors de la suppression du médecin');
+    }
+  });
+
   // Log data for debugging
   console.log('Current medecins state:', medecins);
   console.log('Is loading:', isLoading);
@@ -81,6 +106,22 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   // Get unique specialties and bricks for filters
   const specialties = [...new Set(medecins.map(m => m.specialite).filter(Boolean))];
   const bricks = [...new Set(medecins.map(m => m.bricks?.nom).filter(Boolean))];
+
+  const handleEdit = (doctor: Medecin) => {
+    setEditingDoctor(doctor);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (doctorId: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce médecin ?')) {
+      deleteMutation.mutate(doctorId);
+    }
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setEditingDoctor(null);
+  };
 
   if (isLoading) {
     return (
@@ -108,25 +149,31 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="bg-white shadow-lg border-b border-blue-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onBack}
-              className="flex items-center space-x-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
-            </Button>
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
-                <Stethoscope className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Liste des Médecins</h1>
-                <p className="text-sm text-gray-600">{filteredMedecins.length} médecins trouvés sur {medecins.length} total</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBack}
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Retour</span>
+              </Button>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
+                  <Stethoscope className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Liste des Médecins</h1>
+                  <p className="text-sm text-gray-600">{filteredMedecins.length} médecins trouvés sur {medecins.length} total</p>
+                </div>
               </div>
             </div>
+            <Button onClick={() => setDialogOpen(true)} className="flex items-center space-x-2">
+              <Plus className="h-4 w-4" />
+              <span>Ajouter un médecin</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -234,7 +281,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
                     <TableHead>Spécialité</TableHead>
                     <TableHead>Brick</TableHead>
                     <TableHead>Secteur</TableHead>
-                    <TableHead>ID</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -245,7 +292,25 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
                       <TableCell>{medecin.specialite || 'Non renseigné'}</TableCell>
                       <TableCell>{medecin.bricks?.nom || 'Non assigné'}</TableCell>
                       <TableCell>{medecin.bricks?.secteur?.nom || 'Non assigné'}</TableCell>
-                      <TableCell className="text-xs text-gray-500">{medecin.id}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEdit(medecin)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDelete(medecin.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -254,6 +319,12 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
           </CardContent>
         </Card>
       </div>
+
+      <DoctorDialog
+        open={dialogOpen}
+        onOpenChange={handleDialogClose}
+        doctor={editingDoctor}
+      />
     </div>
   );
 };
