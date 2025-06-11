@@ -174,6 +174,12 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     return 'text-red-800';
   };
 
+  const getStatusBoxColor = (objectifPourcentage: number) => {
+    if (objectifPourcentage >= 80) return 'text-green-800';
+    if (objectifPourcentage >= 60) return 'text-yellow-800';
+    return 'text-red-800';
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
@@ -318,7 +324,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-gradient-to-r from-green-100 to-green-200 rounded-lg">
-                              <Package className="h-4 w-4 text-green-600" />
+                              <Package className={'h-4 w-4 ${getStatusTextColor(item.objectifPourcentage)}'} />
                             </div>
                             <span className={`font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>{item.produitNom}</span>
                           </div>
