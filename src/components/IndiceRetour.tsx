@@ -550,7 +550,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                           </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
-                              {frequenceRequise}
+                              {frequenceRequise} / mois
                             </span>
                           </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
