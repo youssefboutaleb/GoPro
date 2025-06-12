@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -227,20 +226,6 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         console.log('Updating secteur with ID:', editingSecteur.id);
         console.log('Updating secteur with data:', submitData);
         
-        // First check if the secteur exists
-        const { data: existingData, error: checkError } = await supabase
-          .from('secteur')
-          .select('*')
-          .eq('id', editingSecteur.id)
-          .single();
-
-        if (checkError) {
-          console.error('Error checking secteur existence:', checkError);
-          throw new Error(`Secteur non trouvé: ${checkError.message}`);
-        }
-
-        console.log('Existing secteur found:', existingData);
-
         // Update the secteur
         const { data: updatedData, error: updateError } = await supabase
           .from('secteur')
@@ -253,11 +238,9 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           throw new Error(`Impossible de mettre à jour le secteur: ${updateError.message}`);
         }
 
-        console.log('Update response:', updatedData);
-
         if (!updatedData || updatedData.length === 0) {
-          console.error('No data returned from update - this suggests RLS or permission issue');
-          throw new Error('Aucune donnée retournée lors de la mise à jour - problème de permissions possible');
+          console.error('No data returned from update');
+          throw new Error('Aucune donnée retournée lors de la mise à jour');
         }
         
         console.log('Secteur updated successfully:', updatedData[0]);
