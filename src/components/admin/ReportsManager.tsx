@@ -351,8 +351,8 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
               <CardDescription>Performance trimestrielle pour l'année en cours</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-80" style="position: fixed;left: -1em;">
-                <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer config={chartConfig} className="h-80">
+                <ResponsiveContainer width="100%" height="100%" style="position: fixed;left: -1em;">
                   <BarChart data={indiceData.quarterlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="quarter" />
@@ -375,8 +375,8 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
               <CardDescription>Performance mensuelle pour l'année en cours</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-80" style="position: fixed;left: -1em;">
-                <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer config={chartConfig} className="h-80">
+                <ResponsiveContainer width="100%" height="100%" style="position: fixed;left: -1em;">
                   <LineChart data={indiceData.monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
