@@ -217,15 +217,18 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           .from('secteur')
           .update(submitData)
           .eq('id', editingSecteur.id)
-          .select()
-          .single();
+          .select();
 
         if (error) {
           console.error('Error updating secteur:', error);
           throw error;
         }
+
+        if (!data || data.length === 0) {
+          throw new Error('Secteur non trouvé ou impossible à mettre à jour');
+        }
         
-        console.log('Secteur updated successfully:', data);
+        console.log('Secteur updated successfully:', data[0]);
         secteurId = editingSecteur.id;
         
         toast({
