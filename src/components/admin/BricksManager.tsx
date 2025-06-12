@@ -300,6 +300,8 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       setSecteursDialogOpen(false);
       setEditingSecteur(null);
       setSecteurFormData({ nom: '', selectedBricks: [] });
+      
+      // Force refresh data to ensure UI updates
       await fetchData();
     } catch (error) {
       console.error('Error saving secteur:', error);
