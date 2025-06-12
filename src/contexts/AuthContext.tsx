@@ -49,6 +49,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('Error fetching profile:', error);
+        // Don't throw error, just return null and continue
         return null;
       }
 
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
+      // Don't throw error, just return null and continue
       return null;
     }
   };
@@ -105,14 +107,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
-    // Set a maximum loading time to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      if (mounted) {
-        console.log('Loading timeout reached, setting loading to false');
-        setLoading(false);
-      }
-    }, 5000);
-
     // Initialize auth
     initializeAuth();
 
@@ -140,9 +134,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       
-      // Clear loading timeout when auth state changes
-      clearTimeout(loadingTimeout);
-      
       if (mounted) {
         setLoading(false);
       }
@@ -150,7 +141,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => {
       mounted = false;
-      clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
   }, []);
