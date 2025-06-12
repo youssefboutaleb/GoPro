@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,21 +41,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Fetching profile for user:', userId);
       
-      // Set a timeout for the profile fetch to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
-      });
-      
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
       if (error) {
         console.error('Error fetching profile:', error);
+        // Don't throw error, just return null and continue
         return null;
       }
 
@@ -62,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
+      // Don't throw error, just return null and continue
       return null;
     }
   };
@@ -93,14 +89,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (session?.user && mounted) {
           console.log('Fetching profile for logged in user...');
-          try {
-            const userProfile = await fetchProfile(session.user.id);
-            if (mounted) {
-              setProfile(userProfile);
-            }
-          } catch (error) {
-            console.error('Failed to fetch profile during initialization:', error);
-            // Continue anyway, don't block the app
+          const userProfile = await fetchProfile(session.user.id);
+          if (mounted) {
+            setProfile(userProfile);
           }
         }
         
@@ -123,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session);
+      console.log('Auth state changed:', event, session?.user?.email);
       
       if (!mounted) return;
       
@@ -132,14 +123,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (session?.user) {
         console.log('User logged in, fetching profile...');
-        try {
-          const userProfile = await fetchProfile(session.user.id);
-          if (mounted) {
-            setProfile(userProfile);
-          }
-        } catch (error) {
-          console.error('Failed to fetch profile after auth change:', error);
-          // Continue anyway, don't block the app
+        const userProfile = await fetchProfile(session.user.id);
+        if (mounted) {
+          setProfile(userProfile);
         }
       } else {
         console.log('User logged out, clearing profile...');
@@ -160,15 +146,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting sign in for:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
+    if (error) {
+      console.error('Sign in error:', error);
+    } else {
+      console.log('Sign in successful');
+    }
+
     return { error };
   };
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
+    console.log('Attempting sign up for:', email);
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -181,15 +175,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       },
     });
 
+    if (error) {
+      console.error('Sign up error:', error);
+    } else {
+      console.log('Sign up successful');
+    }
+
     return { error };
   };
 
   const signOut = async () => {
+    console.log('Signing out...');
     const { error } = await supabase.auth.signOut();
     if (error) {
+      console.error('Sign out error:', error);
       throw error;
     }
     setProfile(null);
+    console.log('Sign out successful');
   };
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'superuser';
