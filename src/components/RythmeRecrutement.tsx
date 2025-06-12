@@ -142,7 +142,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 
     // Find matching objective based on produit_id and brick_id
     const matchingObjective = objectivesData.find(obj => 
-      obj.produit_id === vente.produit_id && obj['id-brick'] === vente.brick_id
+      obj.produit_id === vente.produit_id && obj['brick_id'] === vente.brick_id
     );
     const objectifMensuel = matchingObjective?.objectif_mensuel ? Number(matchingObjective.objectif_mensuel) : null;
     const objectifAnnuel = objectifMensuel ? objectifMensuel * 12 : null;
