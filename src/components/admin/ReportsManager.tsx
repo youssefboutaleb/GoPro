@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, TrendingUp, Calendar, BarChart3, User } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,12 +24,20 @@ interface IndiceData {
   }>;
 }
 
+interface Delegue {
+  id: string;
+  nom: string;
+  prenom: string;
+}
+
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const [indiceData, setIndiceData] = useState<IndiceData>({
     globalIndex: 0,
     quarterlyData: [],
     monthlyData: []
   });
+  const [delegues, setDelegues] = useState<Delegue[]>([]);
+  const [selectedDelegue, setSelectedDelegue] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +49,33 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   };
 
   useEffect(() => {
+    const fetchDelegues = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('delegues')
+          .select('id, nom, prenom')
+          .order('nom');
+
+        if (error) {
+          console.error('Error fetching delegues:', error);
+          return;
+        }
+
+        setDelegues(data || []);
+        if (data && data.length > 0) {
+          setSelectedDelegue(data[0].id);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching delegues:', err);
+      }
+    };
+
+    fetchDelegues();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDelegue) return;
+
     const fetchIndiceData = async () => {
       try {
         setLoading(true);
@@ -50,10 +86,11 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
         const startOfYear = `${currentYear}-01-01`;
         const endOfYear = `${currentYear}-12-31`;
 
-        // Fetch all visits and delegue_medecins data for the current year
+        // Fetch all visits for the selected delegue for the current year
         const { data: visitesData, error: visitesError } = await supabase
           .from('visites')
           .select('delegue_id, medecin_id, date_visite')
+          .eq('delegue_id', selectedDelegue)
           .gte('date_visite', startOfYear)
           .lte('date_visite', endOfYear);
 
@@ -63,9 +100,11 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
           return;
         }
 
+        // Fetch delegue_medecins data for the selected delegue
         const { data: delegueMedecinsData, error: dmError } = await supabase
           .from('delegue_medecins')
-          .select('delegue_id, medecin_id, frequence_visite');
+          .select('delegue_id, medecin_id, frequence_visite')
+          .eq('delegue_id', selectedDelegue);
 
         if (dmError) {
           console.error('Error fetching delegue_medecins:', dmError);
@@ -88,7 +127,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
           quarterlyStats[quarterKey] = { effectuees: 0, attendues: 0 };
         }
 
-        // Calculate expected visits per month for each delegue-medecin pair
+        // Calculate expected visits per month for each medecin assigned to the delegue
         delegueMedecinsData?.forEach(dm => {
           const frequence = parseInt(dm.frequence_visite || '1');
           
@@ -164,7 +203,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     };
 
     fetchIndiceData();
-  }, []);
+  }, [selectedDelegue]);
 
   if (loading) {
     return (
@@ -212,6 +251,8 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     );
   }
 
+  const selectedDelegueData = delegues.find(d => d.id === selectedDelegue);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="bg-white shadow-lg border-b border-blue-100">
@@ -255,6 +296,36 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {/* Delegate Selector */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <User className="h-5 w-5 text-purple-600" />
+              <span>Sélection du délégué</span>
+            </CardTitle>
+            <CardDescription>Choisissez un délégué pour voir ses performances détaillées</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedDelegue} onValueChange={setSelectedDelegue}>
+              <SelectTrigger className="w-full max-w-md">
+                <SelectValue placeholder="Sélectionner un délégué" />
+              </SelectTrigger>
+              <SelectContent>
+                {delegues.map((delegue) => (
+                  <SelectItem key={delegue.id} value={delegue.id}>
+                    {delegue.prenom} {delegue.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedDelegueData && (
+              <p className="text-sm text-gray-600 mt-2">
+                Données affichées pour: <span className="font-medium">{selectedDelegueData.prenom} {selectedDelegueData.nom}</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Quarterly Chart */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
