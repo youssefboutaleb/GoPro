@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -226,23 +227,29 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         console.log('Updating secteur with ID:', editingSecteur.id);
         console.log('Updating secteur with data:', submitData);
         
-        // Update the secteur - simplified without .single()
-        const { error: updateError } = await supabase
+        // Update the secteur and return the updated data
+        const { data: updatedData, error: updateError } = await supabase
           .from('secteur')
           .update(submitData)
-          .eq('id', editingSecteur.id);
+          .eq('id', editingSecteur.id)
+          .select();
 
         if (updateError) {
           console.error('Error updating secteur:', updateError);
           throw new Error(`Impossible de mettre à jour le secteur: ${updateError.message}`);
         }
+
+        if (!updatedData || updatedData.length === 0) {
+          console.error('No data returned from update');
+          throw new Error('Aucune donnée retournée lors de la mise à jour');
+        }
         
-        console.log('Secteur updated successfully');
+        console.log('Secteur updated successfully:', updatedData[0]);
         secteurId = editingSecteur.id;
         
         toast({
           title: "Succès",
-          description: `Secteur "${submitData.nom}" mis à jour avec succès`,
+          description: `Secteur "${updatedData[0].nom}" mis à jour avec succès`,
         });
       } else {
         console.log('Creating new secteur with data:', submitData);
