@@ -226,39 +226,23 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         console.log('Updating secteur with ID:', editingSecteur.id);
         console.log('Updating secteur with data:', submitData);
         
-        // First, let's verify the secteur exists
-        const { data: existingSecteur, error: fetchError } = await supabase
-          .from('secteur')
-          .select('*')
-          .eq('id', editingSecteur.id)
-          .single();
-
-        if (fetchError) {
-          console.error('Error fetching existing secteur:', fetchError);
-          throw new Error(`Secteur non trouvé: ${fetchError.message}`);
-        }
-
-        console.log('Existing secteur before update:', existingSecteur);
-
-        // Now update the secteur
-        const { data: updatedData, error: updateError } = await supabase
+        // Update the secteur - simplified without .single()
+        const { error: updateError } = await supabase
           .from('secteur')
           .update(submitData)
-          .eq('id', editingSecteur.id)
-          .select()
-          .single();
+          .eq('id', editingSecteur.id);
 
         if (updateError) {
           console.error('Error updating secteur:', updateError);
           throw new Error(`Impossible de mettre à jour le secteur: ${updateError.message}`);
         }
         
-        console.log('Secteur updated successfully:', updatedData);
+        console.log('Secteur updated successfully');
         secteurId = editingSecteur.id;
         
         toast({
           title: "Succès",
-          description: `Secteur "${updatedData.nom}" mis à jour avec succès`,
+          description: `Secteur "${submitData.nom}" mis à jour avec succès`,
         });
       } else {
         console.log('Creating new secteur with data:', submitData);
