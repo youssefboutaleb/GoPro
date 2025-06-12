@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -212,12 +211,21 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       let secteurId: string;
 
       if (editingSecteur) {
-        const { error } = await supabase
+        console.log('Updating secteur:', editingSecteur.id, 'with data:', submitData);
+        
+        const { data, error } = await supabase
           .from('secteur')
           .update(submitData)
-          .eq('id', editingSecteur.id);
+          .eq('id', editingSecteur.id)
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating secteur:', error);
+          throw error;
+        }
+        
+        console.log('Secteur updated successfully:', data);
         secteurId = editingSecteur.id;
         
         toast({
@@ -225,13 +233,20 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           description: "Secteur mis à jour avec succès",
         });
       } else {
+        console.log('Creating new secteur with data:', submitData);
+        
         const { data, error } = await supabase
           .from('secteur')
           .insert([submitData])
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating secteur:', error);
+          throw error;
+        }
+        
+        console.log('Secteur created successfully:', data);
         secteurId = data.id;
         
         toast({
@@ -291,7 +306,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       console.error('Error saving secteur:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder le secteur",
+        description: `Impossible de sauvegarder le secteur: ${error.message || 'Erreur inconnue'}`,
         variant: "destructive",
       });
     } finally {
