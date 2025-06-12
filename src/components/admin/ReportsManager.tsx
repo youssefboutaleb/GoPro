@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -340,59 +339,62 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
           </CardContent>
         </Card>
 
-        {/* Quarterly Chart */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
-              <span>Indice de retour par trimestre</span>
-            </CardTitle>
-            <CardDescription>Performance trimestrielle pour l'année en cours</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={indiceData.quarterlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="quarter" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="indice" fill="var(--color-indice)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+        {/* Charts Row - Quarterly and Monthly side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quarterly Chart */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5 text-purple-600" />
+                <span>Indice de retour par trimestre</span>
+              </CardTitle>
+              <CardDescription>Performance trimestrielle pour l'année en cours</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={indiceData.quarterlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="quarter" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="indice" fill="var(--color-indice)" radius={4} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
 
-        {/* Monthly Chart */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <BarChart3 className="h-5 w-5 text-purple-600" />
-              <span>Indice de retour par mois</span>
-            </CardTitle>
-            <CardDescription>Performance mensuelle pour l'année en cours</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={indiceData.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="indice" 
-                    stroke="var(--color-indice)" 
-                    strokeWidth={3}
-                    dot={{ fill: "var(--color-indice)", strokeWidth: 2, r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+          {/* Monthly Chart */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-purple-600" />
+                <span>Indice de retour par mois</span>
+              </CardTitle>
+              <CardDescription>Performance mensuelle pour l'année en cours</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={indiceData.monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="indice" 
+                      stroke="var(--color-indice)" 
+                      strokeWidth={3}
+                      dot={{ fill: "var(--color-indice)", strokeWidth: 2, r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
