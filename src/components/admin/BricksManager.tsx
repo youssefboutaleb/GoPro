@@ -214,37 +214,17 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         console.log('Updating secteur with ID:', editingSecteur.id);
         console.log('Updating secteur with data:', submitData);
         
-        // First, verify the secteur exists
-        const { data: existingSecteur, error: checkError } = await supabase
-          .from('secteur')
-          .select('id, nom')
-          .eq('id', editingSecteur.id)
-          .single();
-
-        if (checkError || !existingSecteur) {
-          console.error('Secteur not found for update:', checkError);
-          throw new Error('Secteur introuvable dans la base de données');
-        }
-
-        console.log('Found existing secteur:', existingSecteur);
-
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('secteur')
           .update(submitData)
-          .eq('id', editingSecteur.id)
-          .select();
+          .eq('id', editingSecteur.id);
 
         if (error) {
           console.error('Error updating secteur:', error);
           throw error;
         }
-
-        if (!data || data.length === 0) {
-          console.error('No data returned from update');
-          throw new Error('Aucune donnée retournée lors de la mise à jour');
-        }
         
-        console.log('Secteur updated successfully:', data[0]);
+        console.log('Secteur updated successfully');
         secteurId = editingSecteur.id;
         
         toast({
