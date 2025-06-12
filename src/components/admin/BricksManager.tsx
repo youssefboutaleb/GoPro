@@ -211,8 +211,23 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       let secteurId: string;
 
       if (editingSecteur) {
-        console.log('Updating secteur:', editingSecteur.id, 'with data:', submitData);
+        console.log('Updating secteur with ID:', editingSecteur.id);
+        console.log('Updating secteur with data:', submitData);
         
+        // First, verify the secteur exists
+        const { data: existingSecteur, error: checkError } = await supabase
+          .from('secteur')
+          .select('id, nom')
+          .eq('id', editingSecteur.id)
+          .single();
+
+        if (checkError || !existingSecteur) {
+          console.error('Secteur not found for update:', checkError);
+          throw new Error('Secteur introuvable dans la base de données');
+        }
+
+        console.log('Found existing secteur:', existingSecteur);
+
         const { data, error } = await supabase
           .from('secteur')
           .update(submitData)
@@ -225,7 +240,8 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         }
 
         if (!data || data.length === 0) {
-          throw new Error('Secteur non trouvé ou impossible à mettre à jour');
+          console.error('No data returned from update');
+          throw new Error('Aucune donnée retournée lors de la mise à jour');
         }
         
         console.log('Secteur updated successfully:', data[0]);
@@ -350,9 +366,9 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   };
 
   const openEditSecteurDialog = (secteur: Secteur) => {
+    console.log('Opening edit dialog for secteur:', secteur);
     setEditingSecteur(secteur);
     const secteurBricks = bricks.filter(brick => brick.secteur_id === secteur.id).map(brick => brick.id);
-    console.log('Opening edit dialog for secteur:', secteur.nom);
     console.log('Secteur bricks:', secteurBricks);
     setSecteurFormData({
       nom: secteur.nom,
@@ -420,7 +436,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                     <span>Nouveau Secteur</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent>
                   <DialogHeader>
                     <DialogTitle>
                       {editingSecteur ? 'Modifier le Secteur' : 'Nouveau Secteur'}
