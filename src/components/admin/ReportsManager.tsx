@@ -352,7 +352,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-80">
-                <ResponsiveContainer width="100%" height="100%" style="position: fixed;left: -1em;">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={indiceData.quarterlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="quarter" />
@@ -376,7 +376,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-80">
-                <ResponsiveContainer width="100%" height="100%" style="position: fixed;left: -1em;">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={indiceData.monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
