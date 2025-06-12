@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +47,10 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   }, []);
 
   const fetchData = async () => {
+    console.log('Starting fetchData...');
     try {
+      setLoading(true);
+      
       // Fetch bricks with secteur information
       const { data: bricksData, error: bricksError } = await supabase
         .from('bricks')
@@ -59,7 +63,10 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         `)
         .order('nom', { ascending: true });
 
-      if (bricksError) throw bricksError;
+      if (bricksError) {
+        console.error('Error fetching bricks:', bricksError);
+        throw bricksError;
+      }
 
       // Fetch all secteurs
       const { data: secteursData, error: secteursError } = await supabase
@@ -67,7 +74,13 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         .select('*')
         .order('nom', { ascending: true });
 
-      if (secteursError) throw secteursError;
+      if (secteursError) {
+        console.error('Error fetching secteurs:', secteursError);
+        throw secteursError;
+      }
+
+      console.log('Fetched bricks:', bricksData);
+      console.log('Fetched secteurs:', secteursData);
 
       setBricks(bricksData || []);
       setSecteurs(secteursData || []);
@@ -302,7 +315,9 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       setSecteurFormData({ nom: '', selectedBricks: [] });
       
       // Force refresh data to ensure UI updates
+      console.log('Refreshing data after secteur update...');
       await fetchData();
+      console.log('Data refresh completed');
     } catch (error) {
       console.error('Error saving secteur:', error);
       toast({
