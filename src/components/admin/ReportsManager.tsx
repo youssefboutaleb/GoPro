@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,8 @@ interface ReportsManagerProps {
 
 interface IndiceData {
   globalIndex: number;
+  actualVisits: number;
+  expectedVisits: number;
   quarterlyData: Array<{
     quarter: string;
     indice: number;
@@ -32,6 +35,8 @@ interface Delegue {
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const [indiceData, setIndiceData] = useState<IndiceData>({
     globalIndex: 0,
+    actualVisits: 0,
+    expectedVisits: 0,
     quarterlyData: [],
     monthlyData: []
   });
@@ -82,6 +87,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
 
         // Get current year data
         const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1; // 1-12
         const startOfYear = `${currentYear}-01-01`;
         const endOfYear = `${currentYear}-12-31`;
 
@@ -111,7 +117,16 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
           return;
         }
 
-        // Process data by month and quarter
+        // Calculate actual visits (n)
+        const actualVisits = visitesData?.length || 0;
+
+        // Calculate expected visits (f) = sum of (frequence_visite * current_month_number)
+        const expectedVisits = delegueMedecinsData?.reduce((total, dm) => {
+          const frequence = parseInt(dm.frequence_visite || '1');
+          return total + (frequence * currentMonth);
+        }, 0) || 0;
+
+        // Process data by month and quarter for charts
         const monthlyStats: { [key: string]: { effectuees: number; attendues: number } } = {};
         const quarterlyStats: { [key: string]: { effectuees: number; attendues: number } } = {};
 
@@ -183,12 +198,12 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
         });
 
         // Calculate global index
-        const totalEffectuees = Object.values(monthlyStats).reduce((sum, stats) => sum + stats.effectuees, 0);
-        const totalAttendues = Object.values(monthlyStats).reduce((sum, stats) => sum + stats.attendues, 0);
-        const globalIndex = totalAttendues > 0 ? Math.round((totalEffectuees / totalAttendues) * 100) : 0;
+        const globalIndex = expectedVisits > 0 ? Math.round((actualVisits / expectedVisits) * 100) : 0;
 
         setIndiceData({
           globalIndex,
+          actualVisits,
+          expectedVisits,
           quarterlyData,
           monthlyData
         });
@@ -328,9 +343,10 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
               
               {/* Purple square with percentage */}
               {selectedDelegue && (
-                <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white min-w-[120px] text-center">
+                <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white min-w-[140px] text-center">
                   <div className="text-sm opacity-90 mb-1">Indice de retour</div>
                   <div className="text-2xl font-bold">{indiceData.globalIndex}%</div>
+                  <div className="text-xs opacity-80">({indiceData.actualVisits}/{indiceData.expectedVisits})</div>
                 </div>
               )}
             </div>
