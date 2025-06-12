@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -306,23 +305,35 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
             <CardDescription>Choisissez un délégué pour voir ses performances détaillées</CardDescription>
           </CardHeader>
           <CardContent>
-            <Select value={selectedDelegue} onValueChange={setSelectedDelegue}>
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Sélectionner un délégué" />
-              </SelectTrigger>
-              <SelectContent>
-                {delegues.map((delegue) => (
-                  <SelectItem key={delegue.id} value={delegue.id}>
-                    {delegue.prenom} {delegue.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedDelegueData && (
-              <p className="text-sm text-gray-600 mt-2">
-                Données affichées pour: <span className="font-medium">{selectedDelegueData.prenom} {selectedDelegueData.nom}</span>
-              </p>
-            )}
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <Select value={selectedDelegue} onValueChange={setSelectedDelegue}>
+                  <SelectTrigger className="w-full max-w-md">
+                    <SelectValue placeholder="Sélectionner un délégué" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {delegues.map((delegue) => (
+                      <SelectItem key={delegue.id} value={delegue.id}>
+                        {delegue.prenom} {delegue.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedDelegueData && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Données affichées pour: <span className="font-medium">{selectedDelegueData.prenom} {selectedDelegueData.nom}</span>
+                  </p>
+                )}
+              </div>
+              
+              {/* Purple square with percentage */}
+              {selectedDelegue && (
+                <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 text-white min-w-[120px] text-center">
+                  <div className="text-sm opacity-90 mb-1">Indice de retour</div>
+                  <div className="text-2xl font-bold">{indiceData.globalIndex}%</div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
