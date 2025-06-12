@@ -292,19 +292,6 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
                 </div>
               </div>
             </div>
-            
-            {/* Global Index */}
-            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 border-0 text-white">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <TrendingUp className="h-8 w-8" />
-                  <div>
-                    <p className="text-sm opacity-90">Indice Global</p>
-                    <p className="text-2xl font-bold">{indiceData.globalIndex}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
