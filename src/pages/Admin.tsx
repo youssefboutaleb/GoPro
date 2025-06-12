@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -14,29 +15,10 @@ import UsersManager from '@/components/admin/UsersManager';
 import EquipesManager from '@/components/admin/EquipesManager';
 
 const Admin = () => {
-  const { profile, signOut, isAdmin, loading, user } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Show loading while authentication is being determined
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Vérification des permissions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to auth if not logged in
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
-
-  // Show access denied if not admin
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center">
@@ -45,7 +27,6 @@ const Admin = () => {
             <CardTitle className="text-red-600">Accès refusé</CardTitle>
             <CardDescription>
               Vous n'avez pas les permissions nécessaires pour accéder à cette page.
-              {profile ? ` Votre rôle actuel: ${profile.role}` : ' Profil non trouvé.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -59,12 +40,8 @@ const Admin = () => {
   }
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    await signOut();
+    navigate('/auth');
   };
 
   if (activeTab !== 'overview') {
