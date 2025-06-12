@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -267,7 +266,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         });
       }
 
-      // Handle brick assignments more efficiently
+      // Handle brick assignments
       console.log('Updating brick assignments for secteur:', secteurId);
       console.log('Selected bricks:', secteurFormData.selectedBricks);
 
@@ -310,17 +309,13 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         }
       }
 
-      // Close dialog and reset form first
+      // Close dialog and reset form
       setSecteursDialogOpen(false);
       setEditingSecteur(null);
       setSecteurFormData({ nom: '', selectedBricks: [] });
       
-      // Force refresh data to ensure UI updates - with a small delay to ensure DB consistency
-      console.log('Refreshing data after secteur update...');
-      setTimeout(async () => {
-        await fetchData();
-        console.log('Data refresh completed');
-      }, 100);
+      // Refresh data immediately
+      await fetchData();
       
     } catch (error) {
       console.error('Error saving secteur:', error);
@@ -507,9 +502,6 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                     <TableRow key={secteur.id}>
                       <TableCell className="font-medium">
                         {secteur.nom}
-                        <span className="text-xs text-gray-500 ml-2">
-                          (ID: {secteur.id.slice(0, 8)}...)
-                        </span>
                       </TableCell>
                       <TableCell>{getBricksCount(secteur.id)}</TableCell>
                       <TableCell className="text-right">
