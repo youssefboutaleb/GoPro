@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -239,31 +240,46 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         });
       }
 
-      // Handle brick assignments
+      // Handle brick assignments more efficiently
       console.log('Updating brick assignments for secteur:', secteurId);
       console.log('Selected bricks:', secteurFormData.selectedBricks);
 
-      // First, remove all current assignments for this secteur
-      const { error: clearError } = await supabase
-        .from('bricks')
-        .update({ secteur_id: null })
-        .eq('secteur_id', secteurId);
+      // Get current brick assignments for this secteur
+      const currentBricks = bricks.filter(brick => brick.secteur_id === secteurId).map(brick => brick.id);
+      console.log('Current bricks for secteur:', currentBricks);
 
-      if (clearError) {
-        console.error('Error clearing brick assignments:', clearError);
-        throw clearError;
+      // Find bricks to unassign (currently assigned but not selected)
+      const bricksToUnassign = currentBricks.filter(brickId => !secteurFormData.selectedBricks.includes(brickId));
+      
+      // Find bricks to assign (selected but not currently assigned)
+      const bricksToAssign = secteurFormData.selectedBricks.filter(brickId => !currentBricks.includes(brickId));
+
+      console.log('Bricks to unassign:', bricksToUnassign);
+      console.log('Bricks to assign:', bricksToAssign);
+
+      // Unassign bricks that should no longer be in this secteur
+      if (bricksToUnassign.length > 0) {
+        const { error: unassignError } = await supabase
+          .from('bricks')
+          .update({ secteur_id: null })
+          .in('id', bricksToUnassign);
+
+        if (unassignError) {
+          console.error('Error unassigning bricks:', unassignError);
+          throw unassignError;
+        }
       }
 
-      // Then assign selected bricks to this secteur
-      if (secteurFormData.selectedBricks.length > 0) {
-        const { error: updateError } = await supabase
+      // Assign new bricks to this secteur
+      if (bricksToAssign.length > 0) {
+        const { error: assignError } = await supabase
           .from('bricks')
           .update({ secteur_id: secteurId })
-          .in('id', secteurFormData.selectedBricks);
+          .in('id', bricksToAssign);
 
-        if (updateError) {
-          console.error('Error updating brick assignments:', updateError);
-          throw updateError;
+        if (assignError) {
+          console.error('Error assigning bricks:', assignError);
+          throw assignError;
         }
       }
 
