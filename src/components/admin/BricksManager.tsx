@@ -68,7 +68,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         throw bricksError;
       }
 
-      // Fetch all secteurs
+      // Fetch all secteurs - force fresh data
       const { data: secteursData, error: secteursError } = await supabase
         .from('secteur')
         .select('*')
@@ -310,14 +310,18 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         }
       }
 
+      // Close dialog and reset form first
       setSecteursDialogOpen(false);
       setEditingSecteur(null);
       setSecteurFormData({ nom: '', selectedBricks: [] });
       
-      // Force refresh data to ensure UI updates
+      // Force refresh data to ensure UI updates - with a small delay to ensure DB consistency
       console.log('Refreshing data after secteur update...');
-      await fetchData();
-      console.log('Data refresh completed');
+      setTimeout(async () => {
+        await fetchData();
+        console.log('Data refresh completed');
+      }, 100);
+      
     } catch (error) {
       console.error('Error saving secteur:', error);
       toast({
@@ -400,6 +404,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Header */}
       <div className="bg-white shadow-lg border-b border-blue-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center space-x-4">
@@ -500,7 +505,12 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {secteurs.map((secteur) => (
                     <TableRow key={secteur.id}>
-                      <TableCell className="font-medium">{secteur.nom}</TableCell>
+                      <TableCell className="font-medium">
+                        {secteur.nom}
+                        <span className="text-xs text-gray-500 ml-2">
+                          (ID: {secteur.id.slice(0, 8)}...)
+                        </span>
+                      </TableCell>
                       <TableCell>{getBricksCount(secteur.id)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
