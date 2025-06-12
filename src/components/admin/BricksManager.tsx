@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -240,14 +239,32 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         });
       }
 
-      // Update brick assignments
+      // Handle brick assignments
+      console.log('Updating brick assignments for secteur:', secteurId);
+      console.log('Selected bricks:', secteurFormData.selectedBricks);
+
+      // First, remove all current assignments for this secteur
+      const { error: clearError } = await supabase
+        .from('bricks')
+        .update({ secteur_id: null })
+        .eq('secteur_id', secteurId);
+
+      if (clearError) {
+        console.error('Error clearing brick assignments:', clearError);
+        throw clearError;
+      }
+
+      // Then assign selected bricks to this secteur
       if (secteurFormData.selectedBricks.length > 0) {
         const { error: updateError } = await supabase
           .from('bricks')
           .update({ secteur_id: secteurId })
           .in('id', secteurFormData.selectedBricks);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating brick assignments:', updateError);
+          throw updateError;
+        }
       }
 
       setSecteursDialogOpen(false);
@@ -301,6 +318,8 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   const openEditSecteurDialog = (secteur: Secteur) => {
     setEditingSecteur(secteur);
     const secteurBricks = bricks.filter(brick => brick.secteur_id === secteur.id).map(brick => brick.id);
+    console.log('Opening edit dialog for secteur:', secteur.nom);
+    console.log('Secteur bricks:', secteurBricks);
     setSecteurFormData({
       nom: secteur.nom,
       selectedBricks: secteurBricks,
@@ -315,6 +334,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   };
 
   const handleBrickSelection = (brickId: string, checked: boolean) => {
+    console.log('Brick selection changed:', brickId, checked);
     setSecteurFormData(prev => ({
       ...prev,
       selectedBricks: checked 
