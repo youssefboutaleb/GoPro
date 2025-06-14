@@ -74,6 +74,28 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     enabled: !!user?.id
   });
 
+  // Fetch secteur name for the current delegue
+  const { data: secteurName = 'Secteur' } = useQuery({
+    queryKey: ['secteur_name', currentDelegue?.secteur_id],
+    queryFn: async () => {
+      if (!currentDelegue?.secteur_id) return 'Secteur';
+      
+      const { data: secteur, error } = await supabase
+        .from('secteurs')
+        .select('nom')
+        .eq('id', currentDelegue.secteur_id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching secteur:', error);
+        return 'Secteur';
+      }
+
+      return secteur?.nom || 'Secteur';
+    },
+    enabled: !!currentDelegue?.secteur_id
+  });
+
   // Fetch ventes with product and brick names, filtered by current delegue
   const { data: ventesData = [], isLoading: ventesLoading } = useQuery({
     queryKey: ['ventes_with_details', currentDelegue?.id],
