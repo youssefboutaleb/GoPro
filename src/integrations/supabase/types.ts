@@ -38,48 +38,6 @@ export type Database = {
           },
         ]
       }
-      delegue_medecins: {
-        Row: {
-          delegue_id: string | null
-          frequence_visite:
-            | Database["public"]["Enums"]["frequence_visite"]
-            | null
-          id: string
-          medecin_id: string | null
-        }
-        Insert: {
-          delegue_id?: string | null
-          frequence_visite?:
-            | Database["public"]["Enums"]["frequence_visite"]
-            | null
-          id?: string
-          medecin_id?: string | null
-        }
-        Update: {
-          delegue_id?: string | null
-          frequence_visite?:
-            | Database["public"]["Enums"]["frequence_visite"]
-            | null
-          id?: string
-          medecin_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "delegue_medecins_delegue_id_fkey"
-            columns: ["delegue_id"]
-            isOneToOne: false
-            referencedRelation: "delegues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "delegue_medecins_medecin_id_fkey"
-            columns: ["medecin_id"]
-            isOneToOne: false
-            referencedRelation: "medecins"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       delegue_produits: {
         Row: {
           delegue_id: string | null
@@ -205,54 +163,70 @@ export type Database = {
           },
         ]
       }
-      objectifs_produits: {
+      objectifs_ventes: {
         Row: {
-          delegue_id: string | null
+          annee: number
           id: string
-          "id-brick": string | null
-          objectif_annuel: number | null
-          objectif_mensuel: number | null
-          periode: string
-          produit_id: string | null
+          objectif_mensuel: number[] | null
+          vente_id: string | null
+          vente_realisee: number[] | null
         }
         Insert: {
-          delegue_id?: string | null
+          annee: number
           id?: string
-          "id-brick"?: string | null
-          objectif_annuel?: number | null
-          objectif_mensuel?: number | null
-          periode: string
-          produit_id?: string | null
+          objectif_mensuel?: number[] | null
+          vente_id?: string | null
+          vente_realisee?: number[] | null
         }
         Update: {
-          delegue_id?: string | null
+          annee?: number
           id?: string
-          "id-brick"?: string | null
-          objectif_annuel?: number | null
-          objectif_mensuel?: number | null
-          periode?: string
-          produit_id?: string | null
+          objectif_mensuel?: number[] | null
+          vente_id?: string | null
+          vente_realisee?: number[] | null
         }
         Relationships: [
           {
-            foreignKeyName: "objectifs_produits_delegue_id_fkey"
+            foreignKeyName: "objectifs_ventes_vente_id_fkey"
+            columns: ["vente_id"]
+            isOneToOne: false
+            referencedRelation: "ventes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      objectifs_visites: {
+        Row: {
+          delegue_id: string | null
+          frequence_visite: number | null
+          id: string
+          medecin_id: string | null
+        }
+        Insert: {
+          delegue_id?: string | null
+          frequence_visite?: number | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Update: {
+          delegue_id?: string | null
+          frequence_visite?: number | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objectifs_visites_delegue_id_fkey"
             columns: ["delegue_id"]
             isOneToOne: false
             referencedRelation: "delegues"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "objectifs_produits_id-brick_fkey"
-            columns: ["id-brick"]
+            foreignKeyName: "objectifs_visites_medecin_id_fkey"
+            columns: ["medecin_id"]
             isOneToOne: false
-            referencedRelation: "bricks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "objectifs_produits_produit_id_fkey"
-            columns: ["produit_id"]
-            isOneToOne: false
-            referencedRelation: "produits"
+            referencedRelation: "medecins"
             referencedColumns: ["id"]
           },
         ]
@@ -305,80 +279,6 @@ export type Database = {
         }
         Relationships: []
       }
-      profils: {
-        Row: {
-          created_at: string | null
-          id: string
-          nom: string | null
-          prenom: string | null
-          secteur_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id: string
-          nom?: string | null
-          prenom?: string | null
-          secteur_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          nom?: string | null
-          prenom?: string | null
-          secteur_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profils_secteur_id_fkey"
-            columns: ["secteur_id"]
-            isOneToOne: false
-            referencedRelation: "secteur"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      rapports_mensuels: {
-        Row: {
-          delegue_id: string | null
-          id: string
-          medecin_id: string | null
-          mois: string | null
-          nombre_visites: number | null
-          statut: string | null
-        }
-        Insert: {
-          delegue_id?: string | null
-          id?: string
-          medecin_id?: string | null
-          mois?: string | null
-          nombre_visites?: number | null
-          statut?: string | null
-        }
-        Update: {
-          delegue_id?: string | null
-          id?: string
-          medecin_id?: string | null
-          mois?: string | null
-          nombre_visites?: number | null
-          statut?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "rapports_mensuels_delegue_id_fkey"
-            columns: ["delegue_id"]
-            isOneToOne: false
-            referencedRelation: "delegues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rapports_mensuels_medecin_id_fkey"
-            columns: ["medecin_id"]
-            isOneToOne: false
-            referencedRelation: "medecins"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       secteur: {
         Row: {
           id: string
@@ -394,7 +294,7 @@ export type Database = {
         }
         Relationships: []
       }
-      ventes_produits: {
+      ventes: {
         Row: {
           brick_id: string | null
           delegue_id: string | null
@@ -424,21 +324,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "ventes_produits_brick_id_fkey"
+            foreignKeyName: "ventes_brick_id_fkey"
             columns: ["brick_id"]
             isOneToOne: false
             referencedRelation: "bricks"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ventes_produits_delegue_id_fkey"
+            foreignKeyName: "ventes_delegue_id_fkey"
             columns: ["delegue_id"]
             isOneToOne: false
             referencedRelation: "delegues"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ventes_produits_produit_id_fkey"
+            foreignKeyName: "ventes_produit_id_fkey"
             columns: ["produit_id"]
             isOneToOne: false
             referencedRelation: "produits"
@@ -449,35 +349,25 @@ export type Database = {
       visites: {
         Row: {
           date_visite: string
-          delegue_id: string | null
           id: string
-          medecin_id: string | null
+          objectif_visite_id: string | null
         }
         Insert: {
           date_visite: string
-          delegue_id?: string | null
           id?: string
-          medecin_id?: string | null
+          objectif_visite_id?: string | null
         }
         Update: {
           date_visite?: string
-          delegue_id?: string | null
           id?: string
-          medecin_id?: string | null
+          objectif_visite_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "visites_delegue_id_fkey"
-            columns: ["delegue_id"]
+            foreignKeyName: "visites_new_objectif_visite_id_fkey"
+            columns: ["objectif_visite_id"]
             isOneToOne: false
-            referencedRelation: "delegues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visites_medecin_id_fkey"
-            columns: ["medecin_id"]
-            isOneToOne: false
-            referencedRelation: "medecins"
+            referencedRelation: "objectifs_visites"
             referencedColumns: ["id"]
           },
         ]

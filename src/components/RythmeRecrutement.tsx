@@ -80,7 +80,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       console.log('Fetching ventes for delegue:', currentDelegue.id);
       
       const { data: ventes, error: ventesError } = await supabase
-        .from('ventes_produits')
+        .from('ventes')
         .select(`
           *,
           produits:produit_id(nom),
@@ -101,7 +101,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 
   // Fetch objectives separately, filtered by current delegue
   const { data: objectivesData = [], isLoading: objectivesLoading } = useQuery({
-    queryKey: ['objectifs_produits', currentDelegue?.id],
+    queryKey: ['objectifs_ventes', currentDelegue?.id],
     queryFn: async () => {
       if (!currentDelegue?.id) {
         console.log('No delegue found for objectives, returning empty array');
@@ -111,9 +111,9 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       console.log('Fetching objectives for delegue:', currentDelegue.id);
       
       const { data: objectives, error: objectivesError } = await supabase
-        .from('objectifs_produits')
+        .from('objectifs_ventes')
         .select('*')
-        .eq('delegue_id', currentDelegue.id);
+        .eq('annee', new Date().getFullYear());
 
       if (objectivesError) {
         console.error('Error fetching objectives:', objectivesError);
@@ -140,11 +140,14 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 
     const montant = Number(vente.montant) || 0;
 
-    // Find matching objective based on produit_id and brick_id
+    // Find matching objective based on vente_id
     const matchingObjective = objectivesData.find(obj => 
-      obj.produit_id === vente.produit_id && obj['brick_id'] === vente.brick_id
+      obj.vente_id === vente.id
     );
-    const objectifMensuel = matchingObjective?.objectif_mensuel ? Number(matchingObjective.objectif_mensuel) : null;
+    
+    // Calculate monthly objective from the array (sum of all months)
+    const objectifMensuelArray = matchingObjective?.objectif_mensuel || [];
+    const objectifMensuel = objectifMensuelArray.reduce((sum: number, val: number) => sum + val, 0) / 12;
     const objectifAnnuel = objectifMensuel ? objectifMensuel * 12 : null;
     const objectifPourcentage = objectifAnnuel && objectifAnnuel > 0 ? (montant / objectifAnnuel) * 100 : null;
 
@@ -342,35 +345,35 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   </thead>
                   <tbody>
                     {filteredData.map((item) => (
-                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.objectifPourcentage)} border-2`}>
+                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.objectifPourcentage || 0)} border-2`}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
-                            <div className={`p-2 bg-gradient-to-r ${getStatusPackageColor(item.objectifPourcentage)} rounded-lg`}>
-                              <Package className={`h-4 w-4 ${getStatusTextColor(item.objectifPourcentage)}`}/>
+                            <div className={`p-2 bg-gradient-to-r ${getStatusPackageColor(item.objectifPourcentage || 0)} rounded-lg`}>
+                              <Package className={`h-4 w-4 ${getStatusTextColor(item.objectifPourcentage || 0)}`}/>
                             </div>
-                            <span className={`font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>{item.produitNom}</span>
+                            <span className={`font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>{item.produitNom}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <div className={`flex items-center space-x-2 ${getStatusTextColor(item.objectifPourcentage)}`}>
+                          <div className={`flex items-center space-x-2 ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                             <MapPin className="h-4 w-4" />
                             <span>{item.brickNom}</span>
                           </div>
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.montant.toLocaleString()}
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()}` : 'N/A'}
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.objectifAnnuel ? `${item.objectifAnnuel.toLocaleString()}` : 'N/A'}
                         </td>
-                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage)}`}>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.objectifPourcentage ? `${item.objectifPourcentage.toFixed(1)}%` : 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.objectifPourcentage)}`}>
+                          <div className={`flex items-center justify-center space-x-1 ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                             <TrendingUp className="h-4 w-4" />
                             <span className="font-medium">{item.rythmeRecrutement}</span>
                           </div>

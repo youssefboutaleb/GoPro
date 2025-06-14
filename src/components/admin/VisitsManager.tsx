@@ -13,11 +13,14 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Visit = Database['public']['Tables']['visites']['Row'] & {
-  delegue?: { nom: string; prenom: string };
-  medecin?: { nom: string; prenom: string };
+  objectifs_visites?: {
+    delegue?: { nom: string; prenom: string };
+    medecin?: { nom: string; prenom: string };
+  };
 };
 type Delegue = Database['public']['Tables']['delegues']['Row'];
 type Medecin = Database['public']['Tables']['medecins']['Row'];
+type ObjectifVisite = Database['public']['Tables']['objectifs_visites']['Row'];
 
 interface VisitsManagerProps {
   onBack: () => void;
@@ -27,13 +30,13 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [delegues, setDelegues] = useState<Delegue[]>([]);
   const [medecins, setMedecins] = useState<Medecin[]>([]);
+  const [objectifsVisites, setObjectifsVisites] = useState<ObjectifVisite[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
   const [formData, setFormData] = useState({
     date_visite: '',
-    delegue_id: '',
-    medecin_id: '',
+    objectif_visite_id: '',
   });
 
   useEffect(() => {
@@ -42,13 +45,15 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
   const fetchData = async () => {
     try {
-      // Fetch visits with related data
+      // Fetch visits with related data using the new structure
       const { data: visitsData, error: visitsError } = await supabase
         .from('visites')
         .select(`
           *,
-          delegue:delegue_id(nom, prenom),
-          medecin:medecin_id(nom, prenom)
+          objectifs_visites:objectif_visite_id(
+            delegue:delegue_id(nom, prenom),
+            medecin:medecin_id(nom, prenom)
+          )
         `)
         .order('date_visite', { ascending: false });
 
@@ -70,9 +75,22 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (medecinsError) throw medecinsError;
 
+      // Fetch objectifs_visites
+      const { data: objectifsVisitesData, error: objectifsVisitesError } = await supabase
+        .from('objectifs_visites')
+        .select(`
+          *,
+          delegue:delegue_id(nom, prenom),
+          medecin:medecin_id(nom, prenom)
+        `)
+        .order('id', { ascending: true });
+
+      if (objectifsVisitesError) throw objectifsVisitesError;
+
       setVisits(visitsData || []);
       setDelegues(deleguesData || []);
       setMedecins(medecinsData || []);
+      setObjectifsVisites(objectifsVisitesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -88,7 +106,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.date_visite || !formData.delegue_id || !formData.medecin_id) {
+    if (!formData.date_visite || !formData.objectif_visite_id) {
       toast({
         title: "Erreur",
         description: "Tous les champs sont requis",
@@ -102,8 +120,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     try {
       const submitData = {
         date_visite: formData.date_visite,
-        delegue_id: formData.delegue_id,
-        medecin_id: formData.medecin_id,
+        objectif_visite_id: formData.objectif_visite_id,
       };
 
       if (editingVisit) {
@@ -133,7 +150,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       setDialogOpen(false);
       setEditingVisit(null);
-      setFormData({ date_visite: '', delegue_id: '', medecin_id: '' });
+      setFormData({ date_visite: '', objectif_visite_id: '' });
       await fetchData();
     } catch (error) {
       console.error('Error saving visit:', error);
@@ -177,15 +194,14 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     setEditingVisit(visit);
     setFormData({
       date_visite: visit.date_visite,
-      delegue_id: visit.delegue_id || '',
-      medecin_id: visit.medecin_id || '',
+      objectif_visite_id: visit.objectif_visite_id || '',
     });
     setDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingVisit(null);
-    setFormData({ date_visite: '', delegue_id: '', medecin_id: '' });
+    setFormData({ date_visite: '', objectif_visite_id: '' });
     setDialogOpen(true);
   };
 
@@ -250,30 +266,15 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="delegue_id">Délégué</Label>
-                      <Select value={formData.delegue_id} onValueChange={(value) => setFormData({ ...formData, delegue_id: value })}>
+                      <Label htmlFor="objectif_visite_id">Objectif de visite</Label>
+                      <Select value={formData.objectif_visite_id} onValueChange={(value) => setFormData({ ...formData, objectif_visite_id: value })}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un délégué" />
+                          <SelectValue placeholder="Sélectionner un objectif de visite" />
                         </SelectTrigger>
                         <SelectContent>
-                          {delegues.map((delegue) => (
-                            <SelectItem key={delegue.id} value={delegue.id}>
-                              {delegue.prenom} {delegue.nom}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="medecin_id">Médecin</Label>
-                      <Select value={formData.medecin_id} onValueChange={(value) => setFormData({ ...formData, medecin_id: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un médecin" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {medecins.map((medecin) => (
-                            <SelectItem key={medecin.id} value={medecin.id}>
-                              Dr. {medecin.prenom} {medecin.nom} {medecin.specialite && `(${medecin.specialite})`}
+                          {objectifsVisites.map((objectif) => (
+                            <SelectItem key={objectif.id} value={objectif.id}>
+                              {objectif.delegue?.prenom} {objectif.delegue?.nom} - Dr. {objectif.medecin?.prenom} {objectif.medecin?.nom}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -315,10 +316,12 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {visit.delegue ? `${visit.delegue.prenom} ${visit.delegue.nom}` : 'N/A'}
+                        {visit.objectifs_visites?.delegue ? 
+                          `${visit.objectifs_visites.delegue.prenom} ${visit.objectifs_visites.delegue.nom}` : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        {visit.medecin ? `Dr. ${visit.medecin.prenom} ${visit.medecin.nom}` : 'N/A'}
+                        {visit.objectifs_visites?.medecin ? 
+                          `Dr. ${visit.objectifs_visites.medecin.prenom} ${visit.objectifs_visites.medecin.nom}` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
