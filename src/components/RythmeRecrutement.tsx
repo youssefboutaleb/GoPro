@@ -51,22 +51,19 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     return denominator > 0 ? Math.ceil(numerator / denominator) : 0;
   };
 
-  // Calculate sector-wide rythme de recrutement for aggregated values
-  const calculateSectorRythmeRecrutement = (allProductObjectives: number[][], allProductVentesYtd: number[]): number => {
+  // Calculate sector-wide rythme de recrutement for aggregated values using YTD values
+  const calculateSectorRythmeRecrutement = (allProductObjectivesYtd: number[], allProductVentesYtd: number[]): number => {
     if (n <= 0) return 0;
     
-    // Sum objectif_annuel across all products
-    const totalObjectifAnnuel = allProductObjectives.reduce((total, productObjectifs) => {
-      const productObjectifAnnuel = productObjectifs.reduce((sum, val) => sum + (val || 0), 0);
-      return total + productObjectifAnnuel;
-    }, 0);
+    // Sum objectif YTD across all products
+    const totalObjectifYtd = allProductObjectivesYtd.reduce((sum, val) => sum + (val || 0), 0);
     
     // Sum ventesYtd across all products
     const totalVentesYtd = allProductVentesYtd.reduce((sum, val) => sum + (val || 0), 0);
     
-    if (totalObjectifAnnuel <= 0) return 0;
+    if (totalObjectifYtd <= 0) return 0;
     
-    const numerator = totalObjectifAnnuel - totalVentesYtd;
+    const numerator = totalObjectifYtd - totalVentesYtd;
     const denominator = n * (n + 1) / 2;
 
     if (numerator < 0) return 0;
@@ -223,10 +220,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         existingEntry.objectifMensuel = (existingEntry.objectifMensuel || 0) + objectifMensuel;
         existingEntry.objectifYtd = (existingEntry.objectifYtd || 0) + objectifYtd;
         
-        // For sector totals, we need to recalculate rythme using sector-wide formula
-        // Find all ventes for this product to aggregate their objective arrays
+        // For sector totals, we need to recalculate rythme using sector-wide formula with YTD values
+        // Find all ventes for this product to aggregate their YTD values
         const productVentes = ventesData.filter(v => v.produits?.nom === produitNom);
-        const allProductObjectives: number[][] = [];
+        const allProductObjectivesYtd: number[] = [];
         const allProductVentesYtd: number[] = [];
         
         // Group by unique products in the sector
@@ -234,26 +231,24 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         
         uniqueProducts.forEach(productName => {
           const productSpecificVentes = ventesData.filter(v => v.produits?.nom === productName);
-          const aggregatedObjectifMensuel = new Array(12).fill(0);
+          let aggregatedObjectifYtd = 0;
           let aggregatedVentesYtd = 0;
           
           productSpecificVentes.forEach(pv => {
             const obj = objectivesData.find(o => o.vente_id === pv.id);
             if (obj?.objectif_mensuel) {
-              obj.objectif_mensuel.forEach((val, idx) => {
-                aggregatedObjectifMensuel[idx] += val || 0;
-              });
+              aggregatedObjectifYtd += calculateYtdValues(obj.objectif_mensuel, currentMonthIndex);
             }
             if (obj?.vente_realisee) {
               aggregatedVentesYtd += calculateYtdValues(obj.vente_realisee, currentMonthIndex);
             }
           });
           
-          allProductObjectives.push(aggregatedObjectifMensuel);
+          allProductObjectivesYtd.push(aggregatedObjectifYtd);
           allProductVentesYtd.push(aggregatedVentesYtd);
         });
         
-        existingEntry.rythmeRecrutement = calculateSectorRythmeRecrutement(allProductObjectives, allProductVentesYtd);
+        existingEntry.rythmeRecrutement = calculateSectorRythmeRecrutement(allProductObjectivesYtd, allProductVentesYtd);
       } else {
         // Update with realized sales data if we found a better match
         if (matchingObjective && ventesMensuelles > 0) {
@@ -297,8 +292,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   // Create sector totals for 'Tous les bricks' filter
   const createSectorTotals = (data: VenteData[]): VenteData[] => {
     const sectorTotals: { [key: string]: VenteData } = {};
-    const aggregatedObjectives: { [key: string]: number[] } = {};
-    const aggregatedVentesRealisees: { [key: string]: number[] } = {};
+    const aggregatedObjectivesYtd: { [key: string]: number } = {};
+    const aggregatedVentesRealisees: { [key: string]: number } = {};
     
     data.forEach(item => {
       const produitNom = item.produitNom;
@@ -329,45 +324,40 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           isSecteurTotal: true
         };
         
-        // Initialize aggregated objectives and ventes realisees arrays
-        aggregatedObjectives[produitNom] = new Array(12).fill(0);
-        aggregatedVentesRealisees[produitNom] = new Array(12).fill(0);
+        // Initialize aggregated YTD values
+        aggregatedObjectivesYtd[produitNom] = 0;
+        aggregatedVentesRealisees[produitNom] = 0;
       }
       
-      // Aggregate monthly objectives and ventes realisees for all ventes of this product
+      // Aggregate YTD objectives and ventes realisees for all ventes of this product
       relatedVentes.forEach(vente => {
         const relatedObjective = objectivesData.find(obj => obj.vente_id === vente.id);
         if (relatedObjective?.objectif_mensuel) {
-          relatedObjective.objectif_mensuel.forEach((val, index) => {
-            aggregatedObjectives[produitNom][index] += val || 0;
-          });
+          aggregatedObjectivesYtd[produitNom] += calculateYtdValues(relatedObjective.objectif_mensuel, currentMonthIndex);
         }
         if (relatedObjective?.vente_realisee) {
-          relatedObjective.vente_realisee.forEach((val, index) => {
-            aggregatedVentesRealisees[produitNom][index] += val || 0;
-          });
+          aggregatedVentesRealisees[produitNom] += calculateYtdValues(relatedObjective.vente_realisee, currentMonthIndex);
         }
       });
       
-      // Recalculate percentage and rythme for the sector total using aggregated data
+      // Recalculate percentage for the sector total using aggregated data
       const sectorTotal = sectorTotals[produitNom];
       sectorTotal.objectifPourcentage = sectorTotal.objectifYtd && sectorTotal.objectifYtd > 0 
         ? (sectorTotal.ventesYtd / sectorTotal.objectifYtd) * 100 
         : null;
     });
     
-    // Calculate sector-wide rythme using the new formula for all products combined
-    const allProductObjectives: number[][] = [];
+    // Calculate sector-wide rythme using YTD values for all products combined
+    const allProductObjectivesYtd: number[] = [];
     const allProductVentesYtd: number[] = [];
     
     Object.keys(sectorTotals).forEach(produitNom => {
-      allProductObjectives.push(aggregatedObjectives[produitNom] || []);
-      const aggregatedVentesYtd = calculateYtdValues(aggregatedVentesRealisees[produitNom] || [], currentMonthIndex);
-      allProductVentesYtd.push(aggregatedVentesYtd);
+      allProductObjectivesYtd.push(aggregatedObjectivesYtd[produitNom] || 0);
+      allProductVentesYtd.push(aggregatedVentesRealisees[produitNom] || 0);
     });
     
     // Apply the sector-wide rythme calculation to each product's sector total
-    const sectorWideRythme = calculateSectorRythmeRecrutement(allProductObjectives, allProductVentesYtd);
+    const sectorWideRythme = calculateSectorRythmeRecrutement(allProductObjectivesYtd, allProductVentesYtd);
     Object.values(sectorTotals).forEach(sectorTotal => {
       sectorTotal.rythmeRecrutement = sectorWideRythme;
     });
