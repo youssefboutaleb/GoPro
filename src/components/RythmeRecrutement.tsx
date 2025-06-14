@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -194,24 +195,32 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     const ventesYtd = calculateYtdValues(venteRealiseeArray, currentMonthIndex);
 
     if (existingEntry) {
-      // For 'Total secteur', aggregate the values
+      // For 'Total secteur', aggregate the values properly
       if (selectedBrick === 'total-secteur') {
         existingEntry.ventesMensuelles += ventesMensuelles;
         existingEntry.ventesYtd += ventesYtd;
         existingEntry.objectifMensuel = (existingEntry.objectifMensuel || 0) + objectifMensuel;
         existingEntry.objectifYtd = (existingEntry.objectifYtd || 0) + objectifYtd;
         
-        // For aggregated entries, we need to aggregate the monthly arrays too
-        const existingObjective = objectivesData.find(obj => 
-          obj.vente_id === vente.id
-        );
-        if (existingObjective) {
-          // Recalculate rythme with aggregated data
-          existingEntry.rythmeRecrutement = calculateRythmeRecrutement(
-            existingObjective.objectif_mensuel || [], 
-            existingEntry.ventesYtd
-          );
-        }
+        // For sector totals, we need to recalculate rythme using aggregated arrays
+        // Find all ventes for this product to aggregate their objective arrays
+        const productVentes = ventesData.filter(v => v.produits?.nom === produitNom);
+        const aggregatedObjectifMensuel = new Array(12).fill(0);
+        let aggregatedVentesYtd = 0;
+        
+        productVentes.forEach(pv => {
+          const obj = objectivesData.find(o => o.vente_id === pv.id);
+          if (obj?.objectif_mensuel) {
+            obj.objectif_mensuel.forEach((val, idx) => {
+              aggregatedObjectifMensuel[idx] += val || 0;
+            });
+          }
+          if (obj?.vente_realisee) {
+            aggregatedVentesYtd += calculateYtdValues(obj.vente_realisee, currentMonthIndex);
+          }
+        });
+        
+        existingEntry.rythmeRecrutement = calculateRythmeRecrutement(aggregatedObjectifMensuel, aggregatedVentesYtd);
       } else {
         // Update with realized sales data if we found a better match
         if (matchingObjective && ventesMensuelles > 0) {
@@ -256,6 +265,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const createSectorTotals = (data: VenteData[]): VenteData[] => {
     const sectorTotals: { [key: string]: VenteData } = {};
     const aggregatedObjectives: { [key: string]: number[] } = {};
+    const aggregatedVentesRealisees: { [key: string]: number[] } = {};
     
     data.forEach(item => {
       const produitNom = item.produitNom;
@@ -286,16 +296,22 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           isSecteurTotal: true
         };
         
-        // Initialize aggregated objectives array
+        // Initialize aggregated objectives and ventes realisees arrays
         aggregatedObjectives[produitNom] = new Array(12).fill(0);
+        aggregatedVentesRealisees[produitNom] = new Array(12).fill(0);
       }
       
-      // Aggregate monthly objectives for all ventes of this product
+      // Aggregate monthly objectives and ventes realisees for all ventes of this product
       relatedVentes.forEach(vente => {
         const relatedObjective = objectivesData.find(obj => obj.vente_id === vente.id);
         if (relatedObjective?.objectif_mensuel) {
           relatedObjective.objectif_mensuel.forEach((val, index) => {
             aggregatedObjectives[produitNom][index] += val || 0;
+          });
+        }
+        if (relatedObjective?.vente_realisee) {
+          relatedObjective.vente_realisee.forEach((val, index) => {
+            aggregatedVentesRealisees[produitNom][index] += val || 0;
           });
         }
       });
@@ -306,10 +322,11 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         ? (sectorTotal.ventesYtd / sectorTotal.objectifYtd) * 100 
         : null;
       
-      // Use aggregated monthly objectives for rythme calculation
+      // Use aggregated monthly objectives and calculate YTD from aggregated ventes realisees for rythme calculation
+      const aggregatedVentesYtd = calculateYtdValues(aggregatedVentesRealisees[produitNom] || [], currentMonthIndex);
       sectorTotal.rythmeRecrutement = calculateRythmeRecrutement(
         aggregatedObjectives[produitNom] || [], 
-        sectorTotal.ventesYtd
+        aggregatedVentesYtd
       );
     });
     
