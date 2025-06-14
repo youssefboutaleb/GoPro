@@ -37,7 +37,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
         .from('visites')
         .select(`
           *,
-          objectifs_visites:objectif_visite_id(
+          frequences_visites:objectif_visite_id(
             delegue_id,
             medecin_id,
             frequence_visite,
@@ -48,14 +48,14 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
         .gte('date_visite', '2024-01-01');
 
       if (selectedDelegue !== 'all') {
-        // We need to filter by delegue through the objectifs_visites relation
-        const { data: objectifsIds } = await supabase
-          .from('objectifs_visites')
+        // We need to filter by delegue through the frequences_visites relation
+        const { data: frequencesIds } = await supabase
+          .from('frequences_visites')
           .select('id')
           .eq('delegue_id', selectedDelegue);
         
-        if (objectifsIds && objectifsIds.length > 0) {
-          const ids = objectifsIds.map(obj => obj.id);
+        if (frequencesIds && frequencesIds.length > 0) {
+          const ids = frequencesIds.map(obj => obj.id);
           query = query.in('objectif_visite_id', ids);
         } else {
           return [];
@@ -68,12 +68,12 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     }
   });
 
-  // Fetch objectifs_visites data for indice calculation
-  const { data: objectifsVisitesData = [] } = useQuery({
-    queryKey: ['objectifs_visites_data', selectedDelegue],
+  // Fetch frequences_visites data for indice calculation
+  const { data: frequencesVisitesData = [] } = useQuery({
+    queryKey: ['frequences_visites_data', selectedDelegue],
     queryFn: async () => {
       let query = supabase
-        .from('objectifs_visites')
+        .from('frequences_visites')
         .select(`
           *,
           delegue:delegue_id(nom, prenom),
@@ -103,9 +103,9 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     const n = visitsThisYear.length;
     
     // f = sum of (frequence_visite * number of current month) for all corresponding medecins
-    const f = objectifsVisitesData.reduce((sum, objectif) => {
-      const frequence = objectif.frequence_visite || 1;
-      return sum + (frequence * currentMonth);
+    const f = frequencesVisitesData.reduce((sum, frequence) => {
+      const frequenceValue = frequence.frequence_visite || 1;
+      return sum + (frequenceValue * currentMonth);
     }, 0);
     
     const indice = f > 0 ? (n / f) * 100 : 0;
@@ -276,7 +276,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{objectifsVisitesData.length}</div>
+              <div className="text-2xl font-bold">{frequencesVisitesData.length}</div>
               <p className="text-xs text-muted-foreground">
                 Objectifs de visite
               </p>
