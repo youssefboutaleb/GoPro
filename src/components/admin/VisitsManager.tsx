@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +19,10 @@ type Visit = Database['public']['Tables']['visites']['Row'] & {
 };
 type Delegue = Database['public']['Tables']['delegues']['Row'];
 type Medecin = Database['public']['Tables']['medecins']['Row'];
-type ObjectifVisite = Database['public']['Tables']['objectifs_visites']['Row'];
+type ObjectifVisite = Database['public']['Tables']['objectifs_visites']['Row'] & {
+  delegue?: { nom: string; prenom: string };
+  medecin?: { nom: string; prenom: string };
+};
 
 interface VisitsManagerProps {
   onBack: () => void;
@@ -75,7 +77,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (medecinsError) throw medecinsError;
 
-      // Fetch objectifs_visites
+      // Fetch objectifs_visites with related delegue and medecin data
       const { data: objectifsVisitesData, error: objectifsVisitesError } = await supabase
         .from('objectifs_visites')
         .select(`
