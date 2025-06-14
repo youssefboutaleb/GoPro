@@ -83,21 +83,6 @@ export type Database = {
           },
         ]
       }
-      directeurs_ventes: {
-        Row: {
-          id: string
-          nom: string
-        }
-        Insert: {
-          id?: string
-          nom: string
-        }
-        Update: {
-          id?: string
-          nom?: string
-        }
-        Relationships: []
-      }
       frequences_visites: {
         Row: {
           delegue_id: string | null
@@ -198,6 +183,58 @@ export type Database = {
           },
         ]
       }
+      plan_actions: {
+        Row: {
+          brick_id: string | null
+          budget: number
+          date_execution: string
+          description: string | null
+          id: string
+          produit_id: string | null
+          responsable_id: string | null
+        }
+        Insert: {
+          brick_id?: string | null
+          budget: number
+          date_execution: string
+          description?: string | null
+          id?: string
+          produit_id?: string | null
+          responsable_id?: string | null
+        }
+        Update: {
+          brick_id?: string | null
+          budget?: number
+          date_execution?: string
+          description?: string | null
+          id?: string
+          produit_id?: string | null
+          responsable_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_actions_brick_id_fkey"
+            columns: ["brick_id"]
+            isOneToOne: false
+            referencedRelation: "bricks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_actions_produit_id_fkey"
+            columns: ["produit_id"]
+            isOneToOne: false
+            referencedRelation: "produits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_actions_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "responsables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produits: {
         Row: {
           actif: boolean | null
@@ -246,6 +283,27 @@ export type Database = {
         }
         Relationships: []
       }
+      responsables: {
+        Row: {
+          id: string
+          nom: string
+          prenom: string | null
+          tache: string | null
+        }
+        Insert: {
+          id?: string
+          nom: string
+          prenom?: string | null
+          tache?: string | null
+        }
+        Update: {
+          id?: string
+          nom?: string
+          prenom?: string | null
+          tache?: string | null
+        }
+        Relationships: []
+      }
       secteurs: {
         Row: {
           id: string
@@ -279,10 +337,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "superviseurs_directeur_ventes_id_fkey"
+            foreignKeyName: "superviseurs_responsable_id_fkey"
             columns: ["directeur_ventes_id"]
             isOneToOne: false
-            referencedRelation: "directeurs_ventes"
+            referencedRelation: "responsables"
             referencedColumns: ["id"]
           },
         ]
