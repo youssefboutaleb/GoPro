@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Brick = Database['public']['Tables']['bricks']['Row'];
-type Secteur = Database['public']['Tables']['secteur']['Row'];
+type Secteur = Database['public']['Tables']['secteurs']['Row'];
 
 interface BricksManagerProps {
   onBack: () => void;
@@ -55,7 +56,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         .from('bricks')
         .select(`
           *,
-          secteur:secteur_id (
+          secteurs:secteur_id (
             id,
             nom
           )
@@ -69,7 +70,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
       // Fetch all secteurs - force fresh data
       const { data: secteursData, error: secteursError } = await supabase
-        .from('secteur')
+        .from('secteurs')
         .select('*')
         .order('nom', { ascending: true });
 
@@ -228,7 +229,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         
         // Update the secteur
         const { data: updatedData, error: updateError } = await supabase
-          .from('secteur')
+          .from('secteurs')
           .update(submitData)
           .eq('id', editingSecteur.id)
           .select();
@@ -254,7 +255,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
         console.log('Creating new secteur with data:', submitData);
         
         const { data, error } = await supabase
-          .from('secteur')
+          .from('secteurs')
           .insert([submitData])
           .select()
           .single();
@@ -324,7 +325,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
       // Refresh data immediately
       await fetchData();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving secteur:', error);
       toast({
         title: "Erreur",
@@ -346,7 +347,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           .eq('secteur_id', secteur.id);
 
         const { error } = await supabase
-          .from('secteur')
+          .from('secteurs')
           .delete()
           .eq('id', secteur.id);
 
@@ -397,7 +398,7 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
   };
 
   const getSecteurName = (brick: any) => {
-    return brick.secteur?.nom || 'N/A';
+    return brick.secteurs?.nom || 'N/A';
   };
 
   const getBricksCount = (secteurId: string) => {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,8 +83,8 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
         console.log('Delegue found:', delegueData);
 
         // Get all medecins assigned to this delegue with their frequence_visite and specialite using the new table structure
-        const { data: objectifsVisites, error: ovError } = await supabase
-          .from('objectifs_visites')
+        const { data: frequencesVisites, error: fvError } = await supabase
+          .from('frequences_visites')
           .select(`
             medecin_id,
             frequence_visite,
@@ -96,13 +97,13 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
           `)
           .eq('delegue_id', delegueData.id);
 
-        if (ovError) {
-          console.error('Error fetching objectifs_visites:', ovError);
+        if (fvError) {
+          console.error('Error fetching frequences_visites:', fvError);
           setError('Erreur lors de la récupération des médecins assignés');
           return;
         }
 
-        console.log('Objectifs visites found:', objectifsVisites);
+        console.log('Frequences visites found:', frequencesVisites);
 
         // Get all visits for this delegue for the current year using the new table structure
         const currentYear = new Date().getFullYear();
@@ -113,12 +114,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
           .from('visites')
           .select(`
             date_visite,
-            objectifs_visites!inner (
+            frequences_visites!inner (
               medecin_id,
               delegue_id
             )
           `)
-          .eq('objectifs_visites.delegue_id', delegueData.id)
+          .eq('frequences_visites.delegue_id', delegueData.id)
           .gte('date_visite', startOfYear)
           .lte('date_visite', endOfYear);
 
@@ -131,8 +132,8 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
         console.log('Visites found:', visitesData);
 
         // Process the data
-        const processedData: MedecinVisiteData[] = objectifsVisites?.map(ov => {
-          const medecin = ov.medecins;
+        const processedData: MedecinVisiteData[] = frequencesVisites?.map(fv => {
+          const medecin = fv.medecins;
           if (!medecin) return null;
 
           // Count visits per month for this medecin
@@ -145,7 +146,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
 
           // Count visits
           visitesData?.forEach(visite => {
-            if (visite.objectifs_visites?.medecin_id === ov.medecin_id) {
+            if (visite.frequences_visites?.medecin_id === fv.medecin_id) {
               const visitDate = new Date(visite.date_visite);
               const visitMonth = visitDate.getMonth() + 1;
               const monthKey = months.find(m => m.num === visitMonth)?.value;
@@ -157,12 +158,12 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
 
           // Calculate indice de retour data
           const visitesEffectuees = Object.values(visitesParMois).reduce((sum, visites) => sum + visites, 0);
-          const frequence = ov.frequence_visite || 1;
+          const frequence = fv.frequence_visite || 1;
           const visitesAttendues = frequence * currentMonth;
           const indiceRetour = visitesAttendues > 0 ? Math.round((visitesEffectuees / visitesAttendues) * 100) : 0;
 
           return {
-            medecin_id: ov.medecin_id,
+            medecin_id: fv.medecin_id,
             medecin_nom: medecin.nom,
             medecin_prenom: medecin.prenom,
             medecin_specialite: medecin.specialite,
