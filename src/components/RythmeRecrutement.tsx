@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ interface VenteData {
   objectifYtd: number | null;
   objectifPourcentage: number | null;
   rythmeRecrutement: number;
+  isSecteurTotal?: boolean;
 }
 
 const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
@@ -233,18 +235,67 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     return acc;
   }, [] as VenteData[]);
 
+  // Create sector totals for 'Tous les bricks' filter
+  const createSectorTotals = (data: VenteData[]): VenteData[] => {
+    const sectorTotals: { [key: string]: VenteData } = {};
+    
+    data.forEach(item => {
+      const produitNom = item.produitNom;
+      
+      if (sectorTotals[produitNom]) {
+        // Aggregate values
+        sectorTotals[produitNom].ventesMensuelles += item.ventesMensuelles;
+        sectorTotals[produitNom].ventesYtd += item.ventesYtd;
+        sectorTotals[produitNom].objectifMensuel = (sectorTotals[produitNom].objectifMensuel || 0) + (item.objectifMensuel || 0);
+        sectorTotals[produitNom].objectifYtd = (sectorTotals[produitNom].objectifYtd || 0) + (item.objectifYtd || 0);
+      } else {
+        // Create new sector total entry
+        sectorTotals[produitNom] = {
+          id: `${produitNom}-secteur-total`,
+          produitNom,
+          brickNom: secteurName,
+          ventesMensuelles: item.ventesMensuelles,
+          ventesYtd: item.ventesYtd,
+          objectifMensuel: item.objectifMensuel,
+          objectifYtd: item.objectifYtd,
+          objectifPourcentage: null,
+          rythmeRecrutement: 0,
+          isSecteurTotal: true
+        };
+      }
+      
+      // Recalculate percentage and rythme for the sector total
+      const sectorTotal = sectorTotals[produitNom];
+      sectorTotal.objectifPourcentage = sectorTotal.objectifYtd && sectorTotal.objectifYtd > 0 
+        ? (sectorTotal.ventesYtd / sectorTotal.objectifYtd) * 100 
+        : null;
+      sectorTotal.rythmeRecrutement = calculateRythmeRecrutement(sectorTotal.objectifYtd, sectorTotal.ventesYtd);
+    });
+    
+    return Object.values(sectorTotals);
+  };
+
   console.log('Processed ventes data with YTD calculations:', processedData);
 
   // Filter data based on selections
-  const filteredData = processedData.filter(item => {
+  let filteredData = processedData.filter(item => {
     const matchesProduct = selectedProduct === 'all' || item.produitNom === selectedProduct;
     const matchesBrick = selectedBrick === 'all' || selectedBrick === 'total-secteur' || item.brickNom === selectedBrick;
     return matchesProduct && matchesBrick;
   });
 
+  // If 'Tous les bricks' is selected, add sector totals at the top
+  if (selectedBrick === 'all') {
+    const sectorTotals = createSectorTotals(filteredData);
+    filteredData = [
+      ...sectorTotals.filter(item => selectedProduct === 'all' || item.produitNom === selectedProduct),
+      ...filteredData
+    ];
+  }
+
   // Get unique values for filters
   const uniqueProducts = [...new Set(processedData.map(item => item.produitNom))];
-  const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))];
+  const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))].filter(brick => brick !== secteurName);
 
   // Generate month options
   const monthNames = [
@@ -334,7 +385,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Produit</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -422,7 +473,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   </thead>
                   <tbody>
                     {filteredData.map((item) => (
-                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.objectifPourcentage || 0)} border-2`}>
+                      <tr key={item.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(item.objectifPourcentage || 0)} border-2 ${item.isSecteurTotal ? 'bg-blue-50 font-semibold' : ''}`}>
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
                             <div className={`p-2 bg-gradient-to-r ${getStatusPackageColor(item.objectifPourcentage || 0)} rounded-lg`}>
