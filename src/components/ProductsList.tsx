@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,9 +48,9 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
       // For each product, get sales and objectives data
       const productsWithData = await Promise.all(
         produits.map(async (produit) => {
-          // Get sales data for this product
+          // Get sales data for this product using the new 'ventes' table
           const { data: ventes, error: ventesError } = await supabase
-            .from('ventes_produits')
+            .from('ventes')
             .select('montant, brick_id')
             .eq('produit_id', produit.id)
             .gte('periode', currentDate)
@@ -61,20 +60,25 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
             console.error('Error fetching sales:', ventesError);
           }
 
-          // Get objectives data for this product
+          // Get objectives data for this product using the new 'objectifs_ventes' table
           const { data: objectifs, error: objectifsError } = await supabase
-            .from('objectifs_produits')
-            .select('objectif_mensuel, objectif_annuel')
-            .eq('produit_id', produit.id)
-            .gte('periode', currentDate)
-            .lt('periode', `2024-${(parseInt(selectedMonth) + 1).toString().padStart(2, '0')}-01`);
+            .from('objectifs_ventes')
+            .select('objectif_mensuel')
+            .eq('annee', 2024);
 
           if (objectifsError) {
             console.error('Error fetching objectives:', objectifsError);
           }
 
           const totalVentes = ventes?.reduce((sum, vente) => sum + Number(vente.montant || 0), 0) || 0;
-          const totalObjectifs = objectifs?.reduce((sum, obj) => sum + Number(obj.objectif_mensuel || 0), 0) || 1;
+          
+          // Calculate monthly objective from the array for the selected month
+          const monthIndex = parseInt(selectedMonth) - 1;
+          const totalObjectifs = objectifs?.reduce((sum, obj) => {
+            const monthlyObjective = obj.objectif_mensuel?.[monthIndex] || 0;
+            return sum + Number(monthlyObjective);
+          }, 0) || 1;
+          
           const uniqueBricks = new Set(ventes?.map(v => v.brick_id).filter(Boolean)).size;
 
           return {

@@ -33,7 +33,7 @@ interface Medecin {
   visites_effectuees: number;
   visites_attendues: number;
   visites_ce_mois: number;
-  frequence_visite: string;
+  frequence_visite: number;
 }
 
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
@@ -81,8 +81,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
       const { data: visites, error } = await supabase
         .from('visites')
-        .select('id')
-        .eq('delegue_id', currentDelegue.id)
+        .select(`
+          id,
+          objectifs_visites!inner (
+            delegue_id
+          )
+        `)
+        .eq('objectifs_visites.delegue_id', currentDelegue.id)
         .gte('date_visite', `${currentYear}-01-01`)
         .lt('date_visite', `${currentYear + 1}-01-01`);
 
@@ -120,12 +125,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
               nom
             )
           ),
-          delegue_medecins!inner (
+          objectifs_visites!inner (
             frequence_visite,
             delegue_id
           )
         `)
-        .eq('delegue_medecins.delegue_id', currentDelegue.id)
+        .eq('objectifs_visites.delegue_id', currentDelegue.id)
         .order('nom', { ascending: true });
 
       if (error) {
@@ -159,9 +164,15 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         // Get visits count for this year EXCLUDING current month
         const { data: visites, error: visitesError } = await supabase
           .from('visites')
-          .select('id')
-          .eq('medecin_id', medecin.id)
-          .eq('delegue_id', currentDelegue.id)
+          .select(`
+            id,
+            objectifs_visites!inner (
+              medecin_id,
+              delegue_id
+            )
+          `)
+          .eq('objectifs_visites.medecin_id', medecin.id)
+          .eq('objectifs_visites.delegue_id', currentDelegue.id)
           .gte('date_visite', `${currentYear}-01-01`)
           .lt('date_visite', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`);
 
@@ -172,9 +183,15 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         // Get visits count for current month only
         const { data: visitesCeMois, error: visitesCeMoisError } = await supabase
           .from('visites')
-          .select('id')
-          .eq('medecin_id', medecin.id)
-          .eq('delegue_id', currentDelegue.id)
+          .select(`
+            id,
+            objectifs_visites!inner (
+              medecin_id,
+              delegue_id
+            )
+          `)
+          .eq('objectifs_visites.medecin_id', medecin.id)
+          .eq('objectifs_visites.delegue_id', currentDelegue.id)
           .gte('date_visite', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
           .lt('date_visite', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
 
@@ -185,9 +202,15 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         // Get visits for last month
         const { data: visitesLastMonth, error: visitesLastMonthError } = await supabase
           .from('visites')
-          .select('id')
-          .eq('medecin_id', medecin.id)
-          .eq('delegue_id', currentDelegue.id)
+          .select(`
+            id,
+            objectifs_visites!inner (
+              medecin_id,
+              delegue_id
+            )
+          `)
+          .eq('objectifs_visites.medecin_id', medecin.id)
+          .eq('objectifs_visites.delegue_id', currentDelegue.id)
           .gte('date_visite', `${lastMonthYear}-${lastMonth.toString().padStart(2, '0')}-01`)
           .lt('date_visite', `${lastMonthYear}-${(lastMonth + 1).toString().padStart(2, '0')}-01`);
 
@@ -198,9 +221,15 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         // Get visits for month before last month
         const { data: visitesMonthBeforeLast, error: visitesMonthBeforeLastError } = await supabase
           .from('visites')
-          .select('id')
-          .eq('medecin_id', medecin.id)
-          .eq('delegue_id', currentDelegue.id)
+          .select(`
+            id,
+            objectifs_visites!inner (
+              medecin_id,
+              delegue_id
+            )
+          `)
+          .eq('objectifs_visites.medecin_id', medecin.id)
+          .eq('objectifs_visites.delegue_id', currentDelegue.id)
           .gte('date_visite', `${monthBeforeLastYear}-${monthBeforeLastMonth.toString().padStart(2, '0')}-01`)
           .lt('date_visite', `${monthBeforeLastYear}-${(monthBeforeLastMonth + 1).toString().padStart(2, '0')}-01`);
 
@@ -214,25 +243,8 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         const visitesMonthBeforeLastCount = visitesMonthBeforeLast?.length || 0;
 
         // Calculate expected visits based on frequency (excluding current month)
-        const frequenceVisite = medecin.delegue_medecins[0]?.frequence_visite || '1';
-        let visitesParMois = 1;
-        
-        switch (frequenceVisite) {
-          case '1':
-            visitesParMois = 1;
-            break;
-          case '2':
-            visitesParMois = 2;
-            break;
-          case '3':
-            visitesParMois = 3;
-            break;
-          case '4':
-            visitesParMois = 4;
-            break;
-          default:
-            visitesParMois = 1;
-        }
+        const frequenceVisite = medecin.objectifs_visites[0]?.frequence_visite || 1;
+        const visitesParMois = frequenceVisite;
 
         // Calculate expected visits for months up to but not including current month
         const visitesAttendues = visitesParMois * (currentMonth - 1);
@@ -262,7 +274,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       
       // Filter to show only doctors who haven't met their frequency for current month
       const filteredResults = results.filter(medecin => {
-        const frequenceRequise = parseInt(medecin.frequence_visite) || 1;
+        const frequenceRequise = medecin.frequence_visite || 1;
         return medecin.visites_ce_mois < frequenceRequise;
       });
       
@@ -279,11 +291,20 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
       const today = new Date().toISOString().split('T')[0];
 
+      // First, find the objectif_visite_id for this medecin and delegue
+      const { data: objectifVisite, error: objectifError } = await supabase
+        .from('objectifs_visites')
+        .select('id')
+        .eq('medecin_id', medecinId)
+        .eq('delegue_id', currentDelegue.id)
+        .single();
+
+      if (objectifError) throw objectifError;
+
       const { error } = await supabase
         .from('visites')
         .insert({
-          medecin_id: medecinId,
-          delegue_id: currentDelegue.id,
+          objectif_visite_id: objectifVisite.id,
           date_visite: today
         });
 
@@ -361,7 +382,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   // f = sum of (frequence_visite * current month number) for all associated medecins
   const currentMonth = new Date().getMonth() + 1;
   const totalExpectedVisits = rawMedecins.reduce((sum, medecin) => {
-    const frequence = parseInt(medecin.delegue_medecins[0]?.frequence_visite) || 1;
+    const frequence = medecin.objectifs_visites[0]?.frequence_visite || 1;
     return sum + (frequence * currentMonth);
   }, 0);
   
@@ -561,7 +582,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                   </thead>
                   <tbody>
                     {filteredMedecins.map((medecin) => {
-                      const frequenceRequise = parseInt(medecin.frequence_visite) || 1;
+                      const frequenceRequise = medecin.frequence_visite || 1;
                       const visitesRestantes = frequenceRequise - medecin.visites_ce_mois;
                       
                       return (
