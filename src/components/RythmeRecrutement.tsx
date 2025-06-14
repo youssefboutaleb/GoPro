@@ -28,9 +28,9 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedBrick, setSelectedBrick] = useState('all');
   const { user } = useAuth();
 
-  // Get current month number (1-12)
-  const currentMonth = new Date().getMonth() + 1;
-  const n = 13 - currentMonth;
+  // Get current month number (0-11) for array index
+  const currentMonth = new Date().getMonth();
+  const n = 13 - (currentMonth + 1);
 
   // Calculate rythme de recrutement using the new formula
   const calculateRythmeRecrutement = (objectifAnnuel: number | null, nombreVentes: number): number => {
@@ -99,9 +99,9 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     enabled: !!currentDelegue?.id
   });
 
-  // Fetch objectives separately, filtered by current delegue
+  // Fetch objectives with realized sales data
   const { data: objectivesData = [], isLoading: objectivesLoading } = useQuery({
-    queryKey: ['objectifs_ventes', currentDelegue?.id],
+    queryKey: ['objectifs_ventes_with_realized', currentDelegue?.id, currentMonth],
     queryFn: async () => {
       if (!currentDelegue?.id) {
         console.log('No delegue found for objectives, returning empty array');
@@ -128,7 +128,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 
   const isLoading = ventesLoading || objectivesLoading || !currentDelegue;
 
-  // Process ventes data to group by product and brick, and match with objectives
+  // Process ventes data to group by product and brick, and get realized sales from objectives
   const processedData: VenteData[] = ventesData.reduce((acc, vente) => {
     const produitNom = vente.produits?.nom || 'Produit inconnu';
     const brickNom = vente.bricks?.nom || 'Brick inconnu';
@@ -148,8 +148,15 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     const objectifMensuel = objectifMensuelArray.reduce((sum: number, val: number) => sum + val, 0) / 12;
     const objectifAnnuel = objectifMensuel ? objectifMensuel * 12 : null;
 
+    // Get realized sales for current month
+    const venteRealiseeArray = matchingObjective?.vente_realisee || [];
+    const nombreVentesRealized = venteRealiseeArray[currentMonth] || 0;
+
     if (existingEntry) {
-      existingEntry.nombreVentes += 1;
+      // Update with realized sales data if we found a better match
+      if (matchingObjective && nombreVentesRealized > 0) {
+        existingEntry.nombreVentes = nombreVentesRealized;
+      }
       // Update objective if we found a better match or if it was null
       if (objectifMensuel && !existingEntry.objectifMensuel) {
         existingEntry.objectifMensuel = objectifMensuel;
@@ -162,7 +169,8 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       // Recalculate rythme based on updated data using new formula
       existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifAnnuel, existingEntry.nombreVentes);
     } else {
-      const nombreVentes = 1;
+      // Use realized sales if available, otherwise default to 0
+      const nombreVentes = nombreVentesRealized || 0;
       const objectifPourcentage = objectifAnnuel && objectifAnnuel > 0 
         ? (nombreVentes / objectifAnnuel) * 100 
         : null;
@@ -182,7 +190,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     return acc;
   }, [] as VenteData[]);
 
-  console.log('Processed ventes data:', processedData);
+  console.log('Processed ventes data with realized sales:', processedData);
 
   // Filter data based on selections
   const filteredData = processedData.filter(item => {
@@ -335,7 +343,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Nombre de Ventes</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Ventes Réalisées</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Mensuel</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Annuel</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif en %</th>
