@@ -260,13 +260,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     data.forEach(item => {
       const produitNom = item.produitNom;
       
-      // Find the original objective data for this item
-      const relatedVente = ventesData.find(vente => 
+      // Find all related ventes for this product to aggregate objectives properly
+      const relatedVentes = ventesData.filter(vente => 
         vente.produits?.nom === produitNom
       );
-      const relatedObjective = relatedVente ? objectivesData.find(obj => 
-        obj.vente_id === relatedVente.id
-      ) : null;
       
       if (sectorTotals[produitNom]) {
         // Aggregate values
@@ -274,16 +271,6 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         sectorTotals[produitNom].ventesYtd += item.ventesYtd;
         sectorTotals[produitNom].objectifMensuel = (sectorTotals[produitNom].objectifMensuel || 0) + (item.objectifMensuel || 0);
         sectorTotals[produitNom].objectifYtd = (sectorTotals[produitNom].objectifYtd || 0) + (item.objectifYtd || 0);
-        
-        // Aggregate monthly objectives array
-        if (relatedObjective?.objectif_mensuel) {
-          relatedObjective.objectif_mensuel.forEach((val, index) => {
-            if (!aggregatedObjectives[produitNom]) {
-              aggregatedObjectives[produitNom] = new Array(12).fill(0);
-            }
-            aggregatedObjectives[produitNom][index] += val || 0;
-          });
-        }
       } else {
         // Create new sector total entry
         sectorTotals[produitNom] = {
@@ -299,13 +286,21 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
           isSecteurTotal: true
         };
         
-        // Initialize aggregated objectives
-        if (relatedObjective?.objectif_mensuel) {
-          aggregatedObjectives[produitNom] = [...relatedObjective.objectif_mensuel];
-        }
+        // Initialize aggregated objectives array
+        aggregatedObjectives[produitNom] = new Array(12).fill(0);
       }
       
-      // Recalculate percentage and rythme for the sector total
+      // Aggregate monthly objectives for all ventes of this product
+      relatedVentes.forEach(vente => {
+        const relatedObjective = objectivesData.find(obj => obj.vente_id === vente.id);
+        if (relatedObjective?.objectif_mensuel) {
+          relatedObjective.objectif_mensuel.forEach((val, index) => {
+            aggregatedObjectives[produitNom][index] += val || 0;
+          });
+        }
+      });
+      
+      // Recalculate percentage and rythme for the sector total using aggregated data
       const sectorTotal = sectorTotals[produitNom];
       sectorTotal.objectifPourcentage = sectorTotal.objectifYtd && sectorTotal.objectifYtd > 0 
         ? (sectorTotal.ventesYtd / sectorTotal.objectifYtd) * 100 
