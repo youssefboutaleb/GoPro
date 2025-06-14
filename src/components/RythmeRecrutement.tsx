@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -162,90 +161,74 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     const produitNom = vente.produits?.nom || 'Produit inconnu';
     const brickNom = vente.bricks?.nom || 'Brick inconnu';
     
-    // Create both individual brick entries and sector-wide entries
-    const entries = [];
+    // For 'Total secteur' grouping, use secteur name instead of brick name
+    const displayBrick = selectedBrick === 'total-secteur' ? secteurName : brickNom;
+    const key = selectedBrick === 'total-secteur' 
+      ? `${vente.produit_id}-secteur` 
+      : `${vente.produit_id}-${vente.brick_id}`;
+
+    const existingEntry = acc.find(item => 
+      item.produitNom === produitNom && item.brickNom === displayBrick
+    );
+
+    // Find matching objective based on vente_id
+    const matchingObjective = objectivesData.find(obj => 
+      obj.vente_id === vente.id
+    );
     
-    // Individual brick entry
-    const brickKey = `${vente.produit_id}-${vente.brick_id}`;
-    entries.push({
-      key: brickKey,
-      displayBrick: brickNom,
-      type: 'brick'
-    });
-    
-    // Sector-wide entry (always create for aggregation)
-    const secteurKey = `${vente.produit_id}-secteur`;
-    entries.push({
-      key: secteurKey,
-      displayBrick: secteurName,
-      type: 'secteur'
-    });
+    // Calculate monthly objective from the array
+    const objectifMensuelArray = matchingObjective?.objectif_mensuel || [];
+    const objectifMensuel = objectifMensuelArray[currentMonthIndex] || 0;
+    const objectifYtd = calculateYtdValues(objectifMensuelArray, currentMonthIndex);
 
-    entries.forEach(({ key, displayBrick, type }) => {
-      const existingEntry = acc.find(item => 
-        item.produitNom === produitNom && item.brickNom === displayBrick
-      );
+    // Get realized sales for selected month and YTD
+    const venteRealiseeArray = matchingObjective?.vente_realisee || [];
+    const ventesMensuelles = venteRealiseeArray[currentMonthIndex] || 0;
+    const ventesYtd = calculateYtdValues(venteRealiseeArray, currentMonthIndex);
 
-      // Find matching objective based on vente_id
-      const matchingObjective = objectivesData.find(obj => 
-        obj.vente_id === vente.id
-      );
-      
-      // Calculate monthly objective from the array
-      const objectifMensuelArray = matchingObjective?.objectif_mensuel || [];
-      const objectifMensuel = objectifMensuelArray[currentMonthIndex] || 0;
-      const objectifYtd = calculateYtdValues(objectifMensuelArray, currentMonthIndex);
-
-      // Get realized sales for selected month and YTD
-      const venteRealiseeArray = matchingObjective?.vente_realisee || [];
-      const ventesMensuelles = venteRealiseeArray[currentMonthIndex] || 0;
-      const ventesYtd = calculateYtdValues(venteRealiseeArray, currentMonthIndex);
-
-      if (existingEntry) {
-        // Aggregate the values for sector-wide entries
-        if (type === 'secteur') {
-          existingEntry.ventesMensuelles += ventesMensuelles;
-          existingEntry.ventesYtd += ventesYtd;
-          existingEntry.objectifMensuel = (existingEntry.objectifMensuel || 0) + objectifMensuel;
-          existingEntry.objectifYtd = (existingEntry.objectifYtd || 0) + objectifYtd;
-        } else {
-          // Update with realized sales data if we found a better match
-          if (matchingObjective && ventesMensuelles > 0) {
-            existingEntry.ventesMensuelles = ventesMensuelles;
-            existingEntry.ventesYtd = ventesYtd;
-          }
-          // Update objective if we found a better match or if it was null
-          if (objectifMensuel && !existingEntry.objectifMensuel) {
-            existingEntry.objectifMensuel = objectifMensuel;
-            existingEntry.objectifYtd = objectifYtd;
-          }
-        }
-        
-        // Recalculate percentage based on updated data
-        existingEntry.objectifPourcentage = existingEntry.objectifYtd && existingEntry.objectifYtd > 0 
-          ? (existingEntry.ventesYtd / existingEntry.objectifYtd) * 100 
-          : null;
-        // Recalculate rythme based on updated data using new formula
-        existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifYtd, existingEntry.ventesYtd);
+    if (existingEntry) {
+      // For 'Total secteur', aggregate the values
+      if (selectedBrick === 'total-secteur') {
+        existingEntry.ventesMensuelles += ventesMensuelles;
+        existingEntry.ventesYtd += ventesYtd;
+        existingEntry.objectifMensuel = (existingEntry.objectifMensuel || 0) + objectifMensuel;
+        existingEntry.objectifYtd = (existingEntry.objectifYtd || 0) + objectifYtd;
       } else {
-        // Use realized sales if available, otherwise default to 0
-        const objectifPourcentage = objectifYtd && objectifYtd > 0 
-          ? (ventesYtd / objectifYtd) * 100 
-          : null;
-
-        acc.push({
-          id: key,
-          produitNom,
-          brickNom: displayBrick,
-          ventesMensuelles,
-          ventesYtd,
-          objectifMensuel,
-          objectifYtd,
-          objectifPourcentage,
-          rythmeRecrutement: calculateRythmeRecrutement(objectifYtd, ventesYtd)
-        });
+        // Update with realized sales data if we found a better match
+        if (matchingObjective && ventesMensuelles > 0) {
+          existingEntry.ventesMensuelles = ventesMensuelles;
+          existingEntry.ventesYtd = ventesYtd;
+        }
+        // Update objective if we found a better match or if it was null
+        if (objectifMensuel && !existingEntry.objectifMensuel) {
+          existingEntry.objectifMensuel = objectifMensuel;
+          existingEntry.objectifYtd = objectifYtd;
+        }
       }
-    });
+      // Recalculate percentage based on updated data
+      existingEntry.objectifPourcentage = existingEntry.objectifYtd && existingEntry.objectifYtd > 0 
+        ? (existingEntry.ventesYtd / existingEntry.objectifYtd) * 100 
+        : null;
+      // Recalculate rythme based on updated data using new formula
+      existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifYtd, existingEntry.ventesYtd);
+    } else {
+      // Use realized sales if available, otherwise default to 0
+      const objectifPourcentage = objectifYtd && objectifYtd > 0 
+        ? (ventesYtd / objectifYtd) * 100 
+        : null;
+
+      acc.push({
+        id: key,
+        produitNom,
+        brickNom: displayBrick,
+        ventesMensuelles,
+        ventesYtd,
+        objectifMensuel,
+        objectifYtd,
+        objectifPourcentage,
+        rythmeRecrutement: calculateRythmeRecrutement(objectifYtd, ventesYtd)
+      });
+    }
 
     return acc;
   }, [] as VenteData[]);
@@ -255,26 +238,13 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   // Filter data based on selections
   const filteredData = processedData.filter(item => {
     const matchesProduct = selectedProduct === 'all' || item.produitNom === selectedProduct;
-    
-    // When 'all' is selected, show only sector-wide aggregated data
-    if (selectedBrick === 'all') {
-      return matchesProduct && item.brickNom === secteurName;
-    }
-    
-    // When 'total-secteur' is selected, show sector-wide aggregated data
-    if (selectedBrick === 'total-secteur') {
-      return matchesProduct && item.brickNom === secteurName;
-    }
-    
-    // For specific brick selection, show only that brick's data
-    const matchesBrick = item.brickNom === selectedBrick;
+    const matchesBrick = selectedBrick === 'all' || selectedBrick === 'total-secteur' || item.brickNom === selectedBrick;
     return matchesProduct && matchesBrick;
   });
 
-  // Get unique values for filters (only from individual brick entries, not sector-wide)
-  const individualBrickData = processedData.filter(item => item.brickNom !== secteurName);
+  // Get unique values for filters
   const uniqueProducts = [...new Set(processedData.map(item => item.produitNom))];
-  const uniqueBricks = [...new Set(individualBrickData.map(item => item.brickNom))];
+  const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))];
 
   // Generate month options
   const monthNames = [
@@ -364,7 +334,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Produit</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
