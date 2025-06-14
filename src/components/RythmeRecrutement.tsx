@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +45,28 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     if (objectifAnnuel <= 0) return 0;
     
     const numerator = objectifAnnuel - ventesYtd;
+    const denominator = n * (n + 1) / 2;
+
+    if (numerator < 0) return 0;
+    return denominator > 0 ? Math.ceil(numerator / denominator) : 0;
+  };
+
+  // Calculate sector-wide rythme de recrutement for aggregated values
+  const calculateSectorRythmeRecrutement = (allProductObjectives: number[][], allProductVentesYtd: number[]): number => {
+    if (n <= 0) return 0;
+    
+    // Sum objectif_annuel across all products
+    const totalObjectifAnnuel = allProductObjectives.reduce((total, productObjectifs) => {
+      const productObjectifAnnuel = productObjectifs.reduce((sum, val) => sum + (val || 0), 0);
+      return total + productObjectifAnnuel;
+    }, 0);
+    
+    // Sum ventesYtd across all products
+    const totalVentesYtd = allProductVentesYtd.reduce((sum, val) => sum + (val || 0), 0);
+    
+    if (totalObjectifAnnuel <= 0) return 0;
+    
+    const numerator = totalObjectifAnnuel - totalVentesYtd;
     const denominator = n * (n + 1) / 2;
 
     if (numerator < 0) return 0;
@@ -202,25 +223,37 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
         existingEntry.objectifMensuel = (existingEntry.objectifMensuel || 0) + objectifMensuel;
         existingEntry.objectifYtd = (existingEntry.objectifYtd || 0) + objectifYtd;
         
-        // For sector totals, we need to recalculate rythme using aggregated arrays
+        // For sector totals, we need to recalculate rythme using sector-wide formula
         // Find all ventes for this product to aggregate their objective arrays
         const productVentes = ventesData.filter(v => v.produits?.nom === produitNom);
-        const aggregatedObjectifMensuel = new Array(12).fill(0);
-        let aggregatedVentesYtd = 0;
+        const allProductObjectives: number[][] = [];
+        const allProductVentesYtd: number[] = [];
         
-        productVentes.forEach(pv => {
-          const obj = objectivesData.find(o => o.vente_id === pv.id);
-          if (obj?.objectif_mensuel) {
-            obj.objectif_mensuel.forEach((val, idx) => {
-              aggregatedObjectifMensuel[idx] += val || 0;
-            });
-          }
-          if (obj?.vente_realisee) {
-            aggregatedVentesYtd += calculateYtdValues(obj.vente_realisee, currentMonthIndex);
-          }
+        // Group by unique products in the sector
+        const uniqueProducts = [...new Set(ventesData.map(v => v.produits?.nom))];
+        
+        uniqueProducts.forEach(productName => {
+          const productSpecificVentes = ventesData.filter(v => v.produits?.nom === productName);
+          const aggregatedObjectifMensuel = new Array(12).fill(0);
+          let aggregatedVentesYtd = 0;
+          
+          productSpecificVentes.forEach(pv => {
+            const obj = objectivesData.find(o => o.vente_id === pv.id);
+            if (obj?.objectif_mensuel) {
+              obj.objectif_mensuel.forEach((val, idx) => {
+                aggregatedObjectifMensuel[idx] += val || 0;
+              });
+            }
+            if (obj?.vente_realisee) {
+              aggregatedVentesYtd += calculateYtdValues(obj.vente_realisee, currentMonthIndex);
+            }
+          });
+          
+          allProductObjectives.push(aggregatedObjectifMensuel);
+          allProductVentesYtd.push(aggregatedVentesYtd);
         });
         
-        existingEntry.rythmeRecrutement = calculateRythmeRecrutement(aggregatedObjectifMensuel, aggregatedVentesYtd);
+        existingEntry.rythmeRecrutement = calculateSectorRythmeRecrutement(allProductObjectives, allProductVentesYtd);
       } else {
         // Update with realized sales data if we found a better match
         if (matchingObjective && ventesMensuelles > 0) {
@@ -321,13 +354,22 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       sectorTotal.objectifPourcentage = sectorTotal.objectifYtd && sectorTotal.objectifYtd > 0 
         ? (sectorTotal.ventesYtd / sectorTotal.objectifYtd) * 100 
         : null;
-      
-      // Use aggregated monthly objectives and calculate YTD from aggregated ventes realisees for rythme calculation
+    });
+    
+    // Calculate sector-wide rythme using the new formula for all products combined
+    const allProductObjectives: number[][] = [];
+    const allProductVentesYtd: number[] = [];
+    
+    Object.keys(sectorTotals).forEach(produitNom => {
+      allProductObjectives.push(aggregatedObjectives[produitNom] || []);
       const aggregatedVentesYtd = calculateYtdValues(aggregatedVentesRealisees[produitNom] || [], currentMonthIndex);
-      sectorTotal.rythmeRecrutement = calculateRythmeRecrutement(
-        aggregatedObjectives[produitNom] || [], 
-        aggregatedVentesYtd
-      );
+      allProductVentesYtd.push(aggregatedVentesYtd);
+    });
+    
+    // Apply the sector-wide rythme calculation to each product's sector total
+    const sectorWideRythme = calculateSectorRythmeRecrutement(allProductObjectives, allProductVentesYtd);
+    Object.values(sectorTotals).forEach(sectorTotal => {
+      sectorTotal.rythmeRecrutement = sectorWideRythme;
     });
     
     return Object.values(sectorTotals);
