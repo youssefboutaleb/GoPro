@@ -1,9 +1,8 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Target, Filter, MapPin, Package, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Target, Filter, MapPin, Package, TrendingUp, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,9 +15,10 @@ interface VenteData {
   id: string;
   produitNom: string;
   brickNom: string;
-  nombreVentes: number;
+  ventesMensuelles: number;
+  ventesYtd: number;
   objectifMensuel: number | null;
-  objectifAnnuel: number | null;
+  objectifYtd: number | null;
   objectifPourcentage: number | null;
   rythmeRecrutement: number;
 }
@@ -26,21 +26,27 @@ interface VenteData {
 const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const [selectedProduct, setSelectedProduct] = useState('all');
   const [selectedBrick, setSelectedBrick] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
   const { user } = useAuth();
 
-  // Get current month number (0-11) for array index
-  const currentMonth = new Date().getMonth();
-  const n = 13 - (currentMonth + 1);
+  // Get selected month as number (0-11) for array index
+  const currentMonthIndex = parseInt(selectedMonth);
+  const n = 13 - (currentMonthIndex + 1);
 
   // Calculate rythme de recrutement using the new formula
-  const calculateRythmeRecrutement = (objectifAnnuel: number | null, nombreVentes: number): number => {
-    if (!objectifAnnuel || objectifAnnuel <= 0 || n <= 0) return 0;
+  const calculateRythmeRecrutement = (objectifYtd: number | null, ventesYtd: number): number => {
+    if (!objectifYtd || objectifYtd <= 0 || n <= 0) return 0;
     
-    const numerator = objectifAnnuel - nombreVentes;
+    const numerator = objectifYtd - ventesYtd;
     const denominator = n * (n + 1) / 2;
 
     if (numerator < 0) return 0;
     return denominator > 0 ? Math.ceil(numerator / denominator) : 0;
+  };
+
+  // Calculate YTD values
+  const calculateYtdValues = (monthlyArray: number[], selectedMonthIndex: number) => {
+    return monthlyArray.slice(0, selectedMonthIndex + 1).reduce((sum, val) => sum + (val || 0), 0);
   };
 
   // Fetch current user's delegue info
@@ -101,7 +107,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
 
   // Fetch objectives with realized sales data
   const { data: objectivesData = [], isLoading: objectivesLoading } = useQuery({
-    queryKey: ['objectifs_ventes_with_realized', currentDelegue?.id, currentMonth],
+    queryKey: ['objectifs_ventes_with_realized', currentDelegue?.id, selectedMonth],
     queryFn: async () => {
       if (!currentDelegue?.id) {
         console.log('No delegue found for objectives, returning empty array');
@@ -132,10 +138,15 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const processedData: VenteData[] = ventesData.reduce((acc, vente) => {
     const produitNom = vente.produits?.nom || 'Produit inconnu';
     const brickNom = vente.bricks?.nom || 'Brick inconnu';
-    const key = `${vente.produit_id}-${vente.brick_id}`;
+    
+    // For 'Total secteur' grouping, use secteur name instead of brick name
+    const displayBrick = selectedBrick === 'total-secteur' ? secteurName : brickNom;
+    const key = selectedBrick === 'total-secteur' 
+      ? `${vente.produit_id}-secteur` 
+      : `${vente.produit_id}-${vente.brick_id}`;
 
     const existingEntry = acc.find(item => 
-      item.produitNom === produitNom && item.brickNom === brickNom
+      item.produitNom === produitNom && item.brickNom === displayBrick
     );
 
     // Find matching objective based on vente_id
@@ -143,65 +154,81 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       obj.vente_id === vente.id
     );
     
-    // Calculate monthly objective from the array (sum of all months)
+    // Calculate monthly objective from the array
     const objectifMensuelArray = matchingObjective?.objectif_mensuel || [];
-    const objectifMensuel = objectifMensuelArray.reduce((sum: number, val: number) => sum + val, 0) / 12;
-    const objectifAnnuel = objectifMensuel ? objectifMensuel * 12 : null;
+    const objectifMensuel = objectifMensuelArray[currentMonthIndex] || 0;
+    const objectifYtd = calculateYtdValues(objectifMensuelArray, currentMonthIndex);
 
-    // Get realized sales for current month
+    // Get realized sales for selected month and YTD
     const venteRealiseeArray = matchingObjective?.vente_realisee || [];
-    const nombreVentesRealized = venteRealiseeArray[currentMonth] || 0;
+    const ventesMensuelles = venteRealiseeArray[currentMonthIndex] || 0;
+    const ventesYtd = calculateYtdValues(venteRealiseeArray, currentMonthIndex);
 
     if (existingEntry) {
-      // Update with realized sales data if we found a better match
-      if (matchingObjective && nombreVentesRealized > 0) {
-        existingEntry.nombreVentes = nombreVentesRealized;
-      }
-      // Update objective if we found a better match or if it was null
-      if (objectifMensuel && !existingEntry.objectifMensuel) {
-        existingEntry.objectifMensuel = objectifMensuel;
-        existingEntry.objectifAnnuel = objectifAnnuel;
+      // For 'Total secteur', aggregate the values
+      if (selectedBrick === 'total-secteur') {
+        existingEntry.ventesMensuelles += ventesMensuelles;
+        existingEntry.ventesYtd += ventesYtd;
+        existingEntry.objectifMensuel = (existingEntry.objectifMensuel || 0) + objectifMensuel;
+        existingEntry.objectifYtd = (existingEntry.objectifYtd || 0) + objectifYtd;
+      } else {
+        // Update with realized sales data if we found a better match
+        if (matchingObjective && ventesMensuelles > 0) {
+          existingEntry.ventesMensuelles = ventesMensuelles;
+          existingEntry.ventesYtd = ventesYtd;
+        }
+        // Update objective if we found a better match or if it was null
+        if (objectifMensuel && !existingEntry.objectifMensuel) {
+          existingEntry.objectifMensuel = objectifMensuel;
+          existingEntry.objectifYtd = objectifYtd;
+        }
       }
       // Recalculate percentage based on updated data
-      existingEntry.objectifPourcentage = existingEntry.objectifAnnuel && existingEntry.objectifAnnuel > 0 
-        ? (existingEntry.nombreVentes / existingEntry.objectifAnnuel) * 100 
+      existingEntry.objectifPourcentage = existingEntry.objectifYtd && existingEntry.objectifYtd > 0 
+        ? (existingEntry.ventesYtd / existingEntry.objectifYtd) * 100 
         : null;
       // Recalculate rythme based on updated data using new formula
-      existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifAnnuel, existingEntry.nombreVentes);
+      existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifYtd, existingEntry.ventesYtd);
     } else {
       // Use realized sales if available, otherwise default to 0
-      const nombreVentes = nombreVentesRealized || 0;
-      const objectifPourcentage = objectifAnnuel && objectifAnnuel > 0 
-        ? (nombreVentes / objectifAnnuel) * 100 
+      const objectifPourcentage = objectifYtd && objectifYtd > 0 
+        ? (ventesYtd / objectifYtd) * 100 
         : null;
 
       acc.push({
         id: key,
         produitNom,
-        brickNom,
-        nombreVentes,
+        brickNom: displayBrick,
+        ventesMensuelles,
+        ventesYtd,
         objectifMensuel,
-        objectifAnnuel,
+        objectifYtd,
         objectifPourcentage,
-        rythmeRecrutement: calculateRythmeRecrutement(objectifAnnuel, nombreVentes)
+        rythmeRecrutement: calculateRythmeRecrutement(objectifYtd, ventesYtd)
       });
     }
 
     return acc;
   }, [] as VenteData[]);
 
-  console.log('Processed ventes data with realized sales:', processedData);
+  console.log('Processed ventes data with YTD calculations:', processedData);
 
   // Filter data based on selections
   const filteredData = processedData.filter(item => {
     const matchesProduct = selectedProduct === 'all' || item.produitNom === selectedProduct;
-    const matchesBrick = selectedBrick === 'all' || item.brickNom === selectedBrick;
+    const matchesBrick = selectedBrick === 'all' || selectedBrick === 'total-secteur' || item.brickNom === selectedBrick;
     return matchesProduct && matchesBrick;
   });
 
   // Get unique values for filters
   const uniqueProducts = [...new Set(processedData.map(item => item.produitNom))];
   const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))];
+
+  // Generate month options
+  const monthNames = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
 
   const getStatusColor = (objectifPourcentage: number) => {
     if (objectifPourcentage >= 80) return 'bg-green-100 border-green-300';
@@ -285,7 +312,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Produit</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -309,8 +336,28 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les bricks</SelectItem>
+                    <SelectItem value="total-secteur">Total secteur</SelectItem>
                     {uniqueBricks.map(brick => (
                       <SelectItem key={brick} value={brick}>{brick}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Mois</label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un mois" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthNames.map((month, index) => (
+                      <SelectItem key={index} value={index.toString()}>
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>{month}</span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -343,9 +390,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Produit</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Ventes Réalisées</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Ventes Mensuelles</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Ventes YtD</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Mensuel</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif Annuel</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif YtD</th>
                       <th className="text-right py-3 px-4 font-medium text-gray-700">Objectif en %</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Rythme de Recrutement</th>
                     </tr>
@@ -368,13 +416,16 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                           </div>
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
-                          {item.nombreVentes.toLocaleString()}
+                          {item.ventesMensuelles.toLocaleString()}
+                        </td>
+                        <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
+                          {item.ventesYtd.toLocaleString()}
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()}` : 'N/A'}
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
-                          {item.objectifAnnuel ? `${item.objectifAnnuel.toLocaleString()}` : 'N/A'}
+                          {item.objectifYtd ? `${item.objectifYtd.toLocaleString()}` : 'N/A'}
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.objectifPourcentage ? `${item.objectifPourcentage.toFixed(1)}%` : 'N/A'}
