@@ -33,7 +33,7 @@ export type Database = {
             foreignKeyName: "bricks_secteur_id_fkey"
             columns: ["secteur_id"]
             isOneToOne: false
-            referencedRelation: "secteur"
+            referencedRelation: "secteurs"
             referencedColumns: ["id"]
           },
         ]
@@ -104,19 +104,19 @@ export type Database = {
             foreignKeyName: "delegues_equipe_id_fkey"
             columns: ["equipe_id"]
             isOneToOne: false
-            referencedRelation: "equipes"
+            referencedRelation: "superviseurs"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "delegues_secteur_id_fkey"
             columns: ["secteur_id"]
             isOneToOne: false
-            referencedRelation: "secteur"
+            referencedRelation: "secteurs"
             referencedColumns: ["id"]
           },
         ]
       }
-      equipes: {
+      directeurs_ventes: {
         Row: {
           id: string
           nom: string
@@ -130,6 +130,42 @@ export type Database = {
           nom?: string
         }
         Relationships: []
+      }
+      frequences_visites: {
+        Row: {
+          delegue_id: string | null
+          frequence_visite: number | null
+          id: string
+          medecin_id: string | null
+        }
+        Insert: {
+          delegue_id?: string | null
+          frequence_visite?: number | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Update: {
+          delegue_id?: string | null
+          frequence_visite?: number | null
+          id?: string
+          medecin_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objectifs_visites_delegue_id_fkey"
+            columns: ["delegue_id"]
+            isOneToOne: false
+            referencedRelation: "delegues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objectifs_visites_medecin_id_fkey"
+            columns: ["medecin_id"]
+            isOneToOne: false
+            referencedRelation: "medecins"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       medecins: {
         Row: {
@@ -195,42 +231,6 @@ export type Database = {
           },
         ]
       }
-      objectifs_visites: {
-        Row: {
-          delegue_id: string | null
-          frequence_visite: number | null
-          id: string
-          medecin_id: string | null
-        }
-        Insert: {
-          delegue_id?: string | null
-          frequence_visite?: number | null
-          id?: string
-          medecin_id?: string | null
-        }
-        Update: {
-          delegue_id?: string | null
-          frequence_visite?: number | null
-          id?: string
-          medecin_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "objectifs_visites_delegue_id_fkey"
-            columns: ["delegue_id"]
-            isOneToOne: false
-            referencedRelation: "delegues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "objectifs_visites_medecin_id_fkey"
-            columns: ["medecin_id"]
-            isOneToOne: false
-            referencedRelation: "medecins"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       produits: {
         Row: {
           actif: boolean | null
@@ -279,7 +279,7 @@ export type Database = {
         }
         Relationships: []
       }
-      secteur: {
+      secteurs: {
         Row: {
           id: string
           nom: string
@@ -293,6 +293,32 @@ export type Database = {
           nom?: string
         }
         Relationships: []
+      }
+      superviseurs: {
+        Row: {
+          directeur_ventes_id: string | null
+          id: string
+          nom: string
+        }
+        Insert: {
+          directeur_ventes_id?: string | null
+          id?: string
+          nom: string
+        }
+        Update: {
+          directeur_ventes_id?: string | null
+          id?: string
+          nom?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "superviseurs_directeur_ventes_id_fkey"
+            columns: ["directeur_ventes_id"]
+            isOneToOne: false
+            referencedRelation: "directeurs_ventes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ventes: {
         Row: {
@@ -364,10 +390,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "visites_new_objectif_visite_id_fkey"
+            foreignKeyName: "visites_objectif_visite_id_fkey"
             columns: ["objectif_visite_id"]
             isOneToOne: false
-            referencedRelation: "objectifs_visites"
+            referencedRelation: "frequences_visites"
             referencedColumns: ["id"]
           },
         ]

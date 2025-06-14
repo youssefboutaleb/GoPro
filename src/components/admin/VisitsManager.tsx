@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +13,14 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Visit = Database['public']['Tables']['visites']['Row'] & {
-  objectifs_visites?: {
+  frequences_visites?: {
     delegue?: { nom: string; prenom: string };
     medecin?: { nom: string; prenom: string };
   };
 };
 type Delegue = Database['public']['Tables']['delegues']['Row'];
 type Medecin = Database['public']['Tables']['medecins']['Row'];
-type ObjectifVisite = Database['public']['Tables']['objectifs_visites']['Row'] & {
+type FrequenceVisite = Database['public']['Tables']['frequences_visites']['Row'] & {
   delegue?: { nom: string; prenom: string };
   medecin?: { nom: string; prenom: string };
 };
@@ -32,7 +33,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [delegues, setDelegues] = useState<Delegue[]>([]);
   const [medecins, setMedecins] = useState<Medecin[]>([]);
-  const [objectifsVisites, setObjectifsVisites] = useState<ObjectifVisite[]>([]);
+  const [frequencesVisites, setFrequencesVisites] = useState<FrequenceVisite[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
@@ -52,7 +53,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
         .from('visites')
         .select(`
           *,
-          objectifs_visites:objectif_visite_id(
+          frequences_visites:objectif_visite_id(
             delegue:delegue_id(nom, prenom),
             medecin:medecin_id(nom, prenom)
           )
@@ -77,9 +78,9 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (medecinsError) throw medecinsError;
 
-      // Fetch objectifs_visites with related delegue and medecin data
-      const { data: objectifsVisitesData, error: objectifsVisitesError } = await supabase
-        .from('objectifs_visites')
+      // Fetch frequences_visites with related delegue and medecin data
+      const { data: frequencesVisitesData, error: frequencesVisitesError } = await supabase
+        .from('frequences_visites')
         .select(`
           *,
           delegue:delegue_id(nom, prenom),
@@ -87,12 +88,12 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
         `)
         .order('id', { ascending: true });
 
-      if (objectifsVisitesError) throw objectifsVisitesError;
+      if (frequencesVisitesError) throw frequencesVisitesError;
 
       setVisits(visitsData || []);
       setDelegues(deleguesData || []);
       setMedecins(medecinsData || []);
-      setObjectifsVisites(objectifsVisitesData || []);
+      setFrequencesVisites(frequencesVisitesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -268,15 +269,15 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="objectif_visite_id">Objectif de visite</Label>
+                      <Label htmlFor="objectif_visite_id">Fréquence de visite</Label>
                       <Select value={formData.objectif_visite_id} onValueChange={(value) => setFormData({ ...formData, objectif_visite_id: value })}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un objectif de visite" />
+                          <SelectValue placeholder="Sélectionner une fréquence de visite" />
                         </SelectTrigger>
                         <SelectContent>
-                          {objectifsVisites.map((objectif) => (
-                            <SelectItem key={objectif.id} value={objectif.id}>
-                              {objectif.delegue?.prenom} {objectif.delegue?.nom} - Dr. {objectif.medecin?.prenom} {objectif.medecin?.nom}
+                          {frequencesVisites.map((frequence) => (
+                            <SelectItem key={frequence.id} value={frequence.id}>
+                              {frequence.delegue?.prenom} {frequence.delegue?.nom} - Dr. {frequence.medecin?.prenom} {frequence.medecin?.nom}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -318,12 +319,12 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {visit.objectifs_visites?.delegue ? 
-                          `${visit.objectifs_visites.delegue.prenom} ${visit.objectifs_visites.delegue.nom}` : 'N/A'}
+                        {visit.frequences_visites?.delegue ? 
+                          `${visit.frequences_visites.delegue.prenom} ${visit.frequences_visites.delegue.nom}` : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        {visit.objectifs_visites?.medecin ? 
-                          `Dr. ${visit.objectifs_visites.medecin.prenom} ${visit.objectifs_visites.medecin.nom}` : 'N/A'}
+                        {visit.frequences_visites?.medecin ? 
+                          `Dr. ${visit.frequences_visites.medecin.prenom} ${visit.frequences_visites.medecin.nom}` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">

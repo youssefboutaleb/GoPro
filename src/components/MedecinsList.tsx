@@ -21,7 +21,7 @@ interface Medecin {
   brick_id: string | null;
   bricks?: {
     nom: string;
-    secteur?: {
+    secteurs?: {
       nom: string;
     };
   };
@@ -48,7 +48,7 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
           brick_id,
           bricks:brick_id (
             nom,
-            secteur:secteur_id (
+            secteurs:secteur_id (
               nom
             )
           )
@@ -239,7 +239,7 @@ const MedecinsList = ({ onBack }: MedecinsListProps) => {
                   </div>
                   <div className="flex justify-between text-xs text-gray-600">
                     <span>Visites: N/A</span>
-                    <span>Secteur: {medecin.bricks?.secteur?.nom || 'Non assigné'}</span>
+                    <span>Secteur: {medecin.bricks?.secteurs?.nom || 'Non assigné'}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                     <div className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full w-0"></div>

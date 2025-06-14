@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import DelegueAssignment from './DelegueAssignment';
 
-type Equipe = Tables<'equipes'>;
+type Superviseur = Tables<'superviseurs'>;
 type Delegue = Tables<'delegues'>;
 
 interface EquipesManagerProps {
@@ -22,49 +22,49 @@ interface EquipesManagerProps {
 
 const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingEquipe, setEditingEquipe] = useState<Equipe | null>(null);
+  const [editingSuperviseur, setEditingSuperviseur] = useState<Superviseur | null>(null);
   const [formData, setFormData] = useState({ nom: '' });
-  const [selectedEquipe, setSelectedEquipe] = useState<Equipe | null>(null);
+  const [selectedSuperviseur, setSelectedSuperviseur] = useState<Superviseur | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch equipes
-  const { data: equipes, isLoading } = useQuery({
-    queryKey: ['equipes'],
+  // Fetch superviseurs (renamed from equipes)
+  const { data: superviseurs, isLoading } = useQuery({
+    queryKey: ['superviseurs'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('equipes')
+        .from('superviseurs')
         .select('*')
         .order('nom');
       
       if (error) throw error;
-      return data as Equipe[];
+      return data as Superviseur[];
     },
   });
 
-  // Fetch delegues for the selected equipe
+  // Fetch delegues for the selected superviseur
   const { data: delegues } = useQuery({
-    queryKey: ['delegues', selectedEquipe?.id],
+    queryKey: ['delegues', selectedSuperviseur?.id],
     queryFn: async () => {
-      if (!selectedEquipe) return [];
+      if (!selectedSuperviseur) return [];
       
       const { data, error } = await supabase
         .from('delegues')
         .select('*')
-        .eq('equipe_id', selectedEquipe.id)
+        .eq('equipe_id', selectedSuperviseur.id)
         .order('nom');
       
       if (error) throw error;
       return data as Delegue[];
     },
-    enabled: !!selectedEquipe,
+    enabled: !!selectedSuperviseur,
   });
 
-  // Create equipe mutation
-  const createEquipe = useMutation({
+  // Create superviseur mutation
+  const createSuperviseur = useMutation({
     mutationFn: async (data: { nom: string }) => {
       const { data: result, error } = await supabase
-        .from('equipes')
+        .from('superviseurs')
         .insert([data])
         .select()
         .single();
@@ -73,7 +73,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['equipes'] });
+      queryClient.invalidateQueries({ queryKey: ['superviseurs'] });
       setIsDialogOpen(false);
       setFormData({ nom: '' });
       toast({
@@ -90,11 +90,11 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Update equipe mutation
-  const updateEquipe = useMutation({
+  // Update superviseur mutation
+  const updateSuperviseur = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { nom: string } }) => {
       const { data: result, error } = await supabase
-        .from('equipes')
+        .from('superviseurs')
         .update(data)
         .eq('id', id)
         .select()
@@ -104,9 +104,9 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['equipes'] });
+      queryClient.invalidateQueries({ queryKey: ['superviseurs'] });
       setIsDialogOpen(false);
-      setEditingEquipe(null);
+      setEditingSuperviseur(null);
       setFormData({ nom: '' });
       toast({
         title: "Succès",
@@ -122,18 +122,18 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Delete equipe mutation
-  const deleteEquipe = useMutation({
+  // Delete superviseur mutation
+  const deleteSuperviseur = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('equipes')
+        .from('superviseurs')
         .delete()
         .eq('id', id);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['equipes'] });
+      queryClient.invalidateQueries({ queryKey: ['superviseurs'] });
       toast({
         title: "Succès",
         description: "Équipe supprimée avec succès",
@@ -150,35 +150,35 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingEquipe) {
-      updateEquipe.mutate({ id: editingEquipe.id, data: formData });
+    if (editingSuperviseur) {
+      updateSuperviseur.mutate({ id: editingSuperviseur.id, data: formData });
     } else {
-      createEquipe.mutate(formData);
+      createSuperviseur.mutate(formData);
     }
   };
 
-  const handleEdit = (equipe: Equipe) => {
-    setEditingEquipe(equipe);
-    setFormData({ nom: equipe.nom });
+  const handleEdit = (superviseur: Superviseur) => {
+    setEditingSuperviseur(superviseur);
+    setFormData({ nom: superviseur.nom });
     setIsDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette équipe ?')) {
-      deleteEquipe.mutate(id);
+      deleteSuperviseur.mutate(id);
     }
   };
 
   const resetForm = () => {
     setFormData({ nom: '' });
-    setEditingEquipe(null);
+    setEditingSuperviseur(null);
   };
 
-  if (selectedEquipe) {
+  if (selectedSuperviseur) {
     return (
       <DelegueAssignment
-        equipe={selectedEquipe}
-        onBack={() => setSelectedEquipe(null)}
+        equipe={selectedSuperviseur}
+        onBack={() => setSelectedSuperviseur(null)}
       />
     );
   }
@@ -230,10 +230,10 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>
-                      {editingEquipe ? 'Modifier l\'équipe' : 'Nouvelle équipe'}
+                      {editingSuperviseur ? 'Modifier l\'équipe' : 'Nouvelle équipe'}
                     </DialogTitle>
                     <DialogDescription>
-                      {editingEquipe 
+                      {editingSuperviseur 
                         ? 'Modifiez les informations de l\'équipe.' 
                         : 'Créez une nouvelle équipe.'
                       }
@@ -257,9 +257,9 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                     <DialogFooter>
                       <Button 
                         type="submit" 
-                        disabled={createEquipe.isPending || updateEquipe.isPending}
+                        disabled={createSuperviseur.isPending || updateSuperviseur.isPending}
                       >
-                        {editingEquipe ? 'Modifier' : 'Créer'}
+                        {editingSuperviseur ? 'Modifier' : 'Créer'}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -279,15 +279,15 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {equipes?.map((equipe) => (
-                    <TableRow key={equipe.id}>
-                      <TableCell className="font-medium">{equipe.nom}</TableCell>
+                  {superviseurs?.map((superviseur) => (
+                    <TableRow key={superviseur.id}>
+                      <TableCell className="font-medium">{superviseur.nom}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedEquipe(equipe)}
+                            onClick={() => setSelectedSuperviseur(superviseur)}
                             className="flex items-center space-x-1"
                           >
                             <Users className="h-4 w-4" />
@@ -296,14 +296,14 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEdit(equipe)}
+                            onClick={() => handleEdit(superviseur)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleDelete(equipe.id)}
+                            onClick={() => handleDelete(superviseur.id)}
                           >
                             <Trash className="h-4 w-4" />
                           </Button>

@@ -11,11 +11,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 
-type Equipe = Tables<'equipes'>;
+type Superviseur = Tables<'superviseurs'>;
 type Delegue = Tables<'delegues'>;
 
 interface DelegueAssignmentProps {
-  equipe: Equipe;
+  equipe: Superviseur;
   onBack: () => void;
 }
 
