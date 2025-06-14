@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,9 +32,6 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
     queryFn: async () => {
       console.log('Fetching products and sales data from Supabase...');
       
-      // Get current date for filtering (using November 2024 as example)
-      const currentDate = `2024-${selectedMonth.padStart(2, '0')}-01`;
-      
       // Fetch products
       const { data: produits, error: produitsError } = await supabase
         .from('produits')
@@ -48,19 +46,20 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
       // For each product, get sales and objectives data
       const productsWithData = await Promise.all(
         produits.map(async (produit) => {
-          // Get sales data for this product using the new 'ventes' table
+          // Get sales data for this product using the 'ventes' table
           const { data: ventes, error: ventesError } = await supabase
             .from('ventes')
-            .select('montant, brick_id')
-            .eq('produit_id', produit.id)
-            .gte('periode', currentDate)
-            .lt('periode', `2024-${(parseInt(selectedMonth) + 1).toString().padStart(2, '0')}-01`);
+            .select('brick_id')
+            .eq('produit_id', produit.id);
 
           if (ventesError) {
             console.error('Error fetching sales:', ventesError);
           }
 
-          // Get objectives data for this product using the new 'objectifs_ventes' table
+          // Count the number of sales records as proxy for sales volume
+          const totalVentes = ventes?.length || 0;
+          
+          // Get objectives data for this product using the 'objectifs_ventes' table
           const { data: objectifs, error: objectifsError } = await supabase
             .from('objectifs_ventes')
             .select('objectif_mensuel')
@@ -70,8 +69,6 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
             console.error('Error fetching objectives:', objectifsError);
           }
 
-          const totalVentes = ventes?.reduce((sum, vente) => sum + Number(vente.montant || 0), 0) || 0;
-          
           // Calculate monthly objective from the array for the selected month
           const monthIndex = parseInt(selectedMonth) - 1;
           const totalObjectifs = objectifs?.reduce((sum, obj) => {
@@ -98,13 +95,8 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
     }
   });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('fr-FR').format(num);
   };
 
   const getTendanceColor = (pourcentage: number) => {
@@ -180,12 +172,12 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Ventes Totales</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Total Ventes</CardTitle>
               <TrendingUp className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalVentes)}</div>
-              <p className="text-xs text-green-600 font-medium">Données réelles Supabase</p>
+              <div className="text-2xl font-bold text-gray-900">{formatNumber(totalVentes)}</div>
+              <p className="text-xs text-green-600 font-medium">Nombre de transactions</p>
             </CardContent>
           </Card>
 
@@ -195,7 +187,7 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
               <Target className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalObjectifs)}</div>
+              <div className="text-2xl font-bold text-gray-900">{formatNumber(totalObjectifs)}</div>
               <p className="text-xs text-gray-600">Cible mensuelle</p>
             </CardContent>
           </Card>
@@ -296,17 +288,17 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
                   {/* Sales Info */}
                   <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Ventes réalisées</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(produit.totalVentes)}</span>
+                      <span className="text-sm text-gray-600">Transactions réalisées</span>
+                      <span className="font-semibold text-gray-900">{formatNumber(produit.totalVentes)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Objectif mensuel</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(produit.totalObjectifs)}</span>
+                      <span className="font-semibold text-gray-900">{formatNumber(produit.totalObjectifs)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Reste à réaliser</span>
                       <span className="font-semibold text-red-600">
-                        {formatCurrency(Math.max(0, produit.totalObjectifs - produit.totalVentes))}
+                        {formatNumber(Math.max(0, produit.totalObjectifs - produit.totalVentes))}
                       </span>
                     </div>
                   </div>

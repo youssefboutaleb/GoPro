@@ -38,39 +38,6 @@ export type Database = {
           },
         ]
       }
-      delegue_produits: {
-        Row: {
-          delegue_id: string | null
-          id: string
-          produit_id: string | null
-        }
-        Insert: {
-          delegue_id?: string | null
-          id?: string
-          produit_id?: string | null
-        }
-        Update: {
-          delegue_id?: string | null
-          id?: string
-          produit_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "delegue_produits_delegue_id_fkey"
-            columns: ["delegue_id"]
-            isOneToOne: false
-            referencedRelation: "delegues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "delegue_produits_produit_id_fkey"
-            columns: ["produit_id"]
-            isOneToOne: false
-            referencedRelation: "produits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       delegues: {
         Row: {
           created_at: string | null
@@ -325,28 +292,19 @@ export type Database = {
           brick_id: string | null
           delegue_id: string | null
           id: string
-          montant: number
-          periode: string
           produit_id: string | null
-          source: string | null
         }
         Insert: {
           brick_id?: string | null
           delegue_id?: string | null
           id?: string
-          montant: number
-          periode: string
           produit_id?: string | null
-          source?: string | null
         }
         Update: {
           brick_id?: string | null
           delegue_id?: string | null
           id?: string
-          montant?: number
-          periode?: string
           produit_id?: string | null
-          source?: string | null
         }
         Relationships: [
           {

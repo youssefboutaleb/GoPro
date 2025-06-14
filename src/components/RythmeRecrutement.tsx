@@ -16,7 +16,7 @@ interface VenteData {
   id: string;
   produitNom: string;
   brickNom: string;
-  montant: number;
+  nombreVentes: number;
   objectifMensuel: number | null;
   objectifAnnuel: number | null;
   objectifPourcentage: number | null;
@@ -33,10 +33,10 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   const n = 13 - currentMonth;
 
   // Calculate rythme de recrutement using the new formula
-  const calculateRythmeRecrutement = (objectifAnnuel: number | null, montant: number): number => {
+  const calculateRythmeRecrutement = (objectifAnnuel: number | null, nombreVentes: number): number => {
     if (!objectifAnnuel || objectifAnnuel <= 0 || n <= 0) return 0;
     
-    const numerator = objectifAnnuel - montant;
+    const numerator = objectifAnnuel - nombreVentes;
     const denominator = n * (n + 1) / 2;
 
     if (numerator < 0) return 0;
@@ -138,8 +138,6 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       item.produitNom === produitNom && item.brickNom === brickNom
     );
 
-    const montant = Number(vente.montant) || 0;
-
     // Find matching objective based on vente_id
     const matchingObjective = objectivesData.find(obj => 
       obj.vente_id === vente.id
@@ -149,10 +147,9 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
     const objectifMensuelArray = matchingObjective?.objectif_mensuel || [];
     const objectifMensuel = objectifMensuelArray.reduce((sum: number, val: number) => sum + val, 0) / 12;
     const objectifAnnuel = objectifMensuel ? objectifMensuel * 12 : null;
-    const objectifPourcentage = objectifAnnuel && objectifAnnuel > 0 ? (montant / objectifAnnuel) * 100 : null;
 
     if (existingEntry) {
-      existingEntry.montant += montant;
+      existingEntry.nombreVentes += 1;
       // Update objective if we found a better match or if it was null
       if (objectifMensuel && !existingEntry.objectifMensuel) {
         existingEntry.objectifMensuel = objectifMensuel;
@@ -160,20 +157,25 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
       }
       // Recalculate percentage based on updated data
       existingEntry.objectifPourcentage = existingEntry.objectifAnnuel && existingEntry.objectifAnnuel > 0 
-        ? (existingEntry.montant / existingEntry.objectifAnnuel) * 100 
+        ? (existingEntry.nombreVentes / existingEntry.objectifAnnuel) * 100 
         : null;
       // Recalculate rythme based on updated data using new formula
-      existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifAnnuel, existingEntry.montant);
+      existingEntry.rythmeRecrutement = calculateRythmeRecrutement(existingEntry.objectifAnnuel, existingEntry.nombreVentes);
     } else {
+      const nombreVentes = 1;
+      const objectifPourcentage = objectifAnnuel && objectifAnnuel > 0 
+        ? (nombreVentes / objectifAnnuel) * 100 
+        : null;
+
       acc.push({
         id: key,
         produitNom,
         brickNom,
-        montant,
+        nombreVentes,
         objectifMensuel,
         objectifAnnuel,
         objectifPourcentage,
-        rythmeRecrutement: calculateRythmeRecrutement(objectifAnnuel, montant)
+        rythmeRecrutement: calculateRythmeRecrutement(objectifAnnuel, nombreVentes)
       });
     }
 
@@ -192,9 +194,6 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
   // Get unique values for filters
   const uniqueProducts = [...new Set(processedData.map(item => item.produitNom))];
   const uniqueBricks = [...new Set(processedData.map(item => item.brickNom))];
-
-  // Calculate totals
-  const totalMontant = filteredData.reduce((sum, item) => sum + item.montant, 0);
 
   const getStatusColor = (objectifPourcentage: number) => {
     if (objectifPourcentage >= 80) return 'bg-green-100 border-green-300';
@@ -361,7 +360,7 @@ const RythmeRecrutement = ({ onBack }: RythmeRecrutementProps) => {
                           </div>
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
-                          {item.montant.toLocaleString()}
+                          {item.nombreVentes.toLocaleString()}
                         </td>
                         <td className={`py-4 px-4 text-right font-medium ${getStatusTextColor(item.objectifPourcentage || 0)}`}>
                           {item.objectifMensuel ? `${item.objectifMensuel.toLocaleString()}` : 'N/A'}
