@@ -140,20 +140,20 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          role: Database["public"]["Enums"]["user_type"]
           supervisor_id: string | null
+          user_type: Database["public"]["Enums"]["user_type"]
         }
         Insert: {
           created_at?: string | null
           id: string
-          role: Database["public"]["Enums"]["user_type"]
           supervisor_id?: string | null
+          user_type: Database["public"]["Enums"]["user_type"]
         }
         Update: {
           created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["user_type"]
           supervisor_id?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"]
         }
         Relationships: [
           {

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +51,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ role: newRole })
+        .update({ user_type: newRole })
         .eq('id', userId);
 
       if (error) throw error;
@@ -143,9 +144,9 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                         {user.id}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`flex items-center space-x-1 ${getRoleColor(user.role || 'Delegate')}`}>
-                          {getRoleIcon(user.role || 'Delegate')}
-                          <span>{user.role || 'Delegate'}</span>
+                        <Badge className={`flex items-center space-x-1 ${getRoleColor(user.user_type || 'Delegate')}`}>
+                          {getRoleIcon(user.user_type || 'Delegate')}
+                          <span>{user.user_type || 'Delegate'}</span>
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -153,7 +154,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                       </TableCell>
                       <TableCell className="text-right">
                         <Select
-                          value={user.role || 'Delegate'}
+                          value={user.user_type || 'Delegate'}
                           onValueChange={(newRole: UserRole) => updateUserRole(user.id, newRole)}
                         >
                           <SelectTrigger className="w-48">
