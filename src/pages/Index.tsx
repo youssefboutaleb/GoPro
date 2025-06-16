@@ -68,7 +68,7 @@ const Index = () => {
                     <User className="h-4 w-4" />
                     <span>{t('common.userConnected')}</span>
                   </div>
-                  {profile?.role === 'admin' && (
+                  {profile?.role === 'Admin' && (
                     <Button
                       variant="outline"
                       size="sm"

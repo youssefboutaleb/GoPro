@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,7 @@ const Admin = () => {
         </Card>
       </div>
     );
-  }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -77,7 +76,7 @@ const Admin = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Administration GOPRO</h1>
                 <p className="text-sm text-gray-600">
-                  Connecté en tant que {profile?.first_name} {profile?.last_name} ({profile?.role})
+                  Connecté en tant que {profile?.id} ({profile?.role})
                 </p>
               </div>
             </div>

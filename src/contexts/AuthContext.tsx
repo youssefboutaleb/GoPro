@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -192,7 +193,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setProfile(null);
   };
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'superuser';
+  const isAdmin = profile?.role === 'Admin' || profile?.role === 'Sales Director';
 
   const value: AuthContextType = {
     user,
