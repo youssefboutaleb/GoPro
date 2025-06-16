@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { ArrowLeft, Package, TrendingUp, Target, Calendar, MapPin, Activity } fr
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ProductsListProps {
   onBack: () => void;
@@ -24,6 +24,7 @@ interface ProductData {
 }
 
 const ProductsList = ({ onBack }: ProductsListProps) => {
+  const { t } = useLanguage();
   const [selectedTerritory, setSelectedTerritory] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('11');
 
@@ -43,14 +44,13 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
         throw productsError;
       }
 
-      // For each product, get sales and objectives data
+      // For each product, get sales data
       const productsWithData = await Promise.all(
         productsData.map(async (product) => {
           // Get sales data for this product using the 'sales' table
           const { data: sales, error: salesError } = await supabase
             .from('sales')
-            .select('territory_id')
-            .eq('product_id', product.id);
+            .select('*');
 
           if (salesError) {
             console.error('Error fetching sales:', salesError);
@@ -59,24 +59,15 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
           // Count the number of sales records as proxy for sales volume
           const totalSales = sales?.length || 0;
           
-          // Get objectives data for this product using the 'sales_objectives' table
-          const { data: objectives, error: objectivesError } = await supabase
-            .from('sales_objectives')
-            .select('monthly_objective')
-            .eq('year', 2024);
-
-          if (objectivesError) {
-            console.error('Error fetching objectives:', objectivesError);
-          }
-
-          // Calculate monthly objective from the array for the selected month
+          // Calculate monthly objective from the sales table
           const monthIndex = parseInt(selectedMonth) - 1;
-          const totalObjectives = objectives?.reduce((sum, obj) => {
-            const monthlyObjective = obj.monthly_objective?.[monthIndex] || 0;
+          const totalObjectives = sales?.reduce((sum, sale) => {
+            const monthlyObjective = sale.monthly_objective?.[monthIndex] || 0;
             return sum + Number(monthlyObjective);
           }, 0) || 1;
           
-          const uniqueTerritories = new Set(sales?.map(s => s.territory_id).filter(Boolean)).size;
+          // Count unique sales plans as proxy for territories
+          const uniqueTerritories = new Set(sales?.map(s => s.sales_plan_id).filter(Boolean)).size;
 
           return {
             id: product.id,
@@ -120,7 +111,7 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading product data...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -130,8 +121,8 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading product data</p>
-          <Button onClick={onBack}>Back</Button>
+          <p className="text-red-600 mb-4">{t('common.error')}</p>
+          <Button onClick={onBack}>{t('common.back')}</Button>
         </div>
       </div>
     );
@@ -152,7 +143,7 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
                   <Package className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Products & KPIs</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.products')}</h1>
                   <p className="text-sm text-gray-600">Global performance: {globalPerformance}%</p>
                 </div>
               </div>
@@ -209,24 +200,24 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
         {/* Filters */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Filters</CardTitle>
+            <CardTitle className="text-lg text-gray-900">{t('common.filters')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Territory</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.territory')}</label>
                 <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All territories" />
+                    <SelectValue placeholder={t('common.allTerritories')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All territories</SelectItem>
+                    <SelectItem value="all">{t('common.allTerritories')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Month</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.month')}</label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select month" />
@@ -342,7 +333,7 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('common.noDataFound')}</h3>
               <p className="text-gray-600">No data available for the selected period.</p>
             </CardContent>
           </Card>

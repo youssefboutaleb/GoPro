@@ -1,141 +1,47 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, TrendingUp, Calendar, MapPin, Target, Settings, LogIn } from 'lucide-react';
-import IndiceRetour from '@/components/IndiceRetour';
-import RythmeRecrutement from '@/components/RythmeRecrutement';
-import LanguageSelector from '@/components/LanguageSelector';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, TrendingUp, Users, Package, ShoppingCart, LogOut, User, Globe, Settings } from 'lucide-react';
+import DoctorsList from '@/components/DoctorsList';
+import ProductsList from '@/components/ProductsList';
+import SimpleReturnIndex from '@/components/SimpleReturnIndex';
+import SimpleVisitReport from '@/components/SimpleVisitReport';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
+import LanguageSelector from '@/components/LanguageSelector';
+
+type View = 'dashboard' | 'doctors' | 'products' | 'returnIndex' | 'visitReport';
 
 const Index = () => {
+  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const { user, profile, signOut } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [currentWeek, setCurrentWeek] = useState('Semaine 1');
-  const [currentMonth, setCurrentMonth] = useState('');
-  const [secteurName, setSecteurName] = useState('Région Nord');
-  const { user, profile, loading, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  // Calculate current week of the month and month name
-  useEffect(() => {
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const dayOfMonth = now.getDate();
-    const firstDayWeekday = firstDayOfMonth.getDay();
-    
-    // Calculate which week of the month we're in
-    const weekNumber = Math.ceil((dayOfMonth + firstDayWeekday) / 7);
-    setCurrentWeek(`${t('common.week')} ${weekNumber}`);
-    
-    // Get month name in French
-    const monthNames = [
-      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-    ];
-    setCurrentMonth(monthNames[now.getMonth()]);
-  }, [t]);
-
-  // Note: Since we removed the delegates table and user_id from profiles,
-  // we'll use a placeholder for sector name for now
-  useEffect(() => {
-    // This would need to be implemented based on the new schema
-    // where user roles are managed differently
-    setSecteurName('Région Nord'); // Placeholder
-  }, [user]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('common.loading')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        {/* Header for non-authenticated users */}
-        <div className="bg-white shadow-lg border-b border-blue-100">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">GOPRO</h1>
-                  <p className="text-sm text-gray-600">Goal Performance Reporting Outil</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <LanguageSelector />
-                <Button onClick={() => navigate('/auth')} className="flex items-center space-x-2">
-                  <LogIn className="h-4 w-4" />
-                  <span>{t('header.signIn')}</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            {t('header.welcome')}
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            {t('header.description')}
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <RotateCcw className="h-5 w-5 text-purple-600" />
-                  <span>{t('dashboard.returnIndex')}</span>
-                </CardTitle>
-                <CardDescription>
-                  {t('dashboard.returnIndexDesc')}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Target className="h-5 w-5 text-green-600" />
-                  <span>{t('dashboard.recruitmentRate')}</span>
-                </CardTitle>
-                <CardDescription>
-                  {t('dashboard.recruitmentRateDesc')}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-          <Button onClick={() => navigate('/auth')} size="lg" className="px-8">
-            {t('header.getStarted')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (activeTab === 'indice-retour') {
-    return <IndiceRetour onBack={() => setActiveTab('dashboard')} />;
-  }
-
-  if (activeTab === 'rythme-recrutement') {
-    return <RythmeRecrutement onBack={() => setActiveTab('dashboard')} />;
-  }
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/auth');
   };
+
+  const handleAdminRedirect = () => {
+    window.location.href = '/admin';
+  };
+
+  if (currentView === 'doctors') {
+    return <DoctorsList onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  if (currentView === 'products') {
+    return <ProductsList onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  if (currentView === 'returnIndex') {
+    return <SimpleReturnIndex onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  if (currentView === 'visitReport') {
+    return <SimpleVisitReport onBack={() => setCurrentView('dashboard')} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -145,126 +51,213 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-white" />
+                <TrendingUp className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">GOPRO</h1>
-                <p className="text-sm text-gray-600">Goal Performance Reporting Outil</p>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                  GOPRO
+                </h1>
+                <p className="text-sm text-gray-600">Medical Performance Dashboard</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{currentWeek}</span>
-                </div>
-                <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{currentMonth}</span>
-                </div>
-                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                  <MapPin className="h-3 w-3" />
-                  <span>{secteurName}</span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <LanguageSelector />
-                {profile?.role && profile.role === 'Admin' && (
+              <LanguageSelector />
+              {user && (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <User className="h-4 w-4" />
+                    <span>{t('common.userConnected')}</span>
+                  </div>
+                  {profile?.role === 'admin' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAdminRedirect}
+                      className="flex items-center space-x-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>{t('common.admin')}</span>
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate('/admin')}
+                    onClick={handleSignOut}
                     className="flex items-center space-x-2"
                   >
-                    <Settings className="h-4 w-4" />
-                    <span>{t('common.admin')}</span>
+                    <LogOut className="h-4 w-4" />
+                    <span>{t('common.signOut')}</span>
                   </Button>
-                )}
-                <div className="text-sm text-gray-600">
-                  {t('common.userConnected')}
-                </div>
-                <Button variant="outline" size="sm" onClick={handleSignOut}>
-                  {t('common.signOut')}
-                </Button>
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Main Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Indice de Retour Card */}
-          <Card className="bg-gradient-to-br from-purple-600 to-purple-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105"
-                onClick={() => setActiveTab('indice-retour')}>
+      {/* Welcome Section */}
+      {!user && (
+        <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white py-16">
+          <div className="max-w-7xl mx-auto px-6 text-center">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              {t('header.welcome')}
+            </h2>
+            <p className="text-xl md:text-2xl mb-8 text-blue-100">
+              {t('header.description')}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                size="lg"
+                className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3"
+                onClick={() => window.location.href = '/auth'}
+              >
+                {t('header.getStarted')}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3"
+                onClick={() => window.location.href = '/auth'}
+              >
+                {t('header.signIn')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Content */}
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Return Index Card */}
+          <Card className="group bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+                onClick={() => setCurrentView('returnIndex')}>
             <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-white/20 rounded-lg">
-                  <RotateCcw className="h-8 w-8" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg group-hover:from-blue-600 group-hover:to-blue-700 transition-all">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900">{t('dashboard.returnIndex')}</CardTitle>
+                    <p className="text-sm text-gray-600">{t('dashboard.returnIndexDesc')}</p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl text-white">{t('dashboard.returnIndex')}</CardTitle>
-                  <CardDescription className="text-purple-100">
-                    {t('dashboard.returnIndexDesc')}
-                  </CardDescription>
-                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-purple-100">{t('dashboard.totalDoctors')}</span>
-                  <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">10</div>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">0</div>
+                  <div className="text-xs text-gray-600">{t('dashboard.totalDoctors')}</div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-purple-100">{t('dashboard.bySpecialty')}</span>
-                  <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">3</div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">0</div>
+                  <div className="text-xs text-gray-600">{t('dashboard.bySpecialty')}</div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-purple-100">{t('dashboard.byBrick')}</span>
-                  <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">4</div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">0</div>
+                  <div className="text-xs text-gray-600">{t('dashboard.byBrick')}</div>
                 </div>
               </div>
-              <Button variant="secondary" className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white border-white/30">
+              <Button variant="outline" className="w-full mt-4 group-hover:bg-blue-50 group-hover:border-blue-300 transition-colors">
                 {t('dashboard.consultIndex')}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Rythme de Recrutement Card */}
-          <Card className="bg-gradient-to-br from-green-600 to-green-700 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105"
-                onClick={() => setActiveTab('rythme-recrutement')}>
+          {/* Recruitment Rate Card */}
+          <Card className="group bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+                onClick={() => setCurrentView('products')}>
             <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-white/20 rounded-lg">
-                  <Target className="h-8 w-8" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-lg group-hover:from-green-600 group-hover:to-green-700 transition-all">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900">{t('dashboard.recruitmentRate')}</CardTitle>
+                    <p className="text-sm text-gray-600">{t('dashboard.recruitmentRateDesc')}</p>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl text-white">{t('dashboard.recruitmentRate')}</CardTitle>
-                  <CardDescription className="text-green-100">
-                    {t('dashboard.recruitmentRateDesc')}
-                  </CardDescription>
-                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 transition-colors" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-green-100">{t('dashboard.products')}</span>
-                  <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">4</div>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">0</div>
+                  <div className="text-xs text-gray-600">{t('dashboard.products')}</div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-green-100">{t('dashboard.averageGoal')}</span>
-                  <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">75%</div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">0</div>
+                  <div className="text-xs text-gray-600">{t('dashboard.averageGoal')}</div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-green-100">{t('dashboard.byBrick')}</span>
-                  <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">4</div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">0%</div>
+                  <div className="text-xs text-gray-600">Performance</div>
                 </div>
               </div>
-              <Button variant="secondary" className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white border-white/30">
+              <Button variant="outline" className="w-full mt-4 group-hover:bg-green-50 group-hover:border-green-300 transition-colors">
                 {t('dashboard.consultRate')}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Doctors Card */}
+          <Card className="group bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+                onClick={() => setCurrentView('doctors')}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg group-hover:from-purple-600 group-hover:to-purple-700 transition-all">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900">{t('doctors.targetedDoctors')}</CardTitle>
+                    <p className="text-sm text-gray-600">Manage and view doctor profiles</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600 mb-2">0</div>
+                <div className="text-sm text-gray-600">Total doctors in system</div>
+              </div>
+              <Button variant="outline" className="w-full mt-4 group-hover:bg-purple-50 group-hover:border-purple-300 transition-colors">
+                View All Doctors
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Visit Report Card */}
+          <Card className="group bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+                onClick={() => setCurrentView('visitReport')}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg group-hover:from-orange-600 group-hover:to-orange-700 transition-all">
+                    <ShoppingCart className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900">Visit Report</CardTitle>
+                    <p className="text-sm text-gray-600">Track visits and performance</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600 mb-2">0</div>
+                <div className="text-sm text-gray-600">Total visits this month</div>
+              </div>
+              <Button variant="outline" className="w-full mt-4 group-hover:bg-orange-50 group-hover:border-orange-300 transition-colors">
+                View Visit Report
               </Button>
             </CardContent>
           </Card>
