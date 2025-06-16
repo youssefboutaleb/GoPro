@@ -15,14 +15,15 @@ interface ReportsManagerProps {
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
-  // Fetch delegates for the dropdown
+  // Fetch delegates for the dropdown (profiles with role 'Delegate')
   const { data: delegates = [] } = useQuery({
     queryKey: ['delegates_for_reports'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('delegates')
-        .select('id, name, first_name')
-        .order('name');
+        .from('profiles')
+        .select('id, role')
+        .eq('role', 'Delegate')
+        .order('id');
 
       if (error) throw error;
       return data;
@@ -37,26 +38,25 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
         .from('visits')
         .select(`
           *,
-          visit_frequencies:visit_objective_id(
+          visit_plans:visit_plan_id(
             delegate_id,
             doctor_id,
             visit_frequency,
-            delegates:delegate_id(name, first_name),
-            doctors:doctor_id(name, first_name)
+            doctors:doctor_id(first_name, last_name)
           )
         `)
         .gte('visit_date', '2024-01-01');
 
       if (selectedDelegate !== 'all') {
-        // We need to filter by delegate through the visit_frequencies relation
-        const { data: frequenciesIds } = await supabase
-          .from('visit_frequencies')
+        // We need to filter by delegate through the visit_plans relation
+        const { data: planIds } = await supabase
+          .from('visit_plans')
           .select('id')
           .eq('delegate_id', selectedDelegate);
         
-        if (frequenciesIds && frequenciesIds.length > 0) {
-          const ids = frequenciesIds.map(obj => obj.id);
-          query = query.in('visit_objective_id', ids);
+        if (planIds && planIds.length > 0) {
+          const ids = planIds.map(obj => obj.id);
+          query = query.in('visit_plan_id', ids);
         } else {
           return [];
         }
@@ -68,16 +68,15 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     }
   });
 
-  // Fetch visit_frequencies data for indice calculation
-  const { data: visitFrequenciesData = [] } = useQuery({
-    queryKey: ['visit_frequencies_data', selectedDelegate],
+  // Fetch visit_plans data for indice calculation
+  const { data: visitPlansData = [] } = useQuery({
+    queryKey: ['visit_plans_data', selectedDelegate],
     queryFn: async () => {
       let query = supabase
-        .from('visit_frequencies')
+        .from('visit_plans')
         .select(`
           *,
-          delegates:delegate_id(name, first_name),
-          doctors:doctor_id(name, first_name)
+          doctors:doctor_id(first_name, last_name)
         `);
 
       if (selectedDelegate !== 'all') {
@@ -103,8 +102,8 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     const n = visitsThisYear.length;
     
     // f = sum of (visit_frequency * number of current month) for all corresponding doctors
-    const f = visitFrequenciesData.reduce((sum, frequency) => {
-      const frequencyValue = frequency.visit_frequency || 1;
+    const f = visitPlansData.reduce((sum, plan) => {
+      const frequencyValue = parseInt(plan.visit_frequency) || 1;
       return sum + (frequencyValue * currentMonth);
     }, 0);
     
@@ -183,7 +182,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
                     <SelectItem value="all">Tous les délégués</SelectItem>
                     {delegates.map((delegate) => (
                       <SelectItem key={delegate.id} value={delegate.id}>
-                        {delegate.first_name} {delegate.name}
+                        Délégué {delegate.id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -276,7 +275,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{visitFrequenciesData.length}</div>
+              <div className="text-2xl font-bold">{visitPlansData.length}</div>
               <p className="text-xs text-muted-foreground">
                 Objectifs de visite
               </p>

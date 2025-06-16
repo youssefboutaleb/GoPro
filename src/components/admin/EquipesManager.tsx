@@ -13,8 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import DelegueAssignment from './DelegueAssignment';
 
-type Supervisor = Tables<'supervisors'>;
-type Delegate = Tables<'delegates'>;
+type Profile = Tables<'profiles'>;
 
 interface EquipesManagerProps {
   onBack: () => void;
@@ -22,23 +21,23 @@ interface EquipesManagerProps {
 
 const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingSuperviseur, setEditingSuperviseur] = useState<Supervisor | null>(null);
-  const [formData, setFormData] = useState({ name: '' });
-  const [selectedSuperviseur, setSelectedSuperviseur] = useState<Supervisor | null>(null);
+  const [editingSuperviseur, setEditingSuperviseur] = useState<Profile | null>(null);
+  const [selectedSuperviseur, setSelectedSuperviseur] = useState<Profile | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch supervisors (renamed from equipes)
+  // Fetch supervisors (profiles with role 'Supervisor')
   const { data: superviseurs, isLoading } = useQuery({
     queryKey: ['supervisors'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('supervisors')
+        .from('profiles')
         .select('*')
-        .order('name');
+        .eq('role', 'Supervisor')
+        .order('id');
       
       if (error) throw error;
-      return data as Supervisor[];
+      return data as Profile[];
     },
   });
 
@@ -49,128 +48,19 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
       if (!selectedSuperviseur) return [];
       
       const { data, error } = await supabase
-        .from('delegates')
+        .from('profiles')
         .select('*')
-        .eq('team_id', selectedSuperviseur.id)
-        .order('name');
+        .eq('supervisor_id', selectedSuperviseur.id)
+        .eq('role', 'Delegate')
+        .order('id');
       
       if (error) throw error;
-      return data as Delegate[];
+      return data as Profile[];
     },
     enabled: !!selectedSuperviseur,
   });
 
-  // Create supervisor mutation
-  const createSuperviseur = useMutation({
-    mutationFn: async (data: { name: string }) => {
-      const { data: result, error } = await supabase
-        .from('supervisors')
-        .insert([data])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supervisors'] });
-      setIsDialogOpen(false);
-      setFormData({ name: '' });
-      toast({
-        title: "Succès",
-        description: "Équipe créée avec succès",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la création de l'équipe",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Update supervisor mutation
-  const updateSuperviseur = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name: string } }) => {
-      const { data: result, error } = await supabase
-        .from('supervisors')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supervisors'] });
-      setIsDialogOpen(false);
-      setEditingSuperviseur(null);
-      setFormData({ name: '' });
-      toast({
-        title: "Succès",
-        description: "Équipe mise à jour avec succès",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la mise à jour de l'équipe",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Delete supervisor mutation
-  const deleteSuperviseur = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('supervisors')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supervisors'] });
-      toast({
-        title: "Succès",
-        description: "Équipe supprimée avec succès",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la suppression de l'équipe",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingSuperviseur) {
-      updateSuperviseur.mutate({ id: editingSuperviseur.id, data: formData });
-    } else {
-      createSuperviseur.mutate(formData);
-    }
-  };
-
-  const handleEdit = (superviseur: Supervisor) => {
-    setEditingSuperviseur(superviseur);
-    setFormData({ name: superviseur.name });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette équipe ?')) {
-      deleteSuperviseur.mutate(id);
-    }
-  };
-
   const resetForm = () => {
-    setFormData({ name: '' });
     setEditingSuperviseur(null);
   };
 
@@ -212,59 +102,11 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Liste des Équipes</CardTitle>
+                <CardTitle>Liste des Superviseurs</CardTitle>
                 <CardDescription>
-                  Gérez les équipes et leurs membres
+                  Gérez les superviseurs et leurs délégués
                 </CardDescription>
               </div>
-              <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) resetForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center space-x-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Nouvelle Équipe</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingSuperviseur ? 'Modifier l\'équipe' : 'Nouvelle équipe'}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {editingSuperviseur 
-                        ? 'Modifiez les informations de l\'équipe.' 
-                        : 'Créez une nouvelle équipe.'
-                      }
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                          Nom
-                        </Label>
-                        <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="col-span-3"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button 
-                        type="submit" 
-                        disabled={createSuperviseur.isPending || updateSuperviseur.isPending}
-                      >
-                        {editingSuperviseur ? 'Modifier' : 'Créer'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
             </div>
           </CardHeader>
           <CardContent>
@@ -274,14 +116,16 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Rôle</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {superviseurs?.map((superviseur) => (
                     <TableRow key={superviseur.id}>
-                      <TableCell className="font-medium">{superviseur.name}</TableCell>
+                      <TableCell className="font-medium">{superviseur.id}</TableCell>
+                      <TableCell>{superviseur.role}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button
@@ -292,20 +136,6 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                           >
                             <Users className="h-4 w-4" />
                             <span>Délégués</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(superviseur)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(superviseur.id)}
-                          >
-                            <Trash className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>

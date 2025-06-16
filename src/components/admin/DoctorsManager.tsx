@@ -10,29 +10,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import DoctorDialog from './DoctorDialog';
+import { Tables } from '@/integrations/supabase/types';
 
 interface DoctorsManagerProps {
   onBack: () => void;
 }
 
-interface Doctor {
-  id: string;
-  name: string;
-  first_name: string;
-  specialty: string | null;
-  territory_id: string | null;
-  territories?: {
+type Doctor = Tables<'doctors'> & {
+  bricks?: {
     name: string;
     sectors?: {
       name: string;
     };
   };
-}
+};
 
 const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
-  const [selectedTerritory, setSelectedTerritory] = useState('all');
+  const [selectedBrick, setSelectedBrick] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
 
@@ -47,18 +43,18 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
         .from('doctors')
         .select(`
           id,
-          name,
           first_name,
+          last_name,
           specialty,
-          territory_id,
-          territories:territory_id (
+          brick_id,
+          bricks:brick_id (
             name,
             sectors:sector_id (
               name
             )
           )
         `)
-        .order('name', { ascending: true });
+        .order('last_name', { ascending: true });
 
       if (error) {
         console.error('Error fetching doctors:', error);
@@ -96,16 +92,16 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   console.log('Error:', error);
 
   const filteredDoctors = doctors.filter(doctor => {
-    const fullName = `${doctor.first_name} ${doctor.name}`.toLowerCase();
+    const fullName = `${doctor.first_name} ${doctor.last_name}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
     const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
-    const matchesTerritory = selectedTerritory === 'all' || doctor.territories?.name === selectedTerritory;
-    return matchesSearch && matchesSpecialty && matchesTerritory;
+    const matchesBrick = selectedBrick === 'all' || doctor.bricks?.name === selectedBrick;
+    return matchesSearch && matchesSpecialty && matchesBrick;
   });
 
-  // Get unique specialties and territories for filters
+  // Get unique specialties and bricks for filters
   const specialties = [...new Set(doctors.map(d => d.specialty).filter(Boolean))];
-  const territories = [...new Set(doctors.map(d => d.territories?.name).filter(Boolean))];
+  const bricks = [...new Set(doctors.map(d => d.bricks?.name).filter(Boolean))];
 
   const handleEdit = (doctor: Doctor) => {
     setEditingDoctor(doctor);
@@ -218,15 +214,15 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Territory</label>
-                <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
+                <label className="text-sm font-medium text-gray-700">Brick</label>
+                <Select value={selectedBrick} onValueChange={setSelectedBrick}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All territories" />
+                    <SelectValue placeholder="All bricks" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All territories</SelectItem>
-                    {territories.map(territory => (
-                      <SelectItem key={territory} value={territory!}>{territory}</SelectItem>
+                    <SelectItem value="all">All bricks</SelectItem>
+                    {bricks.map(brick => (
+                      <SelectItem key={brick} value={brick!}>{brick}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -275,10 +271,10 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
                     <TableHead>First Name</TableHead>
+                    <TableHead>Last Name</TableHead>
                     <TableHead>Specialty</TableHead>
-                    <TableHead>Territory</TableHead>
+                    <TableHead>Brick</TableHead>
                     <TableHead>Sector</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -286,11 +282,11 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {filteredDoctors.map((doctor) => (
                     <TableRow key={doctor.id}>
-                      <TableCell className="font-medium">{doctor.name}</TableCell>
-                      <TableCell>{doctor.first_name}</TableCell>
+                      <TableCell className="font-medium">{doctor.first_name}</TableCell>
+                      <TableCell>{doctor.last_name}</TableCell>
                       <TableCell>{doctor.specialty || 'Not specified'}</TableCell>
-                      <TableCell>{doctor.territories?.name || 'Not assigned'}</TableCell>
-                      <TableCell>{doctor.territories?.sectors?.name || 'Not assigned'}</TableCell>
+                      <TableCell>{doctor.bricks?.name || 'Not assigned'}</TableCell>
+                      <TableCell>{doctor.bricks?.sectors?.name || 'Not assigned'}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button 
