@@ -88,21 +88,21 @@ export type Database = {
           brick_id: string | null
           first_name: string
           id: string
-          name: string
+          last_name: string
           specialty: string | null
         }
         Insert: {
           brick_id?: string | null
           first_name: string
           id?: string
-          name: string
+          last_name: string
           specialty?: string | null
         }
         Update: {
           brick_id?: string | null
           first_name?: string
           id?: string
-          name?: string
+          last_name?: string
           specialty?: string | null
         }
         Relationships: [

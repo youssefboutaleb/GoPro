@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Search, Filter, User, Phone, MapPin, Calendar, Stethoscope } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface DoctorsListProps {
   onBack: () => void;
@@ -15,11 +16,11 @@ interface DoctorsListProps {
 
 interface Doctor {
   id: string;
-  name: string;
+  last_name: string;
   first_name: string;
   specialty: string | null;
-  territory_id: string | null;
-  territories?: {
+  brick_id: string | null;
+  bricks?: {
     name: string;
     sectors?: {
       name: string;
@@ -28,6 +29,7 @@ interface Doctor {
 }
 
 const DoctorsList = ({ onBack }: DoctorsListProps) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedWeek, setSelectedWeek] = useState('47');
@@ -42,11 +44,11 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
         .from('doctors')
         .select(`
           id,
-          name,
+          last_name,
           first_name,
           specialty,
-          territory_id,
-          territories:territory_id (
+          brick_id,
+          bricks:brick_id (
             name,
             sectors:sector_id (
               name
@@ -65,23 +67,23 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
   });
 
   const filteredDoctors = doctors.filter(doctor => {
-    const fullName = `${doctor.first_name} ${doctor.name}`.toLowerCase();
+    const fullName = `${doctor.first_name} ${doctor.last_name}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
     const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
-    const matchesTerritory = selectedTerritory === 'all' || doctor.territories?.name === selectedTerritory;
+    const matchesTerritory = selectedTerritory === 'all' || doctor.bricks?.name === selectedTerritory;
     return matchesSearch && matchesSpecialty && matchesTerritory;
   });
 
   // Get unique specialties and territories for filters
   const specialties = [...new Set(doctors.map(d => d.specialty).filter(Boolean))];
-  const territories = [...new Set(doctors.map(d => d.territories?.name).filter(Boolean))];
+  const territories = [...new Set(doctors.map(d => d.bricks?.name).filter(Boolean))];
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading doctors...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -91,8 +93,8 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading doctors</p>
-          <Button onClick={onBack}>Back</Button>
+          <p className="text-red-600 mb-4">{t('common.error')}</p>
+          <Button onClick={onBack}>{t('common.back')}</Button>
         </div>
       </div>
     );
@@ -113,8 +115,8 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
                   <User className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Targeted Doctors</h1>
-                  <p className="text-sm text-gray-600">{filteredDoctors.length} doctors found</p>
+                  <h1 className="text-2xl font-bold text-gray-900">{t('doctors.targetedDoctors')}</h1>
+                  <p className="text-sm text-gray-600">{filteredDoctors.length} {t('doctors.doctorsFound')}</p>
                 </div>
               </div>
             </div>
@@ -128,17 +130,17 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
           <CardHeader>
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg text-gray-900">Filters</CardTitle>
+              <CardTitle className="text-lg text-gray-900">{t('common.filters')}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Search</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.search')}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Doctor name..."
+                    placeholder={t('doctors.doctorName')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -147,13 +149,13 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Specialty</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.specialty')}</label>
                 <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All specialties" />
+                    <SelectValue placeholder={t('common.allSpecialties')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All specialties</SelectItem>
+                    <SelectItem value="all">{t('common.allSpecialties')}</SelectItem>
                     {specialties.map(specialty => (
                       <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
                     ))}
@@ -162,10 +164,10 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Week</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.week')}</label>
                 <Select value={selectedWeek} onValueChange={setSelectedWeek}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select week" />
+                    <SelectValue placeholder={t('doctors.selectWeek')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="45">Week 45</SelectItem>
@@ -177,13 +179,13 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Territory</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.territory')}</label>
                 <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All territories" />
+                    <SelectValue placeholder={t('common.allTerritories')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All territories</SelectItem>
+                    <SelectItem value="all">{t('common.allTerritories')}</SelectItem>
                     {territories.map(territory => (
                       <SelectItem key={territory} value={territory!}>{territory}</SelectItem>
                     ))}
@@ -206,13 +208,13 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
                     </div>
                     <div>
                       <CardTitle className="text-lg text-gray-900">
-                        Dr. {doctor.first_name} {doctor.name}
+                        Dr. {doctor.first_name} {doctor.last_name}
                       </CardTitle>
-                      <p className="text-sm text-gray-600">{doctor.specialty || 'Specialty not specified'}</p>
+                      <p className="text-sm text-gray-600">{doctor.specialty || t('doctors.specialtyNotSpecified')}</p>
                     </div>
                   </div>
                   <Badge className="bg-green-100 text-green-800">
-                    Active
+                    {t('doctors.active')}
                   </Badge>
                 </div>
               </CardHeader>
@@ -220,26 +222,26 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">Not specified</span>
+                    <span className="text-gray-600">{t('doctors.notSpecified')}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{doctor.territories?.name || 'Territory not assigned'}</span>
+                    <span className="text-gray-600">{doctor.bricks?.name || t('doctors.territoryNotAssigned')}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">Last visit: N/A</span>
+                    <span className="text-gray-600">{t('doctors.lastVisit')}: N/A</span>
                   </div>
                 </div>
                 
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Monthly performance</span>
+                    <span className="text-sm font-medium text-gray-700">{t('doctors.monthlyPerformance')}</span>
                     <span className="text-sm font-bold text-gray-600">N/A</span>
                   </div>
                   <div className="flex justify-between text-xs text-gray-600">
-                    <span>Visits: N/A</span>
-                    <span>Sector: {doctor.territories?.sectors?.name || 'Not assigned'}</span>
+                    <span>{t('doctors.visits')}: N/A</span>
+                    <span>{t('doctors.sector')}: {doctor.bricks?.sectors?.name || t('doctors.notAssigned')}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                     <div className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full w-0"></div>
@@ -256,8 +258,8 @@ const DoctorsList = ({ onBack }: DoctorsListProps) => {
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No doctors found</h3>
-              <p className="text-gray-600">Try modifying your search criteria.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('doctors.noDoctorsFound')}</h3>
+              <p className="text-gray-600">{t('common.tryModifyingCriteria')}</p>
             </CardContent>
           </Card>
         )}

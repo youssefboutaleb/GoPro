@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button';
 import { RotateCcw, TrendingUp, Calendar, MapPin, Target, Settings, LogIn } from 'lucide-react';
 import IndiceRetour from '@/components/IndiceRetour';
 import RythmeRecrutement from '@/components/RythmeRecrutement';
+import LanguageSelector from '@/components/LanguageSelector';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentWeek, setCurrentWeek] = useState('Semaine 1');
   const [currentMonth, setCurrentMonth] = useState('');
@@ -26,7 +29,7 @@ const Index = () => {
     
     // Calculate which week of the month we're in
     const weekNumber = Math.ceil((dayOfMonth + firstDayWeekday) / 7);
-    setCurrentWeek(`Semaine ${weekNumber}`);
+    setCurrentWeek(`${t('common.week')} ${weekNumber}`);
     
     // Get month name in French
     const monthNames = [
@@ -34,7 +37,7 @@ const Index = () => {
       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
     ];
     setCurrentMonth(monthNames[now.getMonth()]);
-  }, []);
+  }, [t]);
 
   // Note: Since we removed the delegates table and user_id from profiles,
   // we'll use a placeholder for sector name for now
@@ -49,7 +52,7 @@ const Index = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -71,30 +74,33 @@ const Index = () => {
                   <p className="text-sm text-gray-600">Goal Performance Reporting Outil</p>
                 </div>
               </div>
-              <Button onClick={() => navigate('/auth')} className="flex items-center space-x-2">
-                <LogIn className="h-4 w-4" />
-                <span>Se connecter</span>
-              </Button>
+              <div className="flex items-center space-x-4">
+                <LanguageSelector />
+                <Button onClick={() => navigate('/auth')} className="flex items-center space-x-2">
+                  <LogIn className="h-4 w-4" />
+                  <span>{t('header.signIn')}</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Bienvenue dans GOPRO
+            {t('header.welcome')}
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Votre outil de reporting de performance et de gestion des objectifs médicaux
+            {t('header.description')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <RotateCcw className="h-5 w-5 text-purple-600" />
-                  <span>Indice de Retour</span>
+                  <span>{t('dashboard.returnIndex')}</span>
                 </CardTitle>
                 <CardDescription>
-                  Analysez les données des médecins par spécialité et zone géographique
+                  {t('dashboard.returnIndexDesc')}
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -102,16 +108,16 @@ const Index = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Target className="h-5 w-5 text-green-600" />
-                  <span>Rythme de Recrutement</span>
+                  <span>{t('dashboard.recruitmentRate')}</span>
                 </CardTitle>
                 <CardDescription>
-                  Suivez les ventes et objectifs par produit et zone
+                  {t('dashboard.recruitmentRateDesc')}
                 </CardDescription>
               </CardHeader>
             </Card>
           </div>
           <Button onClick={() => navigate('/auth')} size="lg" className="px-8">
-            Commencer maintenant
+            {t('header.getStarted')}
           </Button>
         </div>
       </div>
@@ -162,6 +168,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                <LanguageSelector />
                 {profile?.role && profile.role === 'Admin' && (
                   <Button
                     variant="outline"
@@ -170,14 +177,14 @@ const Index = () => {
                     className="flex items-center space-x-2"
                   >
                     <Settings className="h-4 w-4" />
-                    <span>Admin</span>
+                    <span>{t('common.admin')}</span>
                   </Button>
                 )}
                 <div className="text-sm text-gray-600">
-                  Utilisateur connecté
+                  {t('common.userConnected')}
                 </div>
                 <Button variant="outline" size="sm" onClick={handleSignOut}>
-                  Déconnexion
+                  {t('common.signOut')}
                 </Button>
               </div>
             </div>
@@ -197,9 +204,9 @@ const Index = () => {
                   <RotateCcw className="h-8 w-8" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl text-white">Indice de Retour</CardTitle>
+                  <CardTitle className="text-xl text-white">{t('dashboard.returnIndex')}</CardTitle>
                   <CardDescription className="text-purple-100">
-                    Analyse des médecins par spécialité et brick
+                    {t('dashboard.returnIndexDesc')}
                   </CardDescription>
                 </div>
               </div>
@@ -207,20 +214,20 @@ const Index = () => {
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-purple-100">Total médecins</span>
+                  <span className="text-purple-100">{t('dashboard.totalDoctors')}</span>
                   <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">10</div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-purple-100">Par spécialité</span>
+                  <span className="text-purple-100">{t('dashboard.bySpecialty')}</span>
                   <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">3</div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-purple-100">Par brick</span>
+                  <span className="text-purple-100">{t('dashboard.byBrick')}</span>
                   <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">4</div>
                 </div>
               </div>
               <Button variant="secondary" className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white border-white/30">
-                Consulter l'indice
+                {t('dashboard.consultIndex')}
               </Button>
             </CardContent>
           </Card>
@@ -234,9 +241,9 @@ const Index = () => {
                   <Target className="h-8 w-8" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl text-white">Rythme de Recrutement</CardTitle>
+                  <CardTitle className="text-xl text-white">{t('dashboard.recruitmentRate')}</CardTitle>
                   <CardDescription className="text-green-100">
-                    Suivi des ventes et objectifs par produit
+                    {t('dashboard.recruitmentRateDesc')}
                   </CardDescription>
                 </div>
               </div>
@@ -244,20 +251,20 @@ const Index = () => {
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-green-100">Produits</span>
+                  <span className="text-green-100">{t('dashboard.products')}</span>
                   <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">4</div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-green-100">Objectif moyen</span>
+                  <span className="text-green-100">{t('dashboard.averageGoal')}</span>
                   <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">75%</div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-green-100">Par brick</span>
+                  <span className="text-green-100">{t('dashboard.byBrick')}</span>
                   <div className="bg-white/20 text-white px-2 py-1 rounded text-sm">4</div>
                 </div>
               </div>
               <Button variant="secondary" className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white border-white/30">
-                Consulter le rythme
+                {t('dashboard.consultRate')}
               </Button>
             </CardContent>
           </Card>

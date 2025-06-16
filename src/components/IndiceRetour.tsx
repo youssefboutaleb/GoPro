@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import RapportMedecins from './RapportMedecins';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 
 interface IndiceRetourProps {
@@ -17,11 +17,11 @@ interface IndiceRetourProps {
 
 interface Doctor {
   id: string;
-  name: string;
+  last_name: string;
   first_name: string;
   specialty: string | null;
-  territory_id: string | null;
-  territories?: {
+  brick_id: string | null;
+  bricks?: {
     name: string;
     sectors?: {
       name: string;
@@ -37,6 +37,7 @@ interface Doctor {
 }
 
 const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('medecins');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
@@ -46,36 +47,36 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // First, get the current user's delegate information
-  const { data: currentDelegate } = useQuery({
-    queryKey: ['current-delegate', user?.id],
+  // First, get the current user's profile information
+  const { data: currentProfile } = useQuery({
+    queryKey: ['current-profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      console.log('Fetching delegate for user:', user.id);
+      console.log('Fetching profile for user:', user.id);
       
       const { data, error } = await supabase
-        .from('delegates')
-        .select('id, name, first_name')
-        .eq('user_id', user.id)
+        .from('profiles')
+        .select('id, role')
+        .eq('id', user.id)
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching delegate:', error);
+        console.error('Error fetching profile:', error);
         throw error;
       }
 
-      console.log('Current delegate:', data);
+      console.log('Current profile:', data);
       return data;
     },
     enabled: !!user?.id
   });
 
-  // Query to get total visits by current delegate in current year
+  // Query to get total visits by current user in current year
   const { data: totalVisitesAnnee = 0 } = useQuery({
-    queryKey: ['total-visits-year', currentDelegate?.id],
+    queryKey: ['total-visits-year', user?.id],
     queryFn: async () => {
-      if (!currentDelegate?.id) return 0;
+      if (!user?.id) return 0;
 
       const currentYear = new Date().getFullYear();
 
@@ -83,11 +84,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         .from('visits')
         .select(`
           id,
-          visit_frequencies!inner (
+          visit_plans!inner (
             delegate_id
           )
         `)
-        .eq('visit_frequencies.delegate_id', currentDelegate.id)
+        .eq('visit_plans.delegate_id', user.id)
         .gte('visit_date', `${currentYear}-01-01`)
         .lt('visit_date', `${currentYear + 1}-01-01`);
 
@@ -98,58 +99,58 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
       return visites?.length || 0;
     },
-    enabled: !!currentDelegate?.id
+    enabled: !!user?.id
   });
 
   const { data: rawDoctors = [], isLoading, error } = useQuery({
-    queryKey: ['doctors-indice-retour', currentDelegate?.id],
+    queryKey: ['doctors-indice-retour', user?.id],
     queryFn: async () => {
-      if (!currentDelegate?.id) {
-        console.log('No delegate found, returning empty array');
+      if (!user?.id) {
+        console.log('No user found, returning empty array');
         return [];
       }
 
-      console.log('Fetching doctors for delegate:', currentDelegate.id);
+      console.log('Fetching doctors for user:', user.id);
       
       const { data, error } = await supabase
         .from('doctors')
         .select(`
           id,
-          name,
+          last_name,
           first_name,
           specialty,
-          territory_id,
-          territories:territory_id (
+          brick_id,
+          bricks:brick_id (
             name,
             sectors:sector_id (
               name
             )
           ),
-          visit_frequencies!inner (
+          visit_plans!inner (
             visit_frequency,
             delegate_id
           )
         `)
-        .eq('visit_frequencies.delegate_id', currentDelegate.id)
-        .order('name', { ascending: true });
+        .eq('visit_plans.delegate_id', user.id)
+        .order('last_name', { ascending: true });
 
       if (error) {
-        console.error('Error fetching doctors for delegate:', error);
+        console.error('Error fetching doctors for user:', error);
         throw error;
       }
 
-      console.log('Fetched doctors for delegate:', data);
+      console.log('Fetched doctors for user:', data);
       console.log('Number of doctors fetched:', data?.length || 0);
       return data;
     },
-    enabled: !!currentDelegate?.id
+    enabled: !!user?.id
   });
 
   // Transform raw data to include calculated indice retour values
   const { data: doctorsWithIndice = [] } = useQuery({
-    queryKey: ['doctors-with-indice', rawDoctors, currentDelegate?.id],
+    queryKey: ['doctors-with-indice', rawDoctors, user?.id],
     queryFn: async () => {
-      if (!rawDoctors.length || !currentDelegate?.id) return [];
+      if (!rawDoctors.length || !user?.id) return [];
 
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
@@ -166,13 +167,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           .from('visits')
           .select(`
             id,
-            visit_frequencies!inner (
+            visit_plans!inner (
               doctor_id,
               delegate_id
             )
           `)
-          .eq('visit_frequencies.doctor_id', doctor.id)
-          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .eq('visit_plans.doctor_id', doctor.id)
+          .eq('visit_plans.delegate_id', user.id)
           .gte('visit_date', `${currentYear}-01-01`)
           .lt('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`);
 
@@ -185,13 +186,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           .from('visits')
           .select(`
             id,
-            visit_frequencies!inner (
+            visit_plans!inner (
               doctor_id,
               delegate_id
             )
           `)
-          .eq('visit_frequencies.doctor_id', doctor.id)
-          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .eq('visit_plans.doctor_id', doctor.id)
+          .eq('visit_plans.delegate_id', user.id)
           .gte('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
           .lt('visit_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
 
@@ -204,13 +205,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           .from('visits')
           .select(`
             id,
-            visit_frequencies!inner (
+            visit_plans!inner (
               doctor_id,
               delegate_id
             )
           `)
-          .eq('visit_frequencies.doctor_id', doctor.id)
-          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .eq('visit_plans.doctor_id', doctor.id)
+          .eq('visit_plans.delegate_id', user.id)
           .gte('visit_date', `${lastMonthYear}-${lastMonth.toString().padStart(2, '0')}-01`)
           .lt('visit_date', `${lastMonthYear}-${(lastMonth + 1).toString().padStart(2, '0')}-01`);
 
@@ -223,13 +224,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           .from('visits')
           .select(`
             id,
-            visit_frequencies!inner (
+            visit_plans!inner (
               doctor_id,
               delegate_id
             )
           `)
-          .eq('visit_frequencies.doctor_id', doctor.id)
-          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .eq('visit_plans.doctor_id', doctor.id)
+          .eq('visit_plans.delegate_id', user.id)
           .gte('visit_date', `${monthBeforeLastYear}-${monthBeforeLastMonth.toString().padStart(2, '0')}-01`)
           .lt('visit_date', `${monthBeforeLastYear}-${(monthBeforeLastMonth + 1).toString().padStart(2, '0')}-01`);
 
@@ -243,7 +244,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         const visitesMonthBeforeLastCount = visitesMonthBeforeLast?.length || 0;
 
         // Calculate expected visits based on frequency (excluding current month)
-        const frequenceVisite = doctor.visit_frequencies[0]?.visit_frequency || 1;
+        const frequenceVisite = parseInt(doctor.visit_plans[0]?.visit_frequency) || 1;
         const visitesParMois = frequenceVisite;
 
         // Calculate expected visits for months up to but not including current month
@@ -281,30 +282,30 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       console.log('Calculated indice retour for doctors (filtered):', filteredResults);
       return filteredResults;
     },
-    enabled: !!rawDoctors.length && !!currentDelegate?.id
+    enabled: !!rawDoctors.length && !!user?.id
   });
 
   // Mutation to record a visit
   const recordVisitMutation = useMutation({
     mutationFn: async (doctorId: string) => {
-      if (!currentDelegate?.id) throw new Error('No delegate found');
+      if (!user?.id) throw new Error('No user found');
 
       const today = new Date().toISOString().split('T')[0];
 
-      // First, find the visit_objective_id for this doctor and delegate
-      const { data: visitObjective, error: objectifError } = await supabase
-        .from('visit_frequencies')
+      // First, find the visit_plan_id for this doctor and user
+      const { data: visitPlan, error: planError } = await supabase
+        .from('visit_plans')
         .select('id')
         .eq('doctor_id', doctorId)
-        .eq('delegate_id', currentDelegate.id)
+        .eq('delegate_id', user.id)
         .single();
 
-      if (objectifError) throw objectifError;
+      if (planError) throw planError;
 
       const { error } = await supabase
         .from('visits')
         .insert({
-          visit_objective_id: visitObjective.id,
+          visit_plan_id: visitPlan.id,
           visit_date: today
         });
 
@@ -341,8 +342,9 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   console.log('Current doctors with indice retour:', doctors);
   console.log('Is loading:', isLoading);
   console.log('Error:', error);
-  console.log('Current delegate:', currentDelegate);
+  console.log('Current profile:', currentProfile);
 
+  // Helper functions for status colors
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'green':
@@ -370,19 +372,19 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   };
 
   const filteredDoctors = doctors.filter(doctor => {
-    const fullName = `${doctor.first_name} ${doctor.name}`.toLowerCase();
+    const fullName = `${doctor.first_name} ${doctor.last_name}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
     const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
-    const matchesTerritory = selectedTerritory === 'all' || doctor.territories?.name === selectedTerritory;
+    const matchesTerritory = selectedTerritory === 'all' || doctor.bricks?.name === selectedTerritory;
     return matchesSearch && matchesSpecialty && matchesTerritory;
   });
 
   // Calculate global index with new formula: n/f where
-  // n = total visits by current delegate in current year
+  // n = total visits by current user in current year
   // f = sum of (visit_frequency * current month number) for all associated doctors
   const currentMonth = new Date().getMonth() + 1;
   const totalExpectedVisits = rawDoctors.reduce((sum, doctor) => {
-    const frequence = doctor.visit_frequencies[0]?.visit_frequency || 1;
+    const frequence = parseInt(doctor.visit_plans[0]?.visit_frequency) || 1;
     return sum + (frequence * currentMonth);
   }, 0);
   
@@ -392,7 +394,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
   // Get unique specialties and territories for filters
   const specialties = [...new Set(doctors.map(d => d.specialty).filter(Boolean))];
-  const territories = [...new Set(doctors.map(d => d.territories?.name).filter(Boolean))];
+  const territories = [...new Set(doctors.map(d => d.bricks?.name).filter(Boolean))];
 
   // Handle swipe gesture
   const handleSwipe = (doctorId: string) => {
@@ -408,7 +410,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des données d'indice de retour...</p>
+          <p className="text-gray-600">{t('returnIndex.loadingReturnData')}</p>
         </div>
       </div>
     );
@@ -418,19 +420,19 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Erreur lors du chargement des données: {error.message}</p>
-          <Button onClick={onBack}>Retour</Button>
+          <p className="text-red-600 mb-4">{t('common.error')}: {error.message}</p>
+          <Button onClick={onBack}>{t('common.back')}</Button>
         </div>
       </div>
     );
   }
 
-  if (!currentDelegate) {
+  if (!currentProfile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Aucun délégué trouvé pour cet utilisateur.</p>
-          <Button onClick={onBack}>Retour</Button>
+          <p className="text-red-600 mb-4">{t('returnIndex.noDelegateFound')}</p>
+          <Button onClick={onBack}>{t('common.back')}</Button>
         </div>
       </div>
     );
@@ -451,12 +453,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                   <User className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">{t('returnIndex.title')}</h1>
                   <p className="text-sm text-gray-600">
-                    {filteredDoctors.length} médecins nécessitant des visites ce mois - Délégué: {currentDelegate?.first_name} {currentDelegate?.name}
+                    {filteredDoctors.length} {t('returnIndex.doctorsNeedingVisits')}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    💡 Glissez une ligne vers la droite pour enregistrer une visite aujourd'hui
+                    {t('returnIndex.swipeHint')}
                   </p>
                 </div>
               </div>
@@ -465,7 +467,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
               <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-lg">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{indiceRetourGlobal}%</div>
-                  <div className="text-sm opacity-90">Indice Global</div>
+                  <div className="text-sm opacity-90">{t('returnIndex.globalIndex')}</div>
                 </div>
               </div>
               <Button 
@@ -473,7 +475,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <FileText className="h-4 w-4 mr-2" />
-                Rapport détaillé
+                {t('returnIndex.detailedReport')}
               </Button>
             </div>
           </div>
@@ -486,17 +488,17 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
           <CardHeader>
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-purple-600" />
-              <CardTitle className="text-lg text-gray-900">Filtres</CardTitle>
+              <CardTitle className="text-lg text-gray-900">{t('common.filters')}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Recherche</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.search')}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Nom du médecin..."
+                    placeholder={t('doctors.doctorName')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -505,13 +507,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Spécialité</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.specialty')}</label>
                 <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Toutes spécialités" />
+                    <SelectValue placeholder={t('common.allSpecialties')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Toutes spécialités</SelectItem>
+                    <SelectItem value="all">{t('common.allSpecialties')}</SelectItem>
                     {specialties.map(specialty => (
                       <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
                     ))}
@@ -520,13 +522,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Territoire</label>
+                <label className="text-sm font-medium text-gray-700">{t('common.territory')}</label>
                 <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Tous les territoires" />
+                    <SelectValue placeholder={t('common.allTerritories')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les territoires</SelectItem>
+                    <SelectItem value="all">{t('common.allTerritories')}</SelectItem>
                     {territories.map(territory => (
                       <SelectItem key={territory} value={territory!}>{territory}</SelectItem>
                     ))}
@@ -538,12 +540,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         </Card>
 
         {/* Debug Information */}
-        {doctors.length === 0 && currentDelegate && (
+        {doctors.length === 0 && currentProfile && (
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Aucun médecin nécessitant des visites ce mois pour ce délégué ({currentDelegate.first_name} {currentDelegate.name}). 
-                Tous les médecins ont atteint leur fréquence de visite pour ce mois.
+                {t('returnIndex.allDoctorsReachedFrequency')}
               </p>
             </CardContent>
           </Card>
@@ -552,19 +553,19 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         {/* Results Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Médecins nécessitant des visites ce mois</CardTitle>
+            <CardTitle className="text-lg text-gray-900">{t('returnIndex.doctorsNeedingVisitsThisMonth')}</CardTitle>
           </CardHeader>
           <CardContent>
             {filteredDoctors.length === 0 ? (
               <div className="text-center py-12">
                 <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {doctors.length === 0 ? 'Aucun médecin nécessitant des visites' : 'Aucun médecin trouvé'}
+                  {doctors.length === 0 ? t('returnIndex.noDoctorsNeedingVisits') : t('doctors.noDoctorsFound')}
                 </h3>
                 <p className="text-gray-600">
                   {doctors.length === 0 
-                    ? 'Tous les médecins ont atteint leur fréquence de visite pour ce mois.'
-                    : 'Essayez de modifier vos critères de recherche.'
+                    ? t('returnIndex.allDoctorsReachedFrequency')
+                    : t('common.tryModifyingCriteria')
                   }
                 </p>
               </div>
@@ -573,11 +574,12 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Territoire</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Fréquence de visites</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Visites à faire</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('returnIndex.firstName')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('returnIndex.lastName')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('common.specialty')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('common.territory')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('returnIndex.visitFrequency')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('returnIndex.visitsToMake')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -616,28 +618,31 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                                 <Stethoscope className="h-4 w-4 text-purple-600" />
                               </div>
                               <span className={`font-medium ${getStatusTextColor(doctor.status)}`}>
-                                {doctor.first_name} {doctor.name}
+                                {doctor.first_name}
                               </span>
                               {swipedRows.has(doctor.id) && (
                                 <div className="flex items-center space-x-1 text-green-600">
                                   <Check className="h-4 w-4" />
-                                  <span className="text-sm font-medium">Visite enregistrée</span>
+                                  <span className="text-sm font-medium">{t('returnIndex.visitRecorded')}</span>
                                 </div>
                               )}
                             </div>
                           </td>
+                          <td className={`py-4 px-4 font-medium ${getStatusTextColor(doctor.status)}`}>
+                            {doctor.last_name}
+                          </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(doctor.status)}`}>
-                            {doctor.specialty || 'Non renseigné'}
+                            {doctor.specialty || t('doctors.specialtyNotSpecified')}
                           </td>
                           <td className="py-4 px-4">
                             <div className={`flex items-center space-x-2 ${getStatusTextColor(doctor.status)}`}>
                               <MapPin className="h-4 w-4" />
-                              <span>{doctor.territories?.name || 'Non assigné'}</span>
+                              <span>{doctor.bricks?.name || t('doctors.territoryNotAssigned')}</span>
                             </div>
                           </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(doctor.status)}`}>
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
-                              {frequenceRequise} / mois
+                              {frequenceRequise} {t('returnIndex.perMonth')}
                             </span>
                           </td>
                           <td className={`py-4 px-4 ${getStatusTextColor(doctor.status)}`}>
