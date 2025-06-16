@@ -11,11 +11,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 
-type Superviseur = Tables<'superviseurs'>;
-type Delegue = Tables<'delegues'>;
+type Supervisor = Tables<'supervisors'>;
+type Delegate = Tables<'delegates'>;
 
 interface DelegueAssignmentProps {
-  equipe: Superviseur;
+  equipe: Supervisor;
   onBack: () => void;
 }
 
@@ -30,13 +30,13 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
     queryKey: ['assigned-delegues', equipe.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('delegues')
+        .from('delegates')
         .select('*')
-        .eq('equipe_id', equipe.id)
-        .order('nom');
+        .eq('team_id', equipe.id)
+        .order('name');
       
       if (error) throw error;
-      return data as Delegue[];
+      return data as Delegate[];
     },
   });
 
@@ -45,13 +45,13 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
     queryKey: ['unassigned-delegues'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('delegues')
+        .from('delegates')
         .select('*')
-        .is('equipe_id', null)
-        .order('nom');
+        .is('team_id', null)
+        .order('name');
       
       if (error) throw error;
-      return data as Delegue[];
+      return data as Delegate[];
     },
   });
 
@@ -59,8 +59,8 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
   const assignDelegue = useMutation({
     mutationFn: async (delegueId: string) => {
       const { error } = await supabase
-        .from('delegues')
-        .update({ equipe_id: equipe.id })
+        .from('delegates')
+        .update({ team_id: equipe.id })
         .eq('id', delegueId);
       
       if (error) throw error;
@@ -88,8 +88,8 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
   const unassignDelegue = useMutation({
     mutationFn: async (delegueId: string) => {
       const { error } = await supabase
-        .from('delegues')
-        .update({ equipe_id: null })
+        .from('delegates')
+        .update({ team_id: null })
         .eq('id', delegueId);
       
       if (error) throw error;
@@ -139,7 +139,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Délégués - {equipe.nom}
+                Délégués - {equipe.name}
               </h1>
               <p className="text-sm text-gray-600">
                 Gérer les délégués de cette équipe
@@ -156,7 +156,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
               <div>
                 <CardTitle>Délégués assignés</CardTitle>
                 <CardDescription>
-                  Liste des délégués dans l'équipe "{equipe.nom}"
+                  Liste des délégués dans l'équipe "{equipe.name}"
                 </CardDescription>
               </div>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -170,7 +170,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                   <DialogHeader>
                     <DialogTitle>Ajouter un délégué à l'équipe</DialogTitle>
                     <DialogDescription>
-                      Sélectionnez un délégué à ajouter à l'équipe "{equipe.nom}".
+                      Sélectionnez un délégué à ajouter à l'équipe "{equipe.name}".
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -186,7 +186,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                           <SelectContent>
                             {unassignedDelegues?.map((delegue) => (
                               <SelectItem key={delegue.id} value={delegue.id}>
-                                {delegue.prenom} {delegue.nom}
+                                {delegue.first_name} {delegue.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -228,13 +228,13 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                   ) : (
                     assignedDelegues?.map((delegue) => (
                       <TableRow key={delegue.id}>
-                        <TableCell>{delegue.prenom}</TableCell>
-                        <TableCell className="font-medium">{delegue.nom}</TableCell>
+                        <TableCell>{delegue.first_name}</TableCell>
+                        <TableCell className="font-medium">{delegue.name}</TableCell>
                         <TableCell>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleUnassign(delegue.id, `${delegue.prenom} ${delegue.nom}`)}
+                            onClick={() => handleUnassign(delegue.id, `${delegue.first_name} ${delegue.name}`)}
                             className="flex items-center space-x-1"
                           >
                             <UserMinus className="h-4 w-4" />

@@ -14,31 +14,31 @@ interface DoctorDialogProps {
   onOpenChange: (open: boolean) => void;
   doctor?: {
     id: string;
-    nom: string;
-    prenom: string;
-    specialite: string | null;
-    brick_id: string | null;
+    name: string;
+    first_name: string;
+    specialty: string | null;
+    territory_id: string | null;
   } | null;
 }
 
 const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor }) => {
   const [formData, setFormData] = useState({
-    nom: '',
-    prenom: '',
-    specialite: '',
-    brick_id: ''
+    name: '',
+    first_name: '',
+    specialty: '',
+    territory_id: ''
   });
 
   const queryClient = useQueryClient();
 
-  // Fetch bricks for selection
-  const { data: bricks = [] } = useQuery({
-    queryKey: ['bricks'],
+  // Fetch territories for selection
+  const { data: territories = [] } = useQuery({
+    queryKey: ['territories'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('bricks')
-        .select('id, nom')
-        .order('nom');
+        .from('territories')
+        .select('id, name')
+        .order('name');
       
       if (error) throw error;
       return data;
@@ -48,17 +48,17 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
   useEffect(() => {
     if (doctor) {
       setFormData({
-        nom: doctor.nom,
-        prenom: doctor.prenom,
-        specialite: doctor.specialite || '',
-        brick_id: doctor.brick_id || 'no-brick'
+        name: doctor.name,
+        first_name: doctor.first_name,
+        specialty: doctor.specialty || '',
+        territory_id: doctor.territory_id || 'no-territory'
       });
     } else {
       setFormData({
-        nom: '',
-        prenom: '',
-        specialite: '',
-        brick_id: 'no-brick'
+        name: '',
+        first_name: '',
+        specialty: '',
+        territory_id: 'no-territory'
       });
     }
   }, [doctor]);
@@ -66,18 +66,18 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { error } = await supabase
-        .from('medecins')
+        .from('doctors')
         .insert({
-          nom: data.nom,
-          prenom: data.prenom,
-          specialite: data.specialite || null,
-          brick_id: data.brick_id === 'no-brick' ? null : data.brick_id
+          name: data.name,
+          first_name: data.first_name,
+          specialty: data.specialty || null,
+          territory_id: data.territory_id === 'no-territory' ? null : data.territory_id
         });
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medecins'] });
+      queryClient.invalidateQueries({ queryKey: ['doctors'] });
       toast.success('Médecin créé avec succès');
       onOpenChange(false);
     },
@@ -90,19 +90,19 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { error } = await supabase
-        .from('medecins')
+        .from('doctors')
         .update({
-          nom: data.nom,
-          prenom: data.prenom,
-          specialite: data.specialite || null,
-          brick_id: data.brick_id === 'no-brick' ? null : data.brick_id
+          name: data.name,
+          first_name: data.first_name,
+          specialty: data.specialty || null,
+          territory_id: data.territory_id === 'no-territory' ? null : data.territory_id
         })
         .eq('id', doctor!.id);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medecins'] });
+      queryClient.invalidateQueries({ queryKey: ['doctors'] });
       toast.success('Médecin modifié avec succès');
       onOpenChange(false);
     },
@@ -115,7 +115,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nom.trim() || !formData.prenom.trim()) {
+    if (!formData.name.trim() || !formData.first_name.trim()) {
       toast.error('Le nom et le prénom sont obligatoires');
       return;
     }
@@ -138,47 +138,47 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nom">Nom *</Label>
+            <Label htmlFor="name">Nom *</Label>
             <Input
-              id="nom"
-              value={formData.nom}
-              onChange={(e) => setFormData(prev => ({ ...prev, nom: e.target.value }))}
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Nom du médecin"
               required
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="prenom">Prénom *</Label>
+            <Label htmlFor="first_name">Prénom *</Label>
             <Input
-              id="prenom"
-              value={formData.prenom}
-              onChange={(e) => setFormData(prev => ({ ...prev, prenom: e.target.value }))}
+              id="first_name"
+              value={formData.first_name}
+              onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
               placeholder="Prénom du médecin"
               required
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="specialite">Spécialité</Label>
+            <Label htmlFor="specialty">Spécialité</Label>
             <Input
-              id="specialite"
-              value={formData.specialite}
-              onChange={(e) => setFormData(prev => ({ ...prev, specialite: e.target.value }))}
+              id="specialty"
+              value={formData.specialty}
+              onChange={(e) => setFormData(prev => ({ ...prev, specialty: e.target.value }))}
               placeholder="Spécialité du médecin"
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="brick">Brick</Label>
-            <Select value={formData.brick_id} onValueChange={(value) => setFormData(prev => ({ ...prev, brick_id: value }))}>
+            <Label htmlFor="territory">Territoire</Label>
+            <Select value={formData.territory_id} onValueChange={(value) => setFormData(prev => ({ ...prev, territory_id: value }))}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un brick" />
+                <SelectValue placeholder="Sélectionner un territoire" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no-brick">Aucun brick</SelectItem>
-                {bricks.map(brick => (
-                  <SelectItem key={brick.id} value={brick.id}>{brick.nom}</SelectItem>
+                <SelectItem value="no-territory">Aucun territoire</SelectItem>
+                {territories.map(territory => (
+                  <SelectItem key={territory.id} value={territory.id}>{territory.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
