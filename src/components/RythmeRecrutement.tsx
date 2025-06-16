@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ interface RythmeRecrutementProps {
 
 interface UserInfo {
   id: string;
-  role: string;
+  user_type: string;
   created_at: string | null;
 }
 
@@ -36,7 +35,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, created_at')
+        .select('id, user_type, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -61,7 +60,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
     const newThisMonth = users.filter(user => {
       if (!user.created_at) return false;
       const createdDate = new Date(user.created_at);
-      return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
+      return createdDate.getMonth() === currentMonth && 
+             createdDate.getFullYear() === currentYear;
     }).length;
 
     // New users this quarter
@@ -286,7 +286,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                           </div>
                         </td>
                         <td className="py-4 px-4 text-gray-600">
-                          {user.role}
+                          {user.user_type}
                         </td>
                         <td className="py-4 px-4 text-center text-gray-600">
                           {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}

@@ -26,14 +26,14 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch supervisors (profiles with role 'Supervisor')
+  // Fetch supervisors (profiles with user_type 'Supervisor')
   const { data: superviseurs, isLoading } = useQuery({
     queryKey: ['supervisors'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'Supervisor')
+        .eq('user_type', 'Supervisor')
         .order('id');
       
       if (error) throw error;
@@ -51,7 +51,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
         .from('profiles')
         .select('*')
         .eq('supervisor_id', selectedSuperviseur.id)
-        .eq('role', 'Delegate')
+        .eq('user_type', 'Delegate')
         .order('id');
       
       if (error) throw error;
@@ -125,7 +125,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                   {superviseurs?.map((superviseur) => (
                     <TableRow key={superviseur.id}>
                       <TableCell className="font-medium">{superviseur.id}</TableCell>
-                      <TableCell>{superviseur.role}</TableCell>
+                      <TableCell>{superviseur.user_type}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button

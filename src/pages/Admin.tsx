@@ -43,17 +43,17 @@ const Admin = () => {
     navigate('/auth');
   };
 
+  const components = {
+    users: <UsersManager onBack={() => setActiveTab('overview')} />,
+    bricks: <BricksManager onBack={() => setActiveTab('overview')} />,
+    doctors: <DoctorsManager onBack={() => setActiveTab('overview')} />,
+    products: <ProductsManager onBack={() => setActiveTab('overview')} />,
+    visits: <VisitsManager onBack={() => setActiveTab('overview')} />,
+    reports: <ReportsManager onBack={() => setActiveTab('overview')} />,
+    equipes: <EquipesManager onBack={() => setActiveTab('overview')} />,
+  };
+  
   if (activeTab !== 'overview') {
-    const components = {
-      users: <UsersManager onBack={() => setActiveTab('overview')} />,
-      bricks: <BricksManager onBack={() => setActiveTab('overview')} />,
-      doctors: <DoctorsManager onBack={() => setActiveTab('overview')} />,
-      products: <ProductsManager onBack={() => setActiveTab('overview')} />,
-      visits: <VisitsManager onBack={() => setActiveTab('overview')} />,
-      reports: <ReportsManager onBack={() => setActiveTab('overview')} />,
-      equipes: <EquipesManager onBack={() => setActiveTab('overview')} />,
-    };
-    
     return components[activeTab as keyof typeof components] || null;
   }
 
@@ -76,7 +76,7 @@ const Admin = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Administration GOPRO</h1>
                 <p className="text-sm text-gray-600">
-                  Connecté en tant que {profile?.id} ({profile?.role})
+                  Connecté en tant que {profile?.id} ({profile?.user_type})
                 </p>
               </div>
             </div>

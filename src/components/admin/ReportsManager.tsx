@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,14 +14,14 @@ interface ReportsManagerProps {
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
-  // Fetch delegates for the dropdown (profiles with role 'Delegate')
+  // Fetch delegates for the dropdown (profiles with user_type 'Delegate')
   const { data: delegates = [] } = useQuery({
     queryKey: ['delegates_for_reports'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role')
-        .eq('role', 'Delegate')
+        .select('id, user_type')
+        .eq('user_type', 'Delegate')
         .order('id');
 
       if (error) throw error;

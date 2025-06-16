@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch profiles with role 'Delegate' assigned to this supervisor
+  // Fetch profiles with user_type 'Delegate' assigned to this supervisor
   const { data: assignedDelegues, isLoading: loadingAssigned } = useQuery({
     queryKey: ['assigned-delegues', equipe.id],
     queryFn: async () => {
@@ -32,7 +31,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
         .from('profiles')
         .select('*')
         .eq('supervisor_id', equipe.id)
-        .eq('role', 'Delegate')
+        .eq('user_type', 'Delegate')
         .order('id');
       
       if (error) throw error;
@@ -40,14 +39,14 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
     },
   });
 
-  // Fetch unassigned delegates (profiles with role 'Delegate' and no supervisor)
+  // Fetch unassigned delegates (profiles with user_type 'Delegate' and no supervisor)
   const { data: unassignedDelegues, isLoading: loadingUnassigned } = useQuery({
     queryKey: ['unassigned-delegues'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'Delegate')
+        .eq('user_type', 'Delegate')
         .is('supervisor_id', null)
         .order('id');
       
@@ -230,7 +229,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                     assignedDelegues?.map((delegue) => (
                       <TableRow key={delegue.id}>
                         <TableCell>{delegue.id}</TableCell>
-                        <TableCell className="font-medium">{delegue.role}</TableCell>
+                        <TableCell className="font-medium">{delegue.user_type}</TableCell>
                         <TableCell>
                           <Button
                             variant="destructive"
