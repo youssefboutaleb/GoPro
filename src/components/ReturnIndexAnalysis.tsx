@@ -96,21 +96,20 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         
         // Calculate expected visits based on frequency
         let expectedVisitsPerMonth = 0;
+        let frequencyLabel = '';
+        
         switch (plan.visit_frequency) {
-          case 'weekly':
-            expectedVisitsPerMonth = 4;
-            break;
-          case 'bi_weekly':
-            expectedVisitsPerMonth = 2;
-            break;
-          case 'monthly':
+          case '1':
             expectedVisitsPerMonth = 1;
+            frequencyLabel = 'Monthly';
             break;
-          case 'quarterly':
-            expectedVisitsPerMonth = 1/3;
+          case '2':
+            expectedVisitsPerMonth = 2;
+            frequencyLabel = 'Bi-weekly';
             break;
           default:
             expectedVisitsPerMonth = 1;
+            frequencyLabel = 'Monthly';
         }
 
         const expectedVisits = Math.round(expectedVisitsPerMonth * monthsElapsed);
@@ -119,7 +118,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         return {
           doctor_id: plan.doctor_id,
           doctor_name: plan.doctors ? `${plan.doctors.first_name} ${plan.doctors.last_name}` : 'Unknown Doctor',
-          visit_frequency: plan.visit_frequency,
+          visit_frequency: frequencyLabel,
           monthly_visits: monthlyVisits,
           total_visits: totalVisits,
           expected_visits: expectedVisits,
@@ -286,7 +285,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                     {visitData.map((doctor) => (
                       <TableRow key={doctor.doctor_id}>
                         <TableCell className="font-medium">{doctor.doctor_name}</TableCell>
-                        <TableCell className="capitalize">{doctor.visit_frequency.replace('_', ' ')}</TableCell>
+                        <TableCell>{doctor.visit_frequency}</TableCell>
                         {doctor.monthly_visits.map((visits, index) => (
                           <TableCell key={index} className="text-center">
                             {visits}
