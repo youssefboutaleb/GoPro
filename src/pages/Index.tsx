@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, TrendingUp, Users, Package, ShoppingCart, LogOut, User, Globe, Settings } from 'lucide-react';
 import DoctorsList from '@/components/DoctorsList';
 import ProductsList from '@/components/ProductsList';
-import SimpleReturnIndex from '@/components/SimpleReturnIndex';
+import ReturnIndexAnalysis from '@/components/ReturnIndexAnalysis';
 import SimpleVisitReport from '@/components/SimpleVisitReport';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,7 +35,7 @@ const Index = () => {
   }
 
   if (currentView === 'returnIndex') {
-    return <SimpleReturnIndex onBack={() => setCurrentView('dashboard')} />;
+    return <ReturnIndexAnalysis onBack={() => setCurrentView('dashboard')} />;
   }
 
   if (currentView === 'visitReport') {
