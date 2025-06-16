@@ -13,8 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import DelegueAssignment from './DelegueAssignment';
 
-type Superviseur = Tables<'superviseurs'>;
-type Delegue = Tables<'delegues'>;
+type Supervisor = Tables<'supervisors'>;
+type Delegate = Tables<'delegates'>;
 
 interface EquipesManagerProps {
   onBack: () => void;
@@ -22,49 +22,49 @@ interface EquipesManagerProps {
 
 const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingSuperviseur, setEditingSuperviseur] = useState<Superviseur | null>(null);
-  const [formData, setFormData] = useState({ nom: '' });
-  const [selectedSuperviseur, setSelectedSuperviseur] = useState<Superviseur | null>(null);
+  const [editingSuperviseur, setEditingSuperviseur] = useState<Supervisor | null>(null);
+  const [formData, setFormData] = useState({ name: '' });
+  const [selectedSuperviseur, setSelectedSuperviseur] = useState<Supervisor | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch superviseurs (renamed from equipes)
+  // Fetch supervisors (renamed from equipes)
   const { data: superviseurs, isLoading } = useQuery({
-    queryKey: ['superviseurs'],
+    queryKey: ['supervisors'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('superviseurs')
+        .from('supervisors')
         .select('*')
-        .order('nom');
+        .order('name');
       
       if (error) throw error;
-      return data as Superviseur[];
+      return data as Supervisor[];
     },
   });
 
-  // Fetch delegues for the selected superviseur
+  // Fetch delegates for the selected supervisor
   const { data: delegues } = useQuery({
-    queryKey: ['delegues', selectedSuperviseur?.id],
+    queryKey: ['delegates', selectedSuperviseur?.id],
     queryFn: async () => {
       if (!selectedSuperviseur) return [];
       
       const { data, error } = await supabase
-        .from('delegues')
+        .from('delegates')
         .select('*')
-        .eq('equipe_id', selectedSuperviseur.id)
-        .order('nom');
+        .eq('team_id', selectedSuperviseur.id)
+        .order('name');
       
       if (error) throw error;
-      return data as Delegue[];
+      return data as Delegate[];
     },
     enabled: !!selectedSuperviseur,
   });
 
-  // Create superviseur mutation
+  // Create supervisor mutation
   const createSuperviseur = useMutation({
-    mutationFn: async (data: { nom: string }) => {
+    mutationFn: async (data: { name: string }) => {
       const { data: result, error } = await supabase
-        .from('superviseurs')
+        .from('supervisors')
         .insert([data])
         .select()
         .single();
@@ -73,9 +73,9 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['superviseurs'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisors'] });
       setIsDialogOpen(false);
-      setFormData({ nom: '' });
+      setFormData({ name: '' });
       toast({
         title: "Succès",
         description: "Équipe créée avec succès",
@@ -90,11 +90,11 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Update superviseur mutation
+  // Update supervisor mutation
   const updateSuperviseur = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { nom: string } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { name: string } }) => {
       const { data: result, error } = await supabase
-        .from('superviseurs')
+        .from('supervisors')
         .update(data)
         .eq('id', id)
         .select()
@@ -104,10 +104,10 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['superviseurs'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisors'] });
       setIsDialogOpen(false);
       setEditingSuperviseur(null);
-      setFormData({ nom: '' });
+      setFormData({ name: '' });
       toast({
         title: "Succès",
         description: "Équipe mise à jour avec succès",
@@ -122,18 +122,18 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Delete superviseur mutation
+  // Delete supervisor mutation
   const deleteSuperviseur = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('superviseurs')
+        .from('supervisors')
         .delete()
         .eq('id', id);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['superviseurs'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisors'] });
       toast({
         title: "Succès",
         description: "Équipe supprimée avec succès",
@@ -157,9 +157,9 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
     }
   };
 
-  const handleEdit = (superviseur: Superviseur) => {
+  const handleEdit = (superviseur: Supervisor) => {
     setEditingSuperviseur(superviseur);
-    setFormData({ nom: superviseur.nom });
+    setFormData({ name: superviseur.name });
     setIsDialogOpen(true);
   };
 
@@ -170,7 +170,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   };
 
   const resetForm = () => {
-    setFormData({ nom: '' });
+    setFormData({ name: '' });
     setEditingSuperviseur(null);
   };
 
@@ -242,13 +242,13 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                   <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
                       <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="nom" className="text-right">
+                        <Label htmlFor="name" className="text-right">
                           Nom
                         </Label>
                         <Input
-                          id="nom"
-                          value={formData.nom}
-                          onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           className="col-span-3"
                           required
                         />
@@ -281,7 +281,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {superviseurs?.map((superviseur) => (
                     <TableRow key={superviseur.id}>
-                      <TableCell className="font-medium">{superviseur.nom}</TableCell>
+                      <TableCell className="font-medium">{superviseur.name}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button
