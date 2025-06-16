@@ -11,40 +11,39 @@ interface RapportMedecinsProps {
   onBack: () => void;
 }
 
-interface MedecinVisiteData {
-  medecin_id: string;
-  medecin_nom: string;
-  medecin_prenom: string;
-  medecin_specialite: string | null;
-  frequence_visite: number;
-  visites_par_mois: { [key: string]: number };
-  // New fields for indice de retour calculation
-  visites_effectuees: number;
-  visites_attendues: number;
-  indiceRetour: number;
+interface DoctorVisitData {
+  doctor_id: string;
+  doctor_name: string;
+  doctor_first_name: string;
+  doctor_specialty: string | null;
+  visit_frequency: number;
+  visits_per_month: { [key: string]: number };
+  visits_completed: number;
+  visits_expected: number;
+  return_index: number;
 }
 
 const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
-  const [selectedMonth, setSelectedMonth] = useState('janvier');
+  const [selectedMonth, setSelectedMonth] = useState('january');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
-  const [rapportData, setRapportData] = useState<MedecinVisiteData[]>([]);
+  const [reportData, setReportData] = useState<DoctorVisitData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const months = [
-    { value: 'janvier', label: 'Janvier', num: 1 },
-    { value: 'fevrier', label: 'Février', num: 2 },
-    { value: 'mars', label: 'Mars', num: 3 },
-    { value: 'avril', label: 'Avril', num: 4 },
-    { value: 'mai', label: 'Mai', num: 5 },
-    { value: 'juin', label: 'Juin', num: 6 },
-    { value: 'juillet', label: 'Juillet', num: 7 },
-    { value: 'aout', label: 'Août', num: 8 },
-    { value: 'septembre', label: 'Septembre', num: 9 },
-    { value: 'octobre', label: 'Octobre', num: 10 },
-    { value: 'novembre', label: 'Novembre', num: 11 },
-    { value: 'decembre', label: 'Décembre', num: 12 }
+    { value: 'january', label: 'January', num: 1 },
+    { value: 'february', label: 'February', num: 2 },
+    { value: 'march', label: 'March', num: 3 },
+    { value: 'april', label: 'April', num: 4 },
+    { value: 'may', label: 'May', num: 5 },
+    { value: 'june', label: 'June', num: 6 },
+    { value: 'july', label: 'July', num: 7 },
+    { value: 'august', label: 'August', num: 8 },
+    { value: 'september', label: 'September', num: 9 },
+    { value: 'october', label: 'October', num: 10 },
+    { value: 'november', label: 'November', num: 11 },
+    { value: 'december', label: 'December', num: 12 }
   ];
 
   // Get current month to determine which months to show
@@ -52,160 +51,160 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
   const monthsToShow = months.filter(month => month.num <= currentMonth);
 
   useEffect(() => {
-    const fetchRapportData = async () => {
+    const fetchReportData = async () => {
       if (!user) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        console.log('Fetching delegue for user:', user.id);
+        console.log('Fetching delegate for user:', user.id);
 
-        // First, get the current user's delegue record
-        const { data: delegueData, error: delegueError } = await supabase
-          .from('delegues')
+        // First, get the current user's delegate record
+        const { data: delegateData, error: delegateError } = await supabase
+          .from('delegates')
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (delegueError) {
-          console.error('Error fetching delegue:', delegueError);
-          setError('Erreur lors de la récupération des données du délégué');
+        if (delegateError) {
+          console.error('Error fetching delegate:', delegateError);
+          setError('Error retrieving delegate data');
           return;
         }
 
-        if (!delegueData) {
-          console.log('No delegue found for user:', user.id);
-          setError('Aucun délégué trouvé pour cet utilisateur. Veuillez contacter l\'administrateur pour vous assigner un profil de délégué.');
+        if (!delegateData) {
+          console.log('No delegate found for user:', user.id);
+          setError('No delegate found for this user. Please contact the administrator to assign a delegate profile.');
           return;
         }
 
-        console.log('Delegue found:', delegueData);
+        console.log('Delegate found:', delegateData);
 
-        // Get all medecins assigned to this delegue with their frequence_visite and specialite using the new table structure
-        const { data: frequencesVisites, error: fvError } = await supabase
-          .from('frequences_visites')
+        // Get all doctors assigned to this delegate with their visit frequency and specialty
+        const { data: visitFrequencies, error: vfError } = await supabase
+          .from('visit_frequencies')
           .select(`
-            medecin_id,
-            frequence_visite,
-            medecins (
+            doctor_id,
+            visit_frequency,
+            doctors (
               id,
-              nom,
-              prenom,
-              specialite
+              name,
+              first_name,
+              specialty
             )
           `)
-          .eq('delegue_id', delegueData.id);
+          .eq('delegate_id', delegateData.id);
 
-        if (fvError) {
-          console.error('Error fetching frequences_visites:', fvError);
-          setError('Erreur lors de la récupération des médecins assignés');
+        if (vfError) {
+          console.error('Error fetching visit_frequencies:', vfError);
+          setError('Error retrieving assigned doctors');
           return;
         }
 
-        console.log('Frequences visites found:', frequencesVisites);
+        console.log('Visit frequencies found:', visitFrequencies);
 
-        // Get all visits for this delegue for the current year using the new table structure
+        // Get all visits for this delegate for the current year
         const currentYear = new Date().getFullYear();
         const startOfYear = `${currentYear}-01-01`;
         const endOfYear = `${currentYear}-12-31`;
 
-        const { data: visitesData, error: visitesError } = await supabase
-          .from('visites')
+        const { data: visitsData, error: visitsError } = await supabase
+          .from('visits')
           .select(`
-            date_visite,
-            frequences_visites!inner (
-              medecin_id,
-              delegue_id
+            visit_date,
+            visit_frequencies!inner (
+              doctor_id,
+              delegate_id
             )
           `)
-          .eq('frequences_visites.delegue_id', delegueData.id)
-          .gte('date_visite', startOfYear)
-          .lte('date_visite', endOfYear);
+          .eq('visit_frequencies.delegate_id', delegateData.id)
+          .gte('visit_date', startOfYear)
+          .lte('visit_date', endOfYear);
 
-        if (visitesError) {
-          console.error('Error fetching visites:', visitesError);
-          setError('Erreur lors de la récupération des visites');
+        if (visitsError) {
+          console.error('Error fetching visits:', visitsError);
+          setError('Error retrieving visits');
           return;
         }
 
-        console.log('Visites found:', visitesData);
+        console.log('Visits found:', visitsData);
 
         // Process the data
-        const processedData: MedecinVisiteData[] = frequencesVisites?.map(fv => {
-          const medecin = fv.medecins;
-          if (!medecin) return null;
+        const processedData: DoctorVisitData[] = visitFrequencies?.map(vf => {
+          const doctor = vf.doctors;
+          if (!doctor) return null;
 
-          // Count visits per month for this medecin
-          const visitesParMois: { [key: string]: number } = {};
+          // Count visits per month for this doctor
+          const visitsPerMonth: { [key: string]: number } = {};
           
           // Initialize all months to 0
           monthsToShow.forEach(month => {
-            visitesParMois[month.value] = 0;
+            visitsPerMonth[month.value] = 0;
           });
 
           // Count visits
-          visitesData?.forEach(visite => {
-            if (visite.frequences_visites?.medecin_id === fv.medecin_id) {
-              const visitDate = new Date(visite.date_visite);
+          visitsData?.forEach(visit => {
+            if (visit.visit_frequencies?.doctor_id === vf.doctor_id) {
+              const visitDate = new Date(visit.visit_date);
               const visitMonth = visitDate.getMonth() + 1;
               const monthKey = months.find(m => m.num === visitMonth)?.value;
-              if (monthKey && visitesParMois.hasOwnProperty(monthKey)) {
-                visitesParMois[monthKey]++;
+              if (monthKey && visitsPerMonth.hasOwnProperty(monthKey)) {
+                visitsPerMonth[monthKey]++;
               }
             }
           });
 
-          // Calculate indice de retour data
-          const visitesEffectuees = Object.values(visitesParMois).reduce((sum, visites) => sum + visites, 0);
-          const frequence = fv.frequence_visite || 1;
-          const visitesAttendues = frequence * currentMonth;
-          const indiceRetour = visitesAttendues > 0 ? Math.round((visitesEffectuees / visitesAttendues) * 100) : 0;
+          // Calculate return index data
+          const visitsCompleted = Object.values(visitsPerMonth).reduce((sum, visits) => sum + visits, 0);
+          const frequency = vf.visit_frequency || 1;
+          const visitsExpected = frequency * currentMonth;
+          const returnIndex = visitsExpected > 0 ? Math.round((visitsCompleted / visitsExpected) * 100) : 0;
 
           return {
-            medecin_id: fv.medecin_id,
-            medecin_nom: medecin.nom,
-            medecin_prenom: medecin.prenom,
-            medecin_specialite: medecin.specialite,
-            frequence_visite: frequence,
-            visites_par_mois: visitesParMois,
-            visites_effectuees: visitesEffectuees,
-            visites_attendues: visitesAttendues,
-            indiceRetour
+            doctor_id: vf.doctor_id,
+            doctor_name: doctor.name,
+            doctor_first_name: doctor.first_name,
+            doctor_specialty: doctor.specialty,
+            visit_frequency: frequency,
+            visits_per_month: visitsPerMonth,
+            visits_completed: visitsCompleted,
+            visits_expected: visitsExpected,
+            return_index: returnIndex
           };
-        }).filter(Boolean) as MedecinVisiteData[];
+        }).filter(Boolean) as DoctorVisitData[];
 
-        console.log('Processed rapport data:', processedData);
-        setRapportData(processedData);
+        console.log('Processed report data:', processedData);
+        setReportData(processedData);
       } catch (err) {
         console.error('Unexpected error:', err);
-        setError('Une erreur inattendue s\'est produite');
+        setError('An unexpected error occurred');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRapportData();
+    fetchReportData();
   }, [user]);
 
   // Filter data by specialty
-  const filteredRapportData = rapportData.filter(medecin => {
+  const filteredReportData = reportData.filter(doctor => {
     if (selectedSpecialty === 'all') return true;
-    return medecin.medecin_specialite === selectedSpecialty;
+    return doctor.doctor_specialty === selectedSpecialty;
   });
 
   // Get unique specialties for filter
-  const specialties = [...new Set(rapportData.map(m => m.medecin_specialite).filter(Boolean))];
+  const specialties = [...new Set(reportData.map(d => d.doctor_specialty).filter(Boolean))];
 
-  const getStatusColor = (medecin: MedecinVisiteData) => {
-    const percentage = medecin.indiceRetour;
+  const getStatusColor = (doctor: DoctorVisitData) => {
+    const percentage = doctor.return_index;
     if (percentage >= 80) return 'bg-green-100 border-green-300';
     if (percentage >= 50) return 'bg-yellow-100 border-yellow-300';
     return 'bg-red-100 border-red-300';
   };
 
-  const getStatusTextColor = (medecin: MedecinVisiteData) => {
-    const percentage = medecin.indiceRetour;
+  const getStatusTextColor = (doctor: DoctorVisitData) => {
+    const percentage = doctor.return_index;
     if (percentage >= 80) return 'text-green-800';
     if (percentage >= 50) return 'text-yellow-800';
     return 'text-red-800';
@@ -216,7 +215,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des données...</p>
+          <p className="text-gray-600">Loading data...</p>
         </div>
       </div>
     );
@@ -231,7 +230,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
               <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-blue-50">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-2xl font-bold text-gray-900">Rapport des Visites</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Visit Report</h1>
             </div>
           </div>
         </div>
@@ -241,7 +240,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
               <div className="text-center">
                 <p className="text-red-600 mb-4">{error}</p>
                 <Button onClick={() => window.location.reload()}>
-                  Réessayer
+                  Retry
                 </Button>
               </div>
             </CardContent>
@@ -266,8 +265,8 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                   <TrendingUp className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Rapport des Visites</h1>
-                  <p className="text-sm text-gray-600">Nombre de visites par médecin et par mois</p>
+                  <h1 className="text-2xl font-bold text-gray-900">Visit Report</h1>
+                  <p className="text-sm text-gray-600">Number of visits per doctor and per month</p>
                 </div>
               </div>
             </div>
@@ -276,7 +275,7 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
                 <Calendar className="h-4 w-4 text-blue-600" />
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Sélectionner le mois" />
+                    <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
                     {monthsToShow.map((month) => (
@@ -290,10 +289,10 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
               <div className="flex items-center space-x-2">
                 <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Toutes spécialités" />
+                    <SelectValue placeholder="All specialties" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Toutes spécialités</SelectItem>
+                    <SelectItem value="all">All specialties</SelectItem>
                     {specialties.map(specialty => (
                       <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
                     ))}
@@ -306,77 +305,77 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Rapport Table */}
+        {/* Report Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900">
-              Rapport des visites - {monthsToShow.find(m => m.value === selectedMonth)?.label}
+              Visit report - {monthsToShow.find(m => m.value === selectedMonth)?.label}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredRapportData.length === 0 ? (
+            {filteredReportData.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-600">Aucun médecin assigné trouvé</p>
+                <p className="text-gray-600">No assigned doctors found</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Médecin</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Fréquence de visite</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Doctor</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Specialty</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Visit frequency</th>
                       {monthsToShow.map((month) => (
                         <th key={month.value} className="text-center py-3 px-4 font-medium text-gray-700">
                           {month.label}
                         </th>
                       ))}
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Total</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Visites</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Indice de Retour</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Visits</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Return Index</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRapportData.map((medecin) => {
-                      const total = Object.values(medecin.visites_par_mois).reduce((sum, visites) => sum + visites, 0);
+                    {filteredReportData.map((doctor) => {
+                      const total = Object.values(doctor.visits_per_month).reduce((sum, visits) => sum + visits, 0);
                       return (
-                        <tr key={medecin.medecin_id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(medecin)} border-2`}>
+                        <tr key={doctor.doctor_id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${getStatusColor(doctor)} border-2`}>
                           <td className="py-4 px-4">
-                            <span className={`font-medium ${getStatusTextColor(medecin)}`}>
-                              Dr. {medecin.medecin_prenom} {medecin.medecin_nom}
+                            <span className={`font-medium ${getStatusTextColor(doctor)}`}>
+                              Dr. {doctor.doctor_first_name} {doctor.doctor_name}
                             </span>
                           </td>
-                          <td className={`py-4 px-4 ${getStatusTextColor(medecin)}`}>
-                            {medecin.medecin_specialite || 'Non renseigné'}
+                          <td className={`py-4 px-4 ${getStatusTextColor(doctor)}`}>
+                            {doctor.doctor_specialty || 'Not specified'}
                           </td>
-                          <td className={`py-4 px-4 text-center ${getStatusTextColor(medecin)}`}>
+                          <td className={`py-4 px-4 text-center ${getStatusTextColor(doctor)}`}>
                             <span className="px-2 py-1 rounded bg-blue-100 text-blue-800 font-medium">
-                              {medecin.frequence_visite}/mois
+                              {doctor.visit_frequency}/month
                             </span>
                           </td>
                           {monthsToShow.map((month) => (
-                            <td key={month.value} className={`py-4 px-4 text-center ${getStatusTextColor(medecin)}`}>
+                            <td key={month.value} className={`py-4 px-4 text-center ${getStatusTextColor(doctor)}`}>
                               <span className={`px-2 py-1 rounded ${selectedMonth === month.value ? 'bg-blue-200 font-bold' : ''}`}>
-                                {medecin.visites_par_mois[month.value] || 0}
+                                {doctor.visits_per_month[month.value] || 0}
                               </span>
                             </td>
                           ))}
-                          <td className={`py-4 px-4 text-center font-bold ${getStatusTextColor(medecin)}`}>
+                          <td className={`py-4 px-4 text-center font-bold ${getStatusTextColor(doctor)}`}>
                             {total}
                           </td>
-                          <td className={`py-4 px-4 text-center ${getStatusTextColor(medecin)}`}>
+                          <td className={`py-4 px-4 text-center ${getStatusTextColor(doctor)}`}>
                             <span className="text-sm">
-                              {medecin.visites_effectuees} / {medecin.visites_attendues}
+                              {doctor.visits_completed} / {doctor.visits_expected}
                             </span>
                           </td>
                           <td className="py-4 px-4 text-center">
                             <div className="flex items-center justify-center space-x-2">
                               <div className={`w-3 h-3 rounded-full ${
-                                medecin.indiceRetour >= 80 ? 'bg-green-500' :
-                                medecin.indiceRetour >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                doctor.return_index >= 80 ? 'bg-green-500' :
+                                doctor.return_index >= 50 ? 'bg-yellow-500' : 'bg-red-500'
                               }`}></div>
-                              <span className={`font-semibold ${getStatusTextColor(medecin)}`}>
-                                {medecin.indiceRetour}%
+                              <span className={`font-semibold ${getStatusTextColor(doctor)}`}>
+                                {doctor.return_index}%
                               </span>
                             </div>
                           </td>
@@ -390,10 +389,10 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
           </CardContent>
         </Card>
 
-        {/* Légende */}
+        {/* Legend */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Légende</CardTitle>
+            <CardTitle className="text-lg text-gray-900">Legend</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
@@ -403,11 +402,11 @@ const RapportMedecins = ({ onBack }: RapportMedecinsProps) => {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-200 border-2 border-yellow-300 rounded"></div>
-                <span className="text-sm text-yellow-800 font-medium">Moyen (50-79%)</span>
+                <span className="text-sm text-yellow-800 font-medium">Average (50-79%)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-200 border-2 border-red-300 rounded"></div>
-                <span className="text-sm text-red-800 font-medium">Faible (&lt;50%)</span>
+                <span className="text-sm text-red-800 font-medium">Low (&lt;50%)</span>
               </div>
             </div>
           </CardContent>

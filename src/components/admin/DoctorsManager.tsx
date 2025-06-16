@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,16 +15,16 @@ interface DoctorsManagerProps {
   onBack: () => void;
 }
 
-interface Medecin {
+interface Doctor {
   id: string;
-  nom: string;
-  prenom: string;
-  specialite: string | null;
-  brick_id: string | null;
-  bricks?: {
-    nom: string;
-    secteur?: {
-      nom: string;
+  name: string;
+  first_name: string;
+  specialty: string | null;
+  territory_id: string | null;
+  territories?: {
+    name: string;
+    sectors?: {
+      name: string;
     };
   };
 }
@@ -31,88 +32,88 @@ interface Medecin {
 const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
-  const [selectedBrick, setSelectedBrick] = useState('all');
+  const [selectedTerritory, setSelectedTerritory] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingDoctor, setEditingDoctor] = useState<Medecin | null>(null);
+  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
 
   const queryClient = useQueryClient();
 
-  const { data: medecins = [], isLoading, error } = useQuery({
-    queryKey: ['medecins'],
+  const { data: doctors = [], isLoading, error } = useQuery({
+    queryKey: ['doctors'],
     queryFn: async () => {
-      console.log('Fetching medecins from Supabase...');
+      console.log('Fetching doctors from Supabase...');
       
       const { data, error } = await supabase
-        .from('medecins')
+        .from('doctors')
         .select(`
           id,
-          nom,
-          prenom,
-          specialite,
-          brick_id,
-          bricks:brick_id (
-            nom,
-            secteur:secteur_id (
-              nom
+          name,
+          first_name,
+          specialty,
+          territory_id,
+          territories:territory_id (
+            name,
+            sectors:sector_id (
+              name
             )
           )
         `)
-        .order('nom', { ascending: true });
+        .order('name', { ascending: true });
 
       if (error) {
-        console.error('Error fetching medecins:', error);
+        console.error('Error fetching doctors:', error);
         throw error;
       }
 
-      console.log('Fetched medecins:', data);
-      console.log('Number of medecins fetched:', data?.length || 0);
-      return data as Medecin[];
+      console.log('Fetched doctors:', data);
+      console.log('Number of doctors fetched:', data?.length || 0);
+      return data as Doctor[];
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (doctorId: string) => {
       const { error } = await supabase
-        .from('medecins')
+        .from('doctors')
         .delete()
         .eq('id', doctorId);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medecins'] });
-      toast.success('Médecin supprimé avec succès');
+      queryClient.invalidateQueries({ queryKey: ['doctors'] });
+      toast.success('Doctor deleted successfully');
     },
     onError: (error) => {
       console.error('Error deleting doctor:', error);
-      toast.error('Erreur lors de la suppression du médecin');
+      toast.error('Error deleting doctor');
     }
   });
 
   // Log data for debugging
-  console.log('Current medecins state:', medecins);
+  console.log('Current doctors state:', doctors);
   console.log('Is loading:', isLoading);
   console.log('Error:', error);
 
-  const filteredMedecins = medecins.filter(medecin => {
-    const fullName = `${medecin.prenom} ${medecin.nom}`.toLowerCase();
+  const filteredDoctors = doctors.filter(doctor => {
+    const fullName = `${doctor.first_name} ${doctor.name}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
-    const matchesSpecialty = selectedSpecialty === 'all' || medecin.specialite === selectedSpecialty;
-    const matchesBrick = selectedBrick === 'all' || medecin.bricks?.nom === selectedBrick;
-    return matchesSearch && matchesSpecialty && matchesBrick;
+    const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
+    const matchesTerritory = selectedTerritory === 'all' || doctor.territories?.name === selectedTerritory;
+    return matchesSearch && matchesSpecialty && matchesTerritory;
   });
 
-  // Get unique specialties and bricks for filters
-  const specialties = [...new Set(medecins.map(m => m.specialite).filter(Boolean))];
-  const bricks = [...new Set(medecins.map(m => m.bricks?.nom).filter(Boolean))];
+  // Get unique specialties and territories for filters
+  const specialties = [...new Set(doctors.map(d => d.specialty).filter(Boolean))];
+  const territories = [...new Set(doctors.map(d => d.territories?.name).filter(Boolean))];
 
-  const handleEdit = (doctor: Medecin) => {
+  const handleEdit = (doctor: Doctor) => {
     setEditingDoctor(doctor);
     setDialogOpen(true);
   };
 
   const handleDelete = (doctorId: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce médecin ?')) {
+    if (confirm('Are you sure you want to delete this doctor?')) {
       deleteMutation.mutate(doctorId);
     }
   };
@@ -127,7 +128,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des médecins...</p>
+          <p className="text-gray-600">Loading doctors...</p>
         </div>
       </div>
     );
@@ -137,8 +138,8 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Erreur lors du chargement des médecins: {error.message}</p>
-          <Button onClick={onBack}>Retour</Button>
+          <p className="text-red-600 mb-4">Error loading doctors: {error.message}</p>
+          <Button onClick={onBack}>Back</Button>
         </div>
       </div>
     );
@@ -157,21 +158,21 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
                 className="flex items-center space-x-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span>Retour</span>
+                <span>Back</span>
               </Button>
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
                   <Stethoscope className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Liste des Médecins</h1>
-                  <p className="text-sm text-gray-600">{filteredMedecins.length} médecins trouvés sur {medecins.length} total</p>
+                  <h1 className="text-2xl font-bold text-gray-900">Doctors List</h1>
+                  <p className="text-sm text-gray-600">{filteredDoctors.length} doctors found out of {doctors.length} total</p>
                 </div>
               </div>
             </div>
             <Button onClick={() => setDialogOpen(true)} className="flex items-center space-x-2">
               <Plus className="h-4 w-4" />
-              <span>Ajouter un médecin</span>
+              <span>Add doctor</span>
             </Button>
           </div>
         </div>
@@ -183,17 +184,17 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
           <CardHeader>
             <div className="flex items-center space-x-2">
               <Filter className="h-5 w-5 text-purple-600" />
-              <CardTitle className="text-lg text-gray-900">Filtres</CardTitle>
+              <CardTitle className="text-lg text-gray-900">Filters</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Recherche</label>
+                <label className="text-sm font-medium text-gray-700">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Nom du médecin..."
+                    placeholder="Doctor name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -202,13 +203,13 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Spécialité</label>
+                <label className="text-sm font-medium text-gray-700">Specialty</label>
                 <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Toutes spécialités" />
+                    <SelectValue placeholder="All specialties" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Toutes spécialités</SelectItem>
+                    <SelectItem value="all">All specialties</SelectItem>
                     {specialties.map(specialty => (
                       <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
                     ))}
@@ -217,15 +218,15 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Brick</label>
-                <Select value={selectedBrick} onValueChange={setSelectedBrick}>
+                <label className="text-sm font-medium text-gray-700">Territory</label>
+                <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Tous les bricks" />
+                    <SelectValue placeholder="All territories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les bricks</SelectItem>
-                    {bricks.map(brick => (
-                      <SelectItem key={brick} value={brick!}>{brick}</SelectItem>
+                    <SelectItem value="all">All territories</SelectItem>
+                    {territories.map(territory => (
+                      <SelectItem key={territory} value={territory!}>{territory}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -235,12 +236,12 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
         </Card>
 
         {/* Debug Information */}
-        {medecins.length === 0 && (
+        {doctors.length === 0 && (
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Debug: Aucune donnée trouvée dans la table 'medecins'. 
-                Vérifiez que des données existent dans Supabase.
+                Debug: No data found in the 'doctors' table. 
+                Check that data exists in Supabase.
               </p>
             </CardContent>
           </Card>
@@ -250,23 +251,23 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <User className="h-5 w-5 text-purple-600" />
-              <span>Liste des Médecins</span>
+              <span>Doctors List</span>
             </CardTitle>
             <CardDescription>
-              Gestion de la base de données des médecins
+              Doctors database management
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {filteredMedecins.length === 0 ? (
+            {filteredDoctors.length === 0 ? (
               <div className="text-center py-12">
                 <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {medecins.length === 0 ? 'Aucune donnée dans la base' : 'Aucun médecin trouvé'}
+                  {doctors.length === 0 ? 'No data in database' : 'No doctors found'}
                 </h3>
                 <p className="text-gray-600">
-                  {medecins.length === 0 
-                    ? 'La table medecins semble être vide. Ajoutez des médecins dans Supabase.'
-                    : 'Essayez de modifier vos critères de recherche.'
+                  {doctors.length === 0 
+                    ? 'The doctors table seems to be empty. Add doctors in Supabase.'
+                    : 'Try modifying your search criteria.'
                   }
                 </p>
               </div>
@@ -274,35 +275,35 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Prénom</TableHead>
-                    <TableHead>Spécialité</TableHead>
-                    <TableHead>Brick</TableHead>
-                    <TableHead>Secteur</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>First Name</TableHead>
+                    <TableHead>Specialty</TableHead>
+                    <TableHead>Territory</TableHead>
+                    <TableHead>Sector</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMedecins.map((medecin) => (
-                    <TableRow key={medecin.id}>
-                      <TableCell className="font-medium">{medecin.nom}</TableCell>
-                      <TableCell>{medecin.prenom}</TableCell>
-                      <TableCell>{medecin.specialite || 'Non renseigné'}</TableCell>
-                      <TableCell>{medecin.bricks?.nom || 'Non assigné'}</TableCell>
-                      <TableCell>{medecin.bricks?.secteur?.nom || 'Non assigné'}</TableCell>
+                  {filteredDoctors.map((doctor) => (
+                    <TableRow key={doctor.id}>
+                      <TableCell className="font-medium">{doctor.name}</TableCell>
+                      <TableCell>{doctor.first_name}</TableCell>
+                      <TableCell>{doctor.specialty || 'Not specified'}</TableCell>
+                      <TableCell>{doctor.territories?.name || 'Not assigned'}</TableCell>
+                      <TableCell>{doctor.territories?.sectors?.name || 'Not assigned'}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleEdit(medecin)}
+                            onClick={() => handleEdit(doctor)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleDelete(medecin.id)}
+                            onClick={() => handleDelete(doctor.id)}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
