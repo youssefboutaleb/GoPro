@@ -42,11 +42,11 @@ const Index = () => {
 
       try {
         const { data: delegue, error } = await supabase
-          .from('delegues')
+          .from('delegates')
           .select(`
-            secteur_id,
-            secteur:secteur_id (
-              nom
+            sector_id,
+            sector:sector_id (
+              name
             )
           `)
           .eq('user_id', user.id)
@@ -57,8 +57,8 @@ const Index = () => {
           return;
         }
 
-        if (delegue?.secteur?.nom) {
-          setSecteurName(delegue.secteur.nom);
+        if (delegue?.sector?.name) {
+          setSecteurName(delegue.sector.name);
         }
       } catch (error) {
         console.error('Error in fetchDeleagueSecteur:', error);
