@@ -13,16 +13,16 @@ interface ReportsManagerProps {
 }
 
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
-  const [selectedDelegue, setSelectedDelegue] = useState<string>('all');
+  const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
-  // Fetch delegues for the dropdown
-  const { data: delegues = [] } = useQuery({
-    queryKey: ['delegues_for_reports'],
+  // Fetch delegates for the dropdown
+  const { data: delegates = [] } = useQuery({
+    queryKey: ['delegates_for_reports'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('delegues')
-        .select('id, nom, prenom')
-        .order('nom');
+        .from('delegates')
+        .select('id, name, first_name')
+        .order('name');
 
       if (error) throw error;
       return data;
@@ -31,32 +31,32 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
 
   // Fetch visits data
   const { data: visitsData = [] } = useQuery({
-    queryKey: ['visits_data', selectedDelegue],
+    queryKey: ['visits_data', selectedDelegate],
     queryFn: async () => {
       let query = supabase
-        .from('visites')
+        .from('visits')
         .select(`
           *,
-          frequences_visites:objectif_visite_id(
-            delegue_id,
-            medecin_id,
-            frequence_visite,
-            delegue:delegue_id(nom, prenom),
-            medecin:medecin_id(nom, prenom)
+          visit_frequencies:visit_objective_id(
+            delegate_id,
+            doctor_id,
+            visit_frequency,
+            delegates:delegate_id(name, first_name),
+            doctors:doctor_id(name, first_name)
           )
         `)
-        .gte('date_visite', '2024-01-01');
+        .gte('visit_date', '2024-01-01');
 
-      if (selectedDelegue !== 'all') {
-        // We need to filter by delegue through the frequences_visites relation
-        const { data: frequencesIds } = await supabase
-          .from('frequences_visites')
+      if (selectedDelegate !== 'all') {
+        // We need to filter by delegate through the visit_frequencies relation
+        const { data: frequenciesIds } = await supabase
+          .from('visit_frequencies')
           .select('id')
-          .eq('delegue_id', selectedDelegue);
+          .eq('delegate_id', selectedDelegate);
         
-        if (frequencesIds && frequencesIds.length > 0) {
-          const ids = frequencesIds.map(obj => obj.id);
-          query = query.in('objectif_visite_id', ids);
+        if (frequenciesIds && frequenciesIds.length > 0) {
+          const ids = frequenciesIds.map(obj => obj.id);
+          query = query.in('visit_objective_id', ids);
         } else {
           return [];
         }
@@ -68,20 +68,20 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     }
   });
 
-  // Fetch frequences_visites data for indice calculation
-  const { data: frequencesVisitesData = [] } = useQuery({
-    queryKey: ['frequences_visites_data', selectedDelegue],
+  // Fetch visit_frequencies data for indice calculation
+  const { data: visitFrequenciesData = [] } = useQuery({
+    queryKey: ['visit_frequencies_data', selectedDelegate],
     queryFn: async () => {
       let query = supabase
-        .from('frequences_visites')
+        .from('visit_frequencies')
         .select(`
           *,
-          delegue:delegue_id(nom, prenom),
-          medecin:medecin_id(nom, prenom)
+          delegates:delegate_id(name, first_name),
+          doctors:doctor_id(name, first_name)
         `);
 
-      if (selectedDelegue !== 'all') {
-        query = query.eq('delegue_id', selectedDelegue);
+      if (selectedDelegate !== 'all') {
+        query = query.eq('delegate_id', selectedDelegate);
       }
 
       const { data, error } = await query;
@@ -95,17 +95,17 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
     
-    // n = number of visits done by selected delegue to his associated medecins in current year
+    // n = number of visits done by selected delegate to his associated doctors in current year
     const visitsThisYear = visitsData.filter(visit => {
-      const visitYear = new Date(visit.date_visite).getFullYear();
+      const visitYear = new Date(visit.visit_date).getFullYear();
       return visitYear === currentYear;
     });
     const n = visitsThisYear.length;
     
-    // f = sum of (frequence_visite * number of current month) for all corresponding medecins
-    const f = frequencesVisitesData.reduce((sum, frequence) => {
-      const frequenceValue = frequence.frequence_visite || 1;
-      return sum + (frequenceValue * currentMonth);
+    // f = sum of (visit_frequency * number of current month) for all corresponding doctors
+    const f = visitFrequenciesData.reduce((sum, frequency) => {
+      const frequencyValue = frequency.visit_frequency || 1;
+      return sum + (frequencyValue * currentMonth);
     }, 0);
     
     const indice = f > 0 ? (n / f) * 100 : 0;
@@ -117,19 +117,19 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   // Process data for quarterly chart
   const quarterlyData = [
     { quarter: 'Q1 2024', visites: visitsData.filter(v => {
-      const month = new Date(v.date_visite).getMonth() + 1;
+      const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 1 && month <= 3;
     }).length },
     { quarter: 'Q2 2024', visites: visitsData.filter(v => {
-      const month = new Date(v.date_visite).getMonth() + 1;
+      const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 4 && month <= 6;
     }).length },
     { quarter: 'Q3 2024', visites: visitsData.filter(v => {
-      const month = new Date(v.date_visite).getMonth() + 1;
+      const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 7 && month <= 9;
     }).length },
     { quarter: 'Q4 2024', visites: visitsData.filter(v => {
-      const month = new Date(v.date_visite).getMonth() + 1;
+      const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 10 && month <= 12;
     }).length },
   ];
@@ -139,7 +139,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     const month = i + 1;
     const monthName = new Date(2024, i, 1).toLocaleDateString('fr-FR', { month: 'short' });
     const visites = visitsData.filter(v => {
-      const visitMonth = new Date(v.date_visite).getMonth() + 1;
+      const visitMonth = new Date(v.visit_date).getMonth() + 1;
       return visitMonth === month;
     }).length;
     
@@ -175,15 +175,15 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
             <div className="flex items-center space-x-4">
               <div className="flex-1">
                 <label className="text-sm font-medium">Délégué</label>
-                <Select value={selectedDelegue} onValueChange={setSelectedDelegue}>
+                <Select value={selectedDelegate} onValueChange={setSelectedDelegate}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un délégué" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les délégués</SelectItem>
-                    {delegues.map((delegue) => (
-                      <SelectItem key={delegue.id} value={delegue.id}>
-                        {delegue.prenom} {delegue.nom}
+                    {delegates.map((delegate) => (
+                      <SelectItem key={delegate.id} value={delegate.id}>
+                        {delegate.first_name} {delegate.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -276,7 +276,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{frequencesVisitesData.length}</div>
+              <div className="text-2xl font-bold">{visitFrequenciesData.length}</div>
               <p className="text-xs text-muted-foreground">
                 Objectifs de visite
               </p>

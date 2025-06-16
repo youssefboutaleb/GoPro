@@ -15,16 +15,16 @@ interface IndiceRetourProps {
   onBack: () => void;
 }
 
-interface Medecin {
+interface Doctor {
   id: string;
-  nom: string;
-  prenom: string;
-  specialite: string | null;
-  brick_id: string | null;
-  bricks?: {
-    nom: string;
-    secteur?: {
-      nom: string;
+  name: string;
+  first_name: string;
+  specialty: string | null;
+  territory_id: string | null;
+  territories?: {
+    name: string;
+    sectors?: {
+      name: string;
     };
   };
   // Calculated fields for indice de retour
@@ -41,55 +41,55 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedWeek, setSelectedWeek] = useState('1');
-  const [selectedBrick, setSelectedBrick] = useState('all');
+  const [selectedTerritory, setSelectedTerritory] = useState('all');
   const [swipedRows, setSwipedRows] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // First, get the current user's delegue information
-  const { data: currentDelegue } = useQuery({
-    queryKey: ['current-delegue', user?.id],
+  // First, get the current user's delegate information
+  const { data: currentDelegate } = useQuery({
+    queryKey: ['current-delegate', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      console.log('Fetching delegue for user:', user.id);
+      console.log('Fetching delegate for user:', user.id);
       
       const { data, error } = await supabase
-        .from('delegues')
-        .select('id, nom, prenom')
+        .from('delegates')
+        .select('id, name, first_name')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching delegue:', error);
+        console.error('Error fetching delegate:', error);
         throw error;
       }
 
-      console.log('Current delegue:', data);
+      console.log('Current delegate:', data);
       return data;
     },
     enabled: !!user?.id
   });
 
-  // Query to get total visits by current delegue in current year
+  // Query to get total visits by current delegate in current year
   const { data: totalVisitesAnnee = 0 } = useQuery({
-    queryKey: ['total-visits-year', currentDelegue?.id],
+    queryKey: ['total-visits-year', currentDelegate?.id],
     queryFn: async () => {
-      if (!currentDelegue?.id) return 0;
+      if (!currentDelegate?.id) return 0;
 
       const currentYear = new Date().getFullYear();
 
       const { data: visites, error } = await supabase
-        .from('visites')
+        .from('visits')
         .select(`
           id,
-          frequences_visites!inner (
-            delegue_id
+          visit_frequencies!inner (
+            delegate_id
           )
         `)
-        .eq('frequences_visites.delegue_id', currentDelegue.id)
-        .gte('date_visite', `${currentYear}-01-01`)
-        .lt('date_visite', `${currentYear + 1}-01-01`);
+        .eq('visit_frequencies.delegate_id', currentDelegate.id)
+        .gte('visit_date', `${currentYear}-01-01`)
+        .lt('visit_date', `${currentYear + 1}-01-01`);
 
       if (error) {
         console.error('Error fetching total visits for year:', error);
@@ -98,58 +98,58 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
 
       return visites?.length || 0;
     },
-    enabled: !!currentDelegue?.id
+    enabled: !!currentDelegate?.id
   });
 
-  const { data: rawMedecins = [], isLoading, error } = useQuery({
-    queryKey: ['medecins-indice-retour', currentDelegue?.id],
+  const { data: rawDoctors = [], isLoading, error } = useQuery({
+    queryKey: ['doctors-indice-retour', currentDelegate?.id],
     queryFn: async () => {
-      if (!currentDelegue?.id) {
-        console.log('No delegue found, returning empty array');
+      if (!currentDelegate?.id) {
+        console.log('No delegate found, returning empty array');
         return [];
       }
 
-      console.log('Fetching medecins for delegue:', currentDelegue.id);
+      console.log('Fetching doctors for delegate:', currentDelegate.id);
       
       const { data, error } = await supabase
-        .from('medecins')
+        .from('doctors')
         .select(`
           id,
-          nom,
-          prenom,
-          specialite,
-          brick_id,
-          bricks:brick_id (
-            nom,
-            secteurs:secteur_id (
-              nom
+          name,
+          first_name,
+          specialty,
+          territory_id,
+          territories:territory_id (
+            name,
+            sectors:sector_id (
+              name
             )
           ),
-          frequences_visites!inner (
-            frequence_visite,
-            delegue_id
+          visit_frequencies!inner (
+            visit_frequency,
+            delegate_id
           )
         `)
-        .eq('frequences_visites.delegue_id', currentDelegue.id)
-        .order('nom', { ascending: true });
+        .eq('visit_frequencies.delegate_id', currentDelegate.id)
+        .order('name', { ascending: true });
 
       if (error) {
-        console.error('Error fetching medecins for delegue:', error);
+        console.error('Error fetching doctors for delegate:', error);
         throw error;
       }
 
-      console.log('Fetched medecins for delegue:', data);
-      console.log('Number of medecins fetched:', data?.length || 0);
+      console.log('Fetched doctors for delegate:', data);
+      console.log('Number of doctors fetched:', data?.length || 0);
       return data;
     },
-    enabled: !!currentDelegue?.id
+    enabled: !!currentDelegate?.id
   });
 
   // Transform raw data to include calculated indice retour values
-  const { data: medecinsWithIndice = [] } = useQuery({
-    queryKey: ['medecins-with-indice', rawMedecins, currentDelegue?.id],
+  const { data: doctorsWithIndice = [] } = useQuery({
+    queryKey: ['doctors-with-indice', rawDoctors, currentDelegate?.id],
     queryFn: async () => {
-      if (!rawMedecins.length || !currentDelegue?.id) return [];
+      if (!rawDoctors.length || !currentDelegate?.id) return [];
 
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
@@ -160,81 +160,81 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       const monthBeforeLastMonth = lastMonth === 1 ? 12 : lastMonth - 1;
       const monthBeforeLastYear = lastMonth === 1 ? lastMonthYear - 1 : lastMonthYear;
 
-      const medecinsPromises = rawMedecins.map(async (medecin: any) => {
+      const doctorsPromises = rawDoctors.map(async (doctor: any) => {
         // Get visits count for this year EXCLUDING current month
         const { data: visites, error: visitesError } = await supabase
-          .from('visites')
+          .from('visits')
           .select(`
             id,
-            frequences_visites!inner (
-              medecin_id,
-              delegue_id
+            visit_frequencies!inner (
+              doctor_id,
+              delegate_id
             )
           `)
-          .eq('frequences_visites.medecin_id', medecin.id)
-          .eq('frequences_visites.delegue_id', currentDelegue.id)
-          .gte('date_visite', `${currentYear}-01-01`)
-          .lt('date_visite', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+          .eq('visit_frequencies.doctor_id', doctor.id)
+          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .gte('visit_date', `${currentYear}-01-01`)
+          .lt('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`);
 
         if (visitesError) {
-          console.error('Error fetching visits for medecin:', medecin.id, visitesError);
+          console.error('Error fetching visits for doctor:', doctor.id, visitesError);
         }
 
         // Get visits count for current month only
         const { data: visitesCeMois, error: visitesCeMoisError } = await supabase
-          .from('visites')
+          .from('visits')
           .select(`
             id,
-            frequences_visites!inner (
-              medecin_id,
-              delegue_id
+            visit_frequencies!inner (
+              doctor_id,
+              delegate_id
             )
           `)
-          .eq('frequences_visites.medecin_id', medecin.id)
-          .eq('frequences_visites.delegue_id', currentDelegue.id)
-          .gte('date_visite', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-          .lt('date_visite', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+          .eq('visit_frequencies.doctor_id', doctor.id)
+          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .gte('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+          .lt('visit_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
 
         if (visitesCeMoisError) {
-          console.error('Error fetching current month visits for medecin:', medecin.id, visitesCeMoisError);
+          console.error('Error fetching current month visits for doctor:', doctor.id, visitesCeMoisError);
         }
 
         // Get visits for last month
         const { data: visitesLastMonth, error: visitesLastMonthError } = await supabase
-          .from('visites')
+          .from('visits')
           .select(`
             id,
-            frequences_visites!inner (
-              medecin_id,
-              delegue_id
+            visit_frequencies!inner (
+              doctor_id,
+              delegate_id
             )
           `)
-          .eq('frequences_visites.medecin_id', medecin.id)
-          .eq('frequences_visites.delegue_id', currentDelegue.id)
-          .gte('date_visite', `${lastMonthYear}-${lastMonth.toString().padStart(2, '0')}-01`)
-          .lt('date_visite', `${lastMonthYear}-${(lastMonth + 1).toString().padStart(2, '0')}-01`);
+          .eq('visit_frequencies.doctor_id', doctor.id)
+          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .gte('visit_date', `${lastMonthYear}-${lastMonth.toString().padStart(2, '0')}-01`)
+          .lt('visit_date', `${lastMonthYear}-${(lastMonth + 1).toString().padStart(2, '0')}-01`);
 
         if (visitesLastMonthError) {
-          console.error('Error fetching last month visits for medecin:', medecin.id, visitesLastMonthError);
+          console.error('Error fetching last month visits for doctor:', doctor.id, visitesLastMonthError);
         }
 
         // Get visits for month before last month
         const { data: visitesMonthBeforeLast, error: visitesMonthBeforeLastError } = await supabase
-          .from('visites')
+          .from('visits')
           .select(`
             id,
-            frequences_visites!inner (
-              medecin_id,
-              delegue_id
+            visit_frequencies!inner (
+              doctor_id,
+              delegate_id
             )
           `)
-          .eq('frequences_visites.medecin_id', medecin.id)
-          .eq('frequences_visites.delegue_id', currentDelegue.id)
-          .gte('date_visite', `${monthBeforeLastYear}-${monthBeforeLastMonth.toString().padStart(2, '0')}-01`)
-          .lt('date_visite', `${monthBeforeLastYear}-${(monthBeforeLastMonth + 1).toString().padStart(2, '0')}-01`);
+          .eq('visit_frequencies.doctor_id', doctor.id)
+          .eq('visit_frequencies.delegate_id', currentDelegate.id)
+          .gte('visit_date', `${monthBeforeLastYear}-${monthBeforeLastMonth.toString().padStart(2, '0')}-01`)
+          .lt('visit_date', `${monthBeforeLastYear}-${(monthBeforeLastMonth + 1).toString().padStart(2, '0')}-01`);
 
         if (visitesMonthBeforeLastError) {
-          console.error('Error fetching month before last visits for medecin:', medecin.id, visitesMonthBeforeLastError);
+          console.error('Error fetching month before last visits for doctor:', doctor.id, visitesMonthBeforeLastError);
         }
 
         const visitesEffectuees = visites?.length || 0;
@@ -243,7 +243,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         const visitesMonthBeforeLastCount = visitesMonthBeforeLast?.length || 0;
 
         // Calculate expected visits based on frequency (excluding current month)
-        const frequenceVisite = medecin.frequences_visites[0]?.frequence_visite || 1;
+        const frequenceVisite = doctor.visit_frequencies[0]?.visit_frequency || 1;
         const visitesParMois = frequenceVisite;
 
         // Calculate expected visits for months up to but not including current month
@@ -260,7 +260,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         }
 
         return {
-          ...medecin,
+          ...doctor,
           indiceRetour,
           status,
           visites_effectuees: visitesEffectuees,
@@ -270,52 +270,52 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         };
       });
 
-      const results = await Promise.all(medecinsPromises);
+      const results = await Promise.all(doctorsPromises);
       
       // Filter to show only doctors who haven't met their frequency for current month
-      const filteredResults = results.filter(medecin => {
-        const frequenceRequise = medecin.frequence_visite || 1;
-        return medecin.visites_ce_mois < frequenceRequise;
+      const filteredResults = results.filter(doctor => {
+        const frequenceRequise = doctor.frequence_visite || 1;
+        return doctor.visites_ce_mois < frequenceRequise;
       });
       
-      console.log('Calculated indice retour for medecins (filtered):', filteredResults);
+      console.log('Calculated indice retour for doctors (filtered):', filteredResults);
       return filteredResults;
     },
-    enabled: !!rawMedecins.length && !!currentDelegue?.id
+    enabled: !!rawDoctors.length && !!currentDelegate?.id
   });
 
   // Mutation to record a visit
   const recordVisitMutation = useMutation({
-    mutationFn: async (medecinId: string) => {
-      if (!currentDelegue?.id) throw new Error('No delegue found');
+    mutationFn: async (doctorId: string) => {
+      if (!currentDelegate?.id) throw new Error('No delegate found');
 
       const today = new Date().toISOString().split('T')[0];
 
-      // First, find the objectif_visite_id for this medecin and delegue
-      const { data: objectifVisite, error: objectifError } = await supabase
-        .from('frequences_visites')
+      // First, find the visit_objective_id for this doctor and delegate
+      const { data: visitObjective, error: objectifError } = await supabase
+        .from('visit_frequencies')
         .select('id')
-        .eq('medecin_id', medecinId)
-        .eq('delegue_id', currentDelegue.id)
+        .eq('doctor_id', doctorId)
+        .eq('delegate_id', currentDelegate.id)
         .single();
 
       if (objectifError) throw objectifError;
 
       const { error } = await supabase
-        .from('visites')
+        .from('visits')
         .insert({
-          objectif_visite_id: objectifVisite.id,
-          date_visite: today
+          visit_objective_id: visitObjective.id,
+          visit_date: today
         });
 
       if (error) throw error;
     },
-    onSuccess: (_, medecinId) => {
+    onSuccess: (_, doctorId) => {
       // Add to swiped rows to show visual feedback
-      setSwipedRows(prev => new Set(prev).add(medecinId));
+      setSwipedRows(prev => new Set(prev).add(doctorId));
       
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['medecins-with-indice'] });
+      queryClient.invalidateQueries({ queryKey: ['doctors-with-indice'] });
       queryClient.invalidateQueries({ queryKey: ['total-visits-year'] });
       
       toast.success('Visite enregistrée avec succès!');
@@ -324,7 +324,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       setTimeout(() => {
         setSwipedRows(prev => {
           const newSet = new Set(prev);
-          newSet.delete(medecinId);
+          newSet.delete(doctorId);
           return newSet;
         });
       }, 2000);
@@ -335,13 +335,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     }
   });
 
-  const medecins: Medecin[] = medecinsWithIndice;
+  const doctors: Doctor[] = doctorsWithIndice;
 
   // Log data for debugging
-  console.log('Current medecins with indice retour:', medecins);
+  console.log('Current doctors with indice retour:', doctors);
   console.log('Is loading:', isLoading);
   console.log('Error:', error);
-  console.log('Current delegue:', currentDelegue);
+  console.log('Current delegate:', currentDelegate);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -369,20 +369,20 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     }
   };
 
-  const filteredMedecins = medecins.filter(medecin => {
-    const fullName = `${medecin.prenom} ${medecin.nom}`.toLowerCase();
+  const filteredDoctors = doctors.filter(doctor => {
+    const fullName = `${doctor.first_name} ${doctor.name}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
-    const matchesSpecialty = selectedSpecialty === 'all' || medecin.specialite === selectedSpecialty;
-    const matchesBrick = selectedBrick === 'all' || medecin.bricks?.nom === selectedBrick;
-    return matchesSearch && matchesSpecialty && matchesBrick;
+    const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
+    const matchesTerritory = selectedTerritory === 'all' || doctor.territories?.name === selectedTerritory;
+    return matchesSearch && matchesSpecialty && matchesTerritory;
   });
 
   // Calculate global index with new formula: n/f where
-  // n = total visits by current delegue in current year
-  // f = sum of (frequence_visite * current month number) for all associated medecins
+  // n = total visits by current delegate in current year
+  // f = sum of (visit_frequency * current month number) for all associated doctors
   const currentMonth = new Date().getMonth() + 1;
-  const totalExpectedVisits = rawMedecins.reduce((sum, medecin) => {
-    const frequence = medecin.frequences_visites[0]?.frequence_visite || 1;
+  const totalExpectedVisits = rawDoctors.reduce((sum, doctor) => {
+    const frequence = doctor.visit_frequencies[0]?.visit_frequency || 1;
     return sum + (frequence * currentMonth);
   }, 0);
   
@@ -390,13 +390,13 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     ? Math.round((totalVisitesAnnee / totalExpectedVisits) * 100)
     : 0;
 
-  // Get unique specialties and bricks for filters
-  const specialties = [...new Set(medecins.map(m => m.specialite).filter(Boolean))];
-  const bricks = [...new Set(medecins.map(m => m.bricks?.nom).filter(Boolean))];
+  // Get unique specialties and territories for filters
+  const specialties = [...new Set(doctors.map(d => d.specialty).filter(Boolean))];
+  const territories = [...new Set(doctors.map(d => d.territories?.name).filter(Boolean))];
 
   // Handle swipe gesture
-  const handleSwipe = (medecinId: string) => {
-    recordVisitMutation.mutate(medecinId);
+  const handleSwipe = (doctorId: string) => {
+    recordVisitMutation.mutate(doctorId);
   };
 
   if (activeTab === 'rapport') {
@@ -425,7 +425,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
     );
   }
 
-  if (!currentDelegue) {
+  if (!currentDelegate) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
@@ -453,7 +453,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                   <p className="text-sm text-gray-600">
-                    {filteredMedecins.length} médecins nécessitant des visites ce mois - Délégué: {currentDelegue?.prenom} {currentDelegue?.nom}
+                    {filteredDoctors.length} médecins nécessitant des visites ce mois - Délégué: {currentDelegate?.first_name} {currentDelegate?.name}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
                     💡 Glissez une ligne vers la droite pour enregistrer une visite aujourd'hui
@@ -520,15 +520,15 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Brick</label>
-                <Select value={selectedBrick} onValueChange={setSelectedBrick}>
+                <label className="text-sm font-medium text-gray-700">Territoire</label>
+                <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Tous les bricks" />
+                    <SelectValue placeholder="Tous les territoires" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les bricks</SelectItem>
-                    {bricks.map(brick => (
-                      <SelectItem key={brick} value={brick!}>{brick}</SelectItem>
+                    <SelectItem value="all">Tous les territoires</SelectItem>
+                    {territories.map(territory => (
+                      <SelectItem key={territory} value={territory!}>{territory}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -538,11 +538,11 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
         </Card>
 
         {/* Debug Information */}
-        {medecins.length === 0 && currentDelegue && (
+        {doctors.length === 0 && currentDelegate && (
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Aucun médecin nécessitant des visites ce mois pour ce délégué ({currentDelegue.prenom} {currentDelegue.nom}). 
+                Aucun médecin nécessitant des visites ce mois pour ce délégué ({currentDelegate.first_name} {currentDelegate.name}). 
                 Tous les médecins ont atteint leur fréquence de visite pour ce mois.
               </p>
             </CardContent>
@@ -555,14 +555,14 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
             <CardTitle className="text-lg text-gray-900">Médecins nécessitant des visites ce mois</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredMedecins.length === 0 ? (
+            {filteredDoctors.length === 0 ? (
               <div className="text-center py-12">
                 <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {medecins.length === 0 ? 'Aucun médecin nécessitant des visites' : 'Aucun médecin trouvé'}
+                  {doctors.length === 0 ? 'Aucun médecin nécessitant des visites' : 'Aucun médecin trouvé'}
                 </h3>
                 <p className="text-gray-600">
-                  {medecins.length === 0 
+                  {doctors.length === 0 
                     ? 'Tous les médecins ont atteint leur fréquence de visite pour ce mois.'
                     : 'Essayez de modifier vos critères de recherche.'
                   }
@@ -575,23 +575,23 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Nom</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Spécialité</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Territoire</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Fréquence de visites</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Visites à faire</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMedecins.map((medecin) => {
-                      const frequenceRequise = medecin.frequence_visite || 1;
-                      const visitesRestantes = frequenceRequise - medecin.visites_ce_mois;
+                    {filteredDoctors.map((doctor) => {
+                      const frequenceRequise = doctor.frequence_visite || 1;
+                      const visitesRestantes = frequenceRequise - doctor.visites_ce_mois;
                       
                       return (
                         <tr 
-                          key={medecin.id} 
-                          className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative ${getStatusColor(medecin.status)} border-2 ${
-                            swipedRows.has(medecin.id) ? 'bg-green-50 border-green-300' : ''
+                          key={doctor.id} 
+                          className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer relative ${getStatusColor(doctor.status)} border-2 ${
+                            swipedRows.has(doctor.id) ? 'bg-green-50 border-green-300' : ''
                           }`}
-                          onClick={() => handleSwipe(medecin.id)}
+                          onClick={() => handleSwipe(doctor.id)}
                           style={{
                             touchAction: 'pan-y'
                           }}
@@ -606,7 +606,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                             const diff = endX - startX;
                             
                             if (diff > 100) { // Swipe right threshold
-                              handleSwipe(medecin.id);
+                              handleSwipe(doctor.id);
                             }
                           }}
                         >
@@ -615,10 +615,10 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                               <div className="p-2 bg-gradient-to-r from-purple-100 to-purple-200 rounded-lg">
                                 <Stethoscope className="h-4 w-4 text-purple-600" />
                               </div>
-                              <span className={`font-medium ${getStatusTextColor(medecin.status)}`}>
-                                {medecin.prenom} {medecin.nom}
+                              <span className={`font-medium ${getStatusTextColor(doctor.status)}`}>
+                                {doctor.first_name} {doctor.name}
                               </span>
-                              {swipedRows.has(medecin.id) && (
+                              {swipedRows.has(doctor.id) && (
                                 <div className="flex items-center space-x-1 text-green-600">
                                   <Check className="h-4 w-4" />
                                   <span className="text-sm font-medium">Visite enregistrée</span>
@@ -626,21 +626,21 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
                               )}
                             </div>
                           </td>
-                          <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
-                            {medecin.specialite || 'Non renseigné'}
+                          <td className={`py-4 px-4 ${getStatusTextColor(doctor.status)}`}>
+                            {doctor.specialty || 'Non renseigné'}
                           </td>
                           <td className="py-4 px-4">
-                            <div className={`flex items-center space-x-2 ${getStatusTextColor(medecin.status)}`}>
+                            <div className={`flex items-center space-x-2 ${getStatusTextColor(doctor.status)}`}>
                               <MapPin className="h-4 w-4" />
-                              <span>{medecin.bricks?.nom || 'Non assigné'}</span>
+                              <span>{doctor.territories?.name || 'Non assigné'}</span>
                             </div>
                           </td>
-                          <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                          <td className={`py-4 px-4 ${getStatusTextColor(doctor.status)}`}>
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
                               {frequenceRequise} / mois
                             </span>
                           </td>
-                          <td className={`py-4 px-4 ${getStatusTextColor(medecin.status)}`}>
+                          <td className={`py-4 px-4 ${getStatusTextColor(doctor.status)}`}>
                             <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-sm font-medium">
                               {visitesRestantes}
                             </span>
