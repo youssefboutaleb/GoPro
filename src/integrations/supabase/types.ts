@@ -225,6 +225,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_plans_delegate_id_fkey"
+            columns: ["delegate_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -250,19 +257,19 @@ export type Database = {
       }
       visit_plans: {
         Row: {
-          delegate_id: string | null
+          delegate_id: string
           doctor_id: string | null
           id: string
           visit_frequency: Database["public"]["Enums"]["visit_frequency"]
         }
         Insert: {
-          delegate_id?: string | null
+          delegate_id: string
           doctor_id?: string | null
           id?: string
           visit_frequency: Database["public"]["Enums"]["visit_frequency"]
         }
         Update: {
-          delegate_id?: string | null
+          delegate_id?: string
           doctor_id?: string | null
           id?: string
           visit_frequency?: Database["public"]["Enums"]["visit_frequency"]
@@ -273,6 +280,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_plans_delegate_id_fkey"
+            columns: ["delegate_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
