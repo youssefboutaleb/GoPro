@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -190,26 +192,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signOut = async () => {
+    // Prevent multiple simultaneous sign out attempts
+    if (isSigningOut) {
+      console.log('Sign out already in progress, ignoring duplicate call');
+      return;
+    }
+
     try {
+      setIsSigningOut(true);
       console.log('Signing out user...');
       
-      // Clear state immediately to provide instant feedback
-      clearAuthState();
-      setLoading(true);
-      
-      // Then call the actual sign out
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Error signing out:', error);
-        // Don't throw the error, just log it since we've already cleared the state
+        // Reset the flag on error so user can try again
+        setIsSigningOut(false);
       } else {
         console.log('Successfully signed out');
       }
     } catch (error) {
       console.error('Error in signOut:', error);
-    } finally {
-      setLoading(false);
+      setIsSigningOut(false);
     }
   };
 
@@ -228,3 +232,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
