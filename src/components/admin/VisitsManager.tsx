@@ -12,17 +12,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type Visit = Database['public']['Tables']['visites']['Row'] & {
-  frequences_visites?: {
-    delegue?: { nom: string; prenom: string };
-    medecin?: { nom: string; prenom: string };
+type Visit = Database['public']['Tables']['visits']['Row'] & {
+  visit_frequencies?: {
+    delegates?: { name: string; first_name: string };
+    doctors?: { name: string; first_name: string };
   };
 };
-type Delegue = Database['public']['Tables']['delegues']['Row'];
-type Medecin = Database['public']['Tables']['medecins']['Row'];
-type FrequenceVisite = Database['public']['Tables']['frequences_visites']['Row'] & {
-  delegue?: { nom: string; prenom: string };
-  medecin?: { nom: string; prenom: string };
+type Delegate = Database['public']['Tables']['delegates']['Row'];
+type Doctor = Database['public']['Tables']['doctors']['Row'];
+type VisitFrequency = Database['public']['Tables']['visit_frequencies']['Row'] & {
+  delegates?: { name: string; first_name: string };
+  doctors?: { name: string; first_name: string };
 };
 
 interface VisitsManagerProps {
@@ -31,15 +31,15 @@ interface VisitsManagerProps {
 
 const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [delegues, setDelegues] = useState<Delegue[]>([]);
-  const [medecins, setMedecins] = useState<Medecin[]>([]);
-  const [frequencesVisites, setFrequencesVisites] = useState<FrequenceVisite[]>([]);
+  const [delegates, setDelegates] = useState<Delegate[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [visitFrequencies, setVisitFrequencies] = useState<VisitFrequency[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
   const [formData, setFormData] = useState({
-    date_visite: '',
-    objectif_visite_id: '',
+    visit_date: '',
+    visit_objective_id: '',
   });
 
   useEffect(() => {
@@ -50,50 +50,50 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     try {
       // Fetch visits with related data using the new structure
       const { data: visitsData, error: visitsError } = await supabase
-        .from('visites')
+        .from('visits')
         .select(`
           *,
-          frequences_visites:objectif_visite_id(
-            delegue:delegue_id(nom, prenom),
-            medecin:medecin_id(nom, prenom)
+          visit_frequencies:visit_objective_id(
+            delegates:delegate_id(name, first_name),
+            doctors:doctor_id(name, first_name)
           )
         `)
-        .order('date_visite', { ascending: false });
+        .order('visit_date', { ascending: false });
 
       if (visitsError) throw visitsError;
 
-      // Fetch delegues
-      const { data: deleguesData, error: deleguesError } = await supabase
-        .from('delegues')
+      // Fetch delegates
+      const { data: delegatesData, error: delegatesError } = await supabase
+        .from('delegates')
         .select('*')
-        .order('nom', { ascending: true });
+        .order('name', { ascending: true });
 
-      if (deleguesError) throw deleguesError;
+      if (delegatesError) throw delegatesError;
 
-      // Fetch medecins
-      const { data: medecinsData, error: medecinsError } = await supabase
-        .from('medecins')
+      // Fetch doctors
+      const { data: doctorsData, error: doctorsError } = await supabase
+        .from('doctors')
         .select('*')
-        .order('nom', { ascending: true });
+        .order('name', { ascending: true });
 
-      if (medecinsError) throw medecinsError;
+      if (doctorsError) throw doctorsError;
 
-      // Fetch frequences_visites with related delegue and medecin data
-      const { data: frequencesVisitesData, error: frequencesVisitesError } = await supabase
-        .from('frequences_visites')
+      // Fetch visit_frequencies with related delegate and doctor data
+      const { data: visitFrequenciesData, error: visitFrequenciesError } = await supabase
+        .from('visit_frequencies')
         .select(`
           *,
-          delegue:delegue_id(nom, prenom),
-          medecin:medecin_id(nom, prenom)
+          delegates:delegate_id(name, first_name),
+          doctors:doctor_id(name, first_name)
         `)
         .order('id', { ascending: true });
 
-      if (frequencesVisitesError) throw frequencesVisitesError;
+      if (visitFrequenciesError) throw visitFrequenciesError;
 
       setVisits(visitsData || []);
-      setDelegues(deleguesData || []);
-      setMedecins(medecinsData || []);
-      setFrequencesVisites(frequencesVisitesData || []);
+      setDelegates(delegatesData || []);
+      setDoctors(doctorsData || []);
+      setVisitFrequencies(visitFrequenciesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -109,7 +109,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.date_visite || !formData.objectif_visite_id) {
+    if (!formData.visit_date || !formData.visit_objective_id) {
       toast({
         title: "Erreur",
         description: "Tous les champs sont requis",
@@ -122,13 +122,13 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
     try {
       const submitData = {
-        date_visite: formData.date_visite,
-        objectif_visite_id: formData.objectif_visite_id,
+        visit_date: formData.visit_date,
+        visit_objective_id: formData.visit_objective_id,
       };
 
       if (editingVisit) {
         const { error } = await supabase
-          .from('visites')
+          .from('visits')
           .update(submitData)
           .eq('id', editingVisit.id);
 
@@ -140,7 +140,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
         });
       } else {
         const { error } = await supabase
-          .from('visites')
+          .from('visits')
           .insert([submitData]);
 
         if (error) throw error;
@@ -153,7 +153,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       setDialogOpen(false);
       setEditingVisit(null);
-      setFormData({ date_visite: '', objectif_visite_id: '' });
+      setFormData({ visit_date: '', visit_objective_id: '' });
       await fetchData();
     } catch (error) {
       console.error('Error saving visit:', error);
@@ -171,7 +171,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     if (confirm(`Êtes-vous sûr de vouloir supprimer cette visite ?`)) {
       try {
         const { error } = await supabase
-          .from('visites')
+          .from('visits')
           .delete()
           .eq('id', visit.id);
 
@@ -196,15 +196,15 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const openEditDialog = (visit: Visit) => {
     setEditingVisit(visit);
     setFormData({
-      date_visite: visit.date_visite,
-      objectif_visite_id: visit.objectif_visite_id || '',
+      visit_date: visit.visit_date,
+      visit_objective_id: visit.visit_objective_id || '',
     });
     setDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingVisit(null);
-    setFormData({ date_visite: '', objectif_visite_id: '' });
+    setFormData({ visit_date: '', visit_objective_id: '' });
     setDialogOpen(true);
   };
 
@@ -259,25 +259,25 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="date_visite">Date de visite</Label>
+                      <Label htmlFor="visit_date">Date de visite</Label>
                       <Input
-                        id="date_visite"
+                        id="visit_date"
                         type="date"
-                        value={formData.date_visite}
-                        onChange={(e) => setFormData({ ...formData, date_visite: e.target.value })}
+                        value={formData.visit_date}
+                        onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="objectif_visite_id">Fréquence de visite</Label>
-                      <Select value={formData.objectif_visite_id} onValueChange={(value) => setFormData({ ...formData, objectif_visite_id: value })}>
+                      <Label htmlFor="visit_objective_id">Fréquence de visite</Label>
+                      <Select value={formData.visit_objective_id} onValueChange={(value) => setFormData({ ...formData, visit_objective_id: value })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionner une fréquence de visite" />
                         </SelectTrigger>
                         <SelectContent>
-                          {frequencesVisites.map((frequence) => (
-                            <SelectItem key={frequence.id} value={frequence.id}>
-                              {frequence.delegue?.prenom} {frequence.delegue?.nom} - Dr. {frequence.medecin?.prenom} {frequence.medecin?.nom}
+                          {visitFrequencies.map((frequency) => (
+                            <SelectItem key={frequency.id} value={frequency.id}>
+                              {frequency.delegates?.first_name} {frequency.delegates?.name} - Dr. {frequency.doctors?.first_name} {frequency.doctors?.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -315,16 +315,16 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                       <TableCell className="font-medium">
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4 text-gray-500" />
-                          <span>{formatDate(visit.date_visite)}</span>
+                          <span>{formatDate(visit.visit_date)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {visit.frequences_visites?.delegue ? 
-                          `${visit.frequences_visites.delegue.prenom} ${visit.frequences_visites.delegue.nom}` : 'N/A'}
+                        {visit.visit_frequencies?.delegates ? 
+                          `${visit.visit_frequencies.delegates.first_name} ${visit.visit_frequencies.delegates.name}` : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        {visit.frequences_visites?.medecin ? 
-                          `Dr. ${visit.frequences_visites.medecin.prenom} ${visit.frequences_visites.medecin.nom}` : 'N/A'}
+                        {visit.visit_frequencies?.doctors ? 
+                          `Dr. ${visit.visit_frequencies.doctors.first_name} ${visit.visit_frequencies.doctors.name}` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">

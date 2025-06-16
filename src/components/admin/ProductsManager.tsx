@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type Product = Database['public']['Tables']['produits']['Row'];
+type Product = Database['public']['Tables']['products']['Row'];
 
 interface ProductsManagerProps {
   onBack: () => void;
@@ -24,9 +24,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
-    nom: '',
-    classe_therapeutique: '',
-    actif: true,
+    name: '',
+    therapeutic_class: '',
+    active: true,
   });
 
   useEffect(() => {
@@ -36,9 +36,9 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
-        .from('produits')
+        .from('products')
         .select('*')
-        .order('nom', { ascending: true });
+        .order('name', { ascending: true });
 
       if (error) throw error;
       setProducts(data || []);
@@ -57,7 +57,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nom.trim()) {
+    if (!formData.name.trim()) {
       toast({
         title: "Erreur",
         description: "Le nom du produit est requis",
@@ -70,14 +70,14 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
 
     try {
       const submitData = {
-        nom: formData.nom.trim(),
-        classe_therapeutique: formData.classe_therapeutique.trim() || null,
-        actif: formData.actif,
+        name: formData.name.trim(),
+        therapeutic_class: formData.therapeutic_class.trim() || null,
+        active: formData.active,
       };
 
       if (editingProduct) {
         const { error } = await supabase
-          .from('produits')
+          .from('products')
           .update(submitData)
           .eq('id', editingProduct.id);
 
@@ -89,7 +89,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
         });
       } else {
         const { error } = await supabase
-          .from('produits')
+          .from('products')
           .insert([submitData]);
 
         if (error) throw error;
@@ -102,7 +102,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
 
       setDialogOpen(false);
       setEditingProduct(null);
-      setFormData({ nom: '', classe_therapeutique: '', actif: true });
+      setFormData({ name: '', therapeutic_class: '', active: true });
       await fetchProducts();
     } catch (error) {
       console.error('Error saving product:', error);
@@ -117,10 +117,10 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   };
 
   const handleDelete = async (product: Product) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer le produit "${product.nom}" ?`)) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer le produit "${product.name}" ?`)) {
       try {
         const { error } = await supabase
-          .from('produits')
+          .from('products')
           .delete()
           .eq('id', product.id);
 
@@ -145,16 +145,16 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
     setFormData({
-      nom: product.nom,
-      classe_therapeutique: product.classe_therapeutique || '',
-      actif: product.actif ?? true,
+      name: product.name,
+      therapeutic_class: product.therapeutic_class || '',
+      active: product.active ?? true,
     });
     setDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingProduct(null);
-    setFormData({ nom: '', classe_therapeutique: '', actif: true });
+    setFormData({ name: '', therapeutic_class: '', active: true });
     setDialogOpen(true);
   };
 
@@ -205,31 +205,31 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="nom">Nom du produit</Label>
+                      <Label htmlFor="name">Nom du produit</Label>
                       <Input
-                        id="nom"
-                        value={formData.nom}
-                        onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="Ex: Aspirine"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="classe_therapeutique">Classe thérapeutique</Label>
+                      <Label htmlFor="therapeutic_class">Classe thérapeutique</Label>
                       <Input
-                        id="classe_therapeutique"
-                        value={formData.classe_therapeutique}
-                        onChange={(e) => setFormData({ ...formData, classe_therapeutique: e.target.value })}
+                        id="therapeutic_class"
+                        value={formData.therapeutic_class}
+                        onChange={(e) => setFormData({ ...formData, therapeutic_class: e.target.value })}
                         placeholder="Ex: Antalgique"
                       />
                     </div>
                     <div className="flex items-center space-x-2">
                       <Switch
-                        id="actif"
-                        checked={formData.actif}
-                        onCheckedChange={(checked) => setFormData({ ...formData, actif: checked })}
+                        id="active"
+                        checked={formData.active}
+                        onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
                       />
-                      <Label htmlFor="actif">Produit actif</Label>
+                      <Label htmlFor="active">Produit actif</Label>
                     </div>
                     <div className="flex justify-end space-x-2">
                       <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
@@ -260,15 +260,15 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {products.map((product) => (
                     <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.nom}</TableCell>
-                      <TableCell>{product.classe_therapeutique || 'N/A'}</TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.therapeutic_class || 'N/A'}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs ${
-                          product.actif 
+                          product.active 
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {product.actif ? 'Actif' : 'Inactif'}
+                          {product.active ? 'Actif' : 'Inactif'}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
