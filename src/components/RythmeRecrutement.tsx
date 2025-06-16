@@ -12,23 +12,14 @@ interface RythmeRecrutementProps {
   onBack: () => void;
 }
 
-interface DelegateInfo {
+interface UserInfo {
   id: string;
-  name: string;
-  first_name: string;
-  sector_id: string | null;
-  team_id: string | null;
+  role: string;
   created_at: string | null;
-  sectors?: {
-    name: string;
-  };
-  supervisors?: {
-    name: string;
-  };
 }
 
 interface RecruitmentMetrics {
-  totalDelegates: number;
+  totalUsers: number;
   newThisMonth: number;
   newThisQuarter: number;
   performanceRating: number;
@@ -37,38 +28,24 @@ interface RecruitmentMetrics {
 
 const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
-  const [selectedSector, setSelectedSector] = useState('all');
 
-  const { data: delegates = [], isLoading, error } = useQuery({
-    queryKey: ['delegates_recruitment'],
+  const { data: users = [], isLoading, error } = useQuery({
+    queryKey: ['users_recruitment'],
     queryFn: async () => {
-      console.log('Fetching delegates for recruitment analysis...');
+      console.log('Fetching users for recruitment analysis...');
       
       const { data, error } = await supabase
-        .from('delegates')
-        .select(`
-          id,
-          name,
-          first_name,
-          sector_id,
-          team_id,
-          created_at,
-          sectors:sector_id (
-            name
-          ),
-          supervisors:team_id (
-            name
-          )
-        `)
+        .from('profiles')
+        .select('id, role, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching delegates:', error);
+        console.error('Error fetching users:', error);
         throw error;
       }
 
-      console.log('Fetched delegates:', data);
-      return data as DelegateInfo[];
+      console.log('Fetched users:', data);
+      return data as UserInfo[];
     }
   });
 
@@ -78,38 +55,33 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     
-    // Filter by sector if selected
-    const filteredDelegates = selectedSector === 'all' 
-      ? delegates 
-      : delegates.filter(d => d.sectors?.name === selectedSector);
-
-    const totalDelegates = filteredDelegates.length;
+    const totalUsers = users.length;
     
-    // New delegates this month
-    const newThisMonth = filteredDelegates.filter(delegate => {
-      if (!delegate.created_at) return false;
-      const createdDate = new Date(delegate.created_at);
+    // New users this month
+    const newThisMonth = users.filter(user => {
+      if (!user.created_at) return false;
+      const createdDate = new Date(user.created_at);
       return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
     }).length;
 
-    // New delegates this quarter
+    // New users this quarter
     const quarterStart = Math.floor(currentMonth / 3) * 3;
-    const newThisQuarter = filteredDelegates.filter(delegate => {
-      if (!delegate.created_at) return false;
-      const createdDate = new Date(delegate.created_at);
-      const delegateMonth = createdDate.getMonth();
-      return delegateMonth >= quarterStart && delegateMonth <= currentMonth && 
+    const newThisQuarter = users.filter(user => {
+      if (!user.created_at) return false;
+      const createdDate = new Date(user.created_at);
+      const userMonth = createdDate.getMonth();
+      return userMonth >= quarterStart && userMonth <= currentMonth && 
              createdDate.getFullYear() === currentYear;
     }).length;
 
     // Simple performance rating based on recruitment rate
-    const performanceRating = totalDelegates > 0 ? Math.min(5, Math.ceil((newThisQuarter / totalDelegates) * 100)) : 0;
+    const performanceRating = totalUsers > 0 ? Math.min(5, Math.ceil((newThisQuarter / totalUsers) * 100)) : 0;
     
     // Trend calculation (simplified)
     const trend: 'up' | 'down' | 'stable' = newThisMonth > 2 ? 'up' : newThisMonth === 0 ? 'down' : 'stable';
 
     return {
-      totalDelegates,
+      totalUsers,
       newThisMonth,
       newThisQuarter,
       performanceRating,
@@ -119,41 +91,33 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
 
   const metrics = calculateMetrics();
 
-  // Get unique sectors for filter
-  const sectors = [...new Set(delegates.map(d => d.sectors?.name).filter(Boolean))];
-
-  // Filter delegates based on selected period and sector
-  const getFilteredDelegates = () => {
+  // Filter users based on selected period
+  const getFilteredUsers = () => {
     const now = new Date();
-    let filteredByTime = delegates;
+    let filteredByTime = users;
 
     if (selectedPeriod === 'month') {
-      filteredByTime = delegates.filter(delegate => {
-        if (!delegate.created_at) return false;
-        const createdDate = new Date(delegate.created_at);
+      filteredByTime = users.filter(user => {
+        if (!user.created_at) return false;
+        const createdDate = new Date(user.created_at);
         return createdDate.getMonth() === now.getMonth() && 
                createdDate.getFullYear() === now.getFullYear();
       });
     } else if (selectedPeriod === 'quarter') {
       const quarterStart = Math.floor(now.getMonth() / 3) * 3;
-      filteredByTime = delegates.filter(delegate => {
-        if (!delegate.created_at) return false;
-        const createdDate = new Date(delegate.created_at);
-        const delegateMonth = createdDate.getMonth();
-        return delegateMonth >= quarterStart && delegateMonth <= now.getMonth() && 
+      filteredByTime = users.filter(user => {
+        if (!user.created_at) return false;
+        const createdDate = new Date(user.created_at);
+        const userMonth = createdDate.getMonth();
+        return userMonth >= quarterStart && userMonth <= now.getMonth() && 
                createdDate.getFullYear() === now.getFullYear();
       });
-    }
-
-    // Filter by sector
-    if (selectedSector !== 'all') {
-      filteredByTime = filteredByTime.filter(d => d.sectors?.name === selectedSector);
     }
 
     return filteredByTime;
   };
 
-  const filteredDelegates = getFilteredDelegates();
+  const filteredUsers = getFilteredUsers();
 
   if (isLoading) {
     return (
@@ -193,7 +157,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Recruitment Rhythm</h1>
-                  <p className="text-sm text-gray-600">Delegate recruitment analysis and trends</p>
+                  <p className="text-sm text-gray-600">User recruitment analysis and trends</p>
                 </div>
               </div>
             </div>
@@ -208,17 +172,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                   <SelectItem value="year">This Year</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={selectedSector} onValueChange={setSelectedSector}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All sectors" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sectors</SelectItem>
-                  {sectors.map(sector => (
-                    <SelectItem key={sector} value={sector!}>{sector}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
@@ -229,13 +182,13 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Delegates</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalDelegates}</div>
+              <div className="text-2xl font-bold">{metrics.totalUsers}</div>
               <p className="text-xs text-muted-foreground">
-                Active delegates
+                Active users
               </p>
             </CardContent>
           </Card>
@@ -307,40 +260,36 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredDelegates.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No recruits found</h3>
-                <p className="text-gray-600">No new delegates for the selected period and sector.</p>
+                <p className="text-gray-600">No new users for the selected period.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Sector</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Team</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Recruitment Date</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">User ID</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Role</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Registration Date</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDelegates.map((delegate) => (
-                      <tr key={delegate.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="py-4 px-4">
                           <div className="font-medium text-gray-900">
-                            {delegate.first_name} {delegate.name}
+                            {user.id.substring(0, 8)}...
                           </div>
                         </td>
                         <td className="py-4 px-4 text-gray-600">
-                          {delegate.sectors?.name || 'Not assigned'}
-                        </td>
-                        <td className="py-4 px-4 text-gray-600">
-                          {delegate.supervisors?.name || 'Not assigned'}
+                          {user.role}
                         </td>
                         <td className="py-4 px-4 text-center text-gray-600">
-                          {delegate.created_at ? new Date(delegate.created_at).toLocaleDateString() : 'N/A'}
+                          {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                         </td>
                         <td className="py-4 px-4 text-center">
                           <Badge className="bg-blue-100 text-blue-800">

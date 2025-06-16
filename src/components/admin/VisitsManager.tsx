@@ -13,16 +13,13 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Visit = Database['public']['Tables']['visits']['Row'] & {
-  visit_frequencies?: {
-    delegates?: { name: string; first_name: string };
-    doctors?: { name: string; first_name: string };
+  visit_plans?: {
+    doctors?: { last_name: string; first_name: string };
   };
 };
-type Delegate = Database['public']['Tables']['delegates']['Row'];
 type Doctor = Database['public']['Tables']['doctors']['Row'];
-type VisitFrequency = Database['public']['Tables']['visit_frequencies']['Row'] & {
-  delegates?: { name: string; first_name: string };
-  doctors?: { name: string; first_name: string };
+type VisitPlan = Database['public']['Tables']['visit_plans']['Row'] & {
+  doctors?: { last_name: string; first_name: string };
 };
 
 interface VisitsManagerProps {
@@ -31,15 +28,14 @@ interface VisitsManagerProps {
 
 const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [delegates, setDelegates] = useState<Delegate[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [visitFrequencies, setVisitFrequencies] = useState<VisitFrequency[]>([]);
+  const [visitPlans, setVisitPlans] = useState<VisitPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
   const [formData, setFormData] = useState({
     visit_date: '',
-    visit_objective_id: '',
+    visit_plan_id: '',
   });
 
   useEffect(() => {
@@ -53,47 +49,36 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
         .from('visits')
         .select(`
           *,
-          visit_frequencies:visit_objective_id(
-            delegates:delegate_id(name, first_name),
-            doctors:doctor_id(name, first_name)
+          visit_plans:visit_plan_id(
+            doctors:doctor_id(last_name, first_name)
           )
         `)
         .order('visit_date', { ascending: false });
 
       if (visitsError) throw visitsError;
 
-      // Fetch delegates
-      const { data: delegatesData, error: delegatesError } = await supabase
-        .from('delegates')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (delegatesError) throw delegatesError;
-
       // Fetch doctors
       const { data: doctorsData, error: doctorsError } = await supabase
         .from('doctors')
         .select('*')
-        .order('name', { ascending: true });
+        .order('last_name', { ascending: true });
 
       if (doctorsError) throw doctorsError;
 
-      // Fetch visit_frequencies with related delegate and doctor data
-      const { data: visitFrequenciesData, error: visitFrequenciesError } = await supabase
-        .from('visit_frequencies')
+      // Fetch visit_plans with related doctor data
+      const { data: visitPlansData, error: visitPlansError } = await supabase
+        .from('visit_plans')
         .select(`
           *,
-          delegates:delegate_id(name, first_name),
-          doctors:doctor_id(name, first_name)
+          doctors:doctor_id(last_name, first_name)
         `)
         .order('id', { ascending: true });
 
-      if (visitFrequenciesError) throw visitFrequenciesError;
+      if (visitPlansError) throw visitPlansError;
 
       setVisits(visitsData || []);
-      setDelegates(delegatesData || []);
       setDoctors(doctorsData || []);
-      setVisitFrequencies(visitFrequenciesData || []);
+      setVisitPlans(visitPlansData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -109,7 +94,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.visit_date || !formData.visit_objective_id) {
+    if (!formData.visit_date || !formData.visit_plan_id) {
       toast({
         title: "Erreur",
         description: "Tous les champs sont requis",
@@ -123,7 +108,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     try {
       const submitData = {
         visit_date: formData.visit_date,
-        visit_objective_id: formData.visit_objective_id,
+        visit_plan_id: formData.visit_plan_id,
       };
 
       if (editingVisit) {
@@ -153,7 +138,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       setDialogOpen(false);
       setEditingVisit(null);
-      setFormData({ visit_date: '', visit_objective_id: '' });
+      setFormData({ visit_date: '', visit_plan_id: '' });
       await fetchData();
     } catch (error) {
       console.error('Error saving visit:', error);
@@ -197,14 +182,14 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     setEditingVisit(visit);
     setFormData({
       visit_date: visit.visit_date,
-      visit_objective_id: visit.visit_objective_id || '',
+      visit_plan_id: visit.visit_plan_id || '',
     });
     setDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingVisit(null);
-    setFormData({ visit_date: '', visit_objective_id: '' });
+    setFormData({ visit_date: '', visit_plan_id: '' });
     setDialogOpen(true);
   };
 
@@ -269,15 +254,15 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="visit_objective_id">Fréquence de visite</Label>
-                      <Select value={formData.visit_objective_id} onValueChange={(value) => setFormData({ ...formData, visit_objective_id: value })}>
+                      <Label htmlFor="visit_plan_id">Plan de visite</Label>
+                      <Select value={formData.visit_plan_id} onValueChange={(value) => setFormData({ ...formData, visit_plan_id: value })}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une fréquence de visite" />
+                          <SelectValue placeholder="Sélectionner un plan de visite" />
                         </SelectTrigger>
                         <SelectContent>
-                          {visitFrequencies.map((frequency) => (
-                            <SelectItem key={frequency.id} value={frequency.id}>
-                              {frequency.delegates?.first_name} {frequency.delegates?.name} - Dr. {frequency.doctors?.first_name} {frequency.doctors?.name}
+                          {visitPlans.map((plan) => (
+                            <SelectItem key={plan.id} value={plan.id}>
+                              Dr. {plan.doctors?.first_name} {plan.doctors?.last_name} - Fréquence: {plan.visit_frequency}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -304,7 +289,6 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Délégué</TableHead>
                     <TableHead>Médecin</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -319,12 +303,8 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {visit.visit_frequencies?.delegates ? 
-                          `${visit.visit_frequencies.delegates.first_name} ${visit.visit_frequencies.delegates.name}` : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        {visit.visit_frequencies?.doctors ? 
-                          `Dr. ${visit.visit_frequencies.doctors.first_name} ${visit.visit_frequencies.doctors.name}` : 'N/A'}
+                        {visit.visit_plans?.doctors ? 
+                          `Dr. ${visit.visit_plans.doctors.first_name} ${visit.visit_plans.doctors.last_name}` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">

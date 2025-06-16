@@ -58,53 +58,52 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
         setLoading(true);
         setError(null);
 
-        console.log('Fetching delegate for user:', user.id);
+        console.log('Fetching user profile for user:', user.id);
 
-        // First, get the current user's delegate record
-        const { data: delegateData, error: delegateError } = await supabase
-          .from('delegates')
-          .select('id')
-          .eq('user_id', user.id)
+        // First, get the current user's profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .eq('id', user.id)
           .maybeSingle();
 
-        if (delegateError) {
-          console.error('Error fetching delegate:', delegateError);
-          setError('Error retrieving delegate data');
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          setError('Error retrieving user profile');
           return;
         }
 
-        if (!delegateData) {
-          console.log('No delegate found for user:', user.id);
-          setError('No delegate found for this user. Please contact administrator to assign a delegate profile.');
+        if (!profileData) {
+          console.log('No profile found for user:', user.id);
+          setError('No profile found for this user. Please contact administrator.');
           return;
         }
 
-        console.log('Delegate found:', delegateData);
+        console.log('Profile found:', profileData);
 
-        // Get all doctors assigned to this delegate with their visit_frequency and specialty using the new table structure
-        const { data: visitFrequencies, error: vfError } = await supabase
-          .from('visit_frequencies')
+        // Get all doctors with their visit_plans using the new table structure
+        const { data: visitPlans, error: vpError } = await supabase
+          .from('visit_plans')
           .select(`
             doctor_id,
             visit_frequency,
             doctors (
               id,
-              name,
+              last_name,
               first_name,
               specialty
             )
-          `)
-          .eq('delegate_id', delegateData.id);
+          `);
 
-        if (vfError) {
-          console.error('Error fetching visit_frequencies:', vfError);
+        if (vpError) {
+          console.error('Error fetching visit_plans:', vpError);
           setError('Error retrieving assigned doctors');
           return;
         }
 
-        console.log('Visit frequencies found:', visitFrequencies);
+        console.log('Visit plans found:', visitPlans);
 
-        // Get all visits for this delegate for the current year using the new table structure
+        // Get all visits for the current year using the new table structure
         const currentYear = new Date().getFullYear();
         const startOfYear = `${currentYear}-01-01`;
         const endOfYear = `${currentYear}-12-31`;
@@ -113,12 +112,10 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
           .from('visits')
           .select(`
             visit_date,
-            visit_frequencies!inner (
-              doctor_id,
-              delegate_id
+            visit_plans!inner (
+              doctor_id
             )
           `)
-          .eq('visit_frequencies.delegate_id', delegateData.id)
           .gte('visit_date', startOfYear)
           .lte('visit_date', endOfYear);
 
@@ -131,8 +128,8 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
         console.log('Visits found:', visitsData);
 
         // Process the data
-        const processedData: DoctorVisitData[] = visitFrequencies?.map(vf => {
-          const doctor = vf.doctors;
+        const processedData: DoctorVisitData[] = visitPlans?.map(vp => {
+          const doctor = vp.doctors;
           if (!doctor) return null;
 
           // Count visits per month for this doctor
@@ -145,7 +142,7 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
           // Count visits
           visitsData?.forEach(visit => {
-            if (visit.visit_frequencies?.doctor_id === vf.doctor_id) {
+            if (visit.visit_plans?.doctor_id === vp.doctor_id) {
               const visitDate = new Date(visit.visit_date);
               const visitMonth = visitDate.getMonth() + 1;
               const monthKey = months.find(m => m.num === visitMonth)?.value;
@@ -157,13 +154,13 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
           // Calculate return index data
           const visitsCompleted = Object.values(visitsPerMonth).reduce((sum, visits) => sum + visits, 0);
-          const frequency = vf.visit_frequency || 1;
+          const frequency = parseInt(vp.visit_frequency) || 1;
           const visitsExpected = frequency * currentMonth;
           const returnIndex = visitsExpected > 0 ? Math.round((visitsCompleted / visitsExpected) * 100) : 0;
 
           return {
-            doctor_id: vf.doctor_id,
-            doctor_name: doctor.name,
+            doctor_id: vp.doctor_id,
+            doctor_name: doctor.last_name,
             doctor_first_name: doctor.first_name,
             doctor_specialty: doctor.specialty,
             visit_frequency: frequency,
