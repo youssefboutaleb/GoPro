@@ -15,16 +15,16 @@ interface ProductsListProps {
 
 interface ProductData {
   id: string;
-  nom: string;
-  classe_therapeutique: string | null;
-  totalVentes: number;
-  totalObjectifs: number;
-  pourcentageObjectif: number;
-  nombreBricks: number;
+  name: string;
+  therapeutic_class: string | null;
+  totalSales: number;
+  totalObjectives: number;
+  objectivePercentage: number;
+  numberOfTerritories: number;
 }
 
 const ProductsList = ({ onBack }: ProductsListProps) => {
-  const [selectedBrick, setSelectedBrick] = useState('all');
+  const [selectedTerritory, setSelectedTerritory] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('11');
 
   const { data: products = [], isLoading, error } = useQuery({
@@ -33,59 +33,59 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
       console.log('Fetching products and sales data from Supabase...');
       
       // Fetch products
-      const { data: produits, error: produitsError } = await supabase
-        .from('produits')
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
         .select('*')
-        .eq('actif', true);
+        .eq('active', true);
 
-      if (produitsError) {
-        console.error('Error fetching products:', produitsError);
-        throw produitsError;
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+        throw productsError;
       }
 
       // For each product, get sales and objectives data
       const productsWithData = await Promise.all(
-        produits.map(async (produit) => {
-          // Get sales data for this product using the 'ventes' table
-          const { data: ventes, error: ventesError } = await supabase
-            .from('ventes')
-            .select('brick_id')
-            .eq('produit_id', produit.id);
+        productsData.map(async (product) => {
+          // Get sales data for this product using the 'sales' table
+          const { data: sales, error: salesError } = await supabase
+            .from('sales')
+            .select('territory_id')
+            .eq('product_id', product.id);
 
-          if (ventesError) {
-            console.error('Error fetching sales:', ventesError);
+          if (salesError) {
+            console.error('Error fetching sales:', salesError);
           }
 
           // Count the number of sales records as proxy for sales volume
-          const totalVentes = ventes?.length || 0;
+          const totalSales = sales?.length || 0;
           
-          // Get objectives data for this product using the 'objectifs_ventes' table
-          const { data: objectifs, error: objectifsError } = await supabase
-            .from('objectifs_ventes')
-            .select('objectif_mensuel')
-            .eq('annee', 2024);
+          // Get objectives data for this product using the 'sales_objectives' table
+          const { data: objectives, error: objectivesError } = await supabase
+            .from('sales_objectives')
+            .select('monthly_objective')
+            .eq('year', 2024);
 
-          if (objectifsError) {
-            console.error('Error fetching objectives:', objectifsError);
+          if (objectivesError) {
+            console.error('Error fetching objectives:', objectivesError);
           }
 
           // Calculate monthly objective from the array for the selected month
           const monthIndex = parseInt(selectedMonth) - 1;
-          const totalObjectifs = objectifs?.reduce((sum, obj) => {
-            const monthlyObjective = obj.objectif_mensuel?.[monthIndex] || 0;
+          const totalObjectives = objectives?.reduce((sum, obj) => {
+            const monthlyObjective = obj.monthly_objective?.[monthIndex] || 0;
             return sum + Number(monthlyObjective);
           }, 0) || 1;
           
-          const uniqueBricks = new Set(ventes?.map(v => v.brick_id).filter(Boolean)).size;
+          const uniqueTerritories = new Set(sales?.map(s => s.territory_id).filter(Boolean)).size;
 
           return {
-            id: produit.id,
-            nom: produit.nom,
-            classe_therapeutique: produit.classe_therapeutique,
-            totalVentes,
-            totalObjectifs,
-            pourcentageObjectif: totalObjectifs > 0 ? Math.round((totalVentes / totalObjectifs) * 100) : 0,
-            nombreBricks: uniqueBricks
+            id: product.id,
+            name: product.name,
+            therapeutic_class: product.therapeutic_class,
+            totalSales,
+            totalObjectives,
+            objectivePercentage: totalObjectives > 0 ? Math.round((totalSales / totalObjectives) * 100) : 0,
+            numberOfTerritories: uniqueTerritories
           };
         })
       );
@@ -96,31 +96,31 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
   });
 
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('fr-FR').format(num);
+    return new Intl.NumberFormat('en-US').format(num);
   };
 
-  const getTendanceColor = (pourcentage: number) => {
-    if (pourcentage >= 90) return 'text-green-600';
-    if (pourcentage >= 70) return 'text-yellow-600';
+  const getTrendColor = (percentage: number) => {
+    if (percentage >= 90) return 'text-green-600';
+    if (percentage >= 70) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getPerformanceColor = (pourcentage: number) => {
-    if (pourcentage >= 90) return 'text-green-600';
-    if (pourcentage >= 80) return 'text-yellow-600';
+  const getPerformanceColor = (percentage: number) => {
+    if (percentage >= 90) return 'text-green-600';
+    if (percentage >= 80) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const totalVentes = products.reduce((sum, produit) => sum + produit.totalVentes, 0);
-  const totalObjectifs = products.reduce((sum, produit) => sum + produit.totalObjectifs, 0);
-  const performanceGlobale = totalObjectifs > 0 ? Math.round((totalVentes / totalObjectifs) * 100) : 0;
+  const totalSales = products.reduce((sum, product) => sum + product.totalSales, 0);
+  const totalObjectives = products.reduce((sum, product) => sum + product.totalObjectives, 0);
+  const globalPerformance = totalObjectives > 0 ? Math.round((totalSales / totalObjectives) * 100) : 0;
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des données produits...</p>
+          <p className="text-gray-600">Loading product data...</p>
         </div>
       </div>
     );
@@ -130,8 +130,8 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Erreur lors du chargement des données produits</p>
-          <Button onClick={onBack}>Retour</Button>
+          <p className="text-red-600 mb-4">Error loading product data</p>
+          <Button onClick={onBack}>Back</Button>
         </div>
       </div>
     );
@@ -152,15 +152,15 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
                   <Package className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Produits & KPIs</h1>
-                  <p className="text-sm text-gray-600">Performance globale: {performanceGlobale}%</p>
+                  <h1 className="text-2xl font-bold text-gray-900">Products & KPIs</h1>
+                  <p className="text-sm text-gray-600">Global performance: {globalPerformance}%</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <Badge variant="secondary" className="bg-green-100 text-green-800">
                 <Calendar className="h-3 w-3 mr-1" />
-                {selectedMonth === '11' ? 'Novembre' : 'Décembre'} 2024
+                {selectedMonth === '11' ? 'November' : 'December'} 2024
               </Badge>
             </div>
           </div>
@@ -172,23 +172,23 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Ventes</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Total Sales</CardTitle>
               <TrendingUp className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{formatNumber(totalVentes)}</div>
-              <p className="text-xs text-green-600 font-medium">Nombre de transactions</p>
+              <div className="text-2xl font-bold text-gray-900">{formatNumber(totalSales)}</div>
+              <p className="text-xs text-green-600 font-medium">Number of transactions</p>
             </CardContent>
           </Card>
 
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Objectif Total</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Total Objective</CardTitle>
               <Target className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{formatNumber(totalObjectifs)}</div>
-              <p className="text-xs text-gray-600">Cible mensuelle</p>
+              <div className="text-2xl font-bold text-gray-900">{formatNumber(totalObjectives)}</div>
+              <p className="text-xs text-gray-600">Monthly target</p>
             </CardContent>
           </Card>
 
@@ -198,10 +198,10 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
               <Activity className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${getPerformanceColor(performanceGlobale)}`}>
-                {performanceGlobale}%
+              <div className={`text-2xl font-bold ${getPerformanceColor(globalPerformance)}`}>
+                {globalPerformance}%
               </div>
-              <Progress value={performanceGlobale} className="mt-2" />
+              <Progress value={globalPerformance} className="mt-2" />
             </CardContent>
           </Card>
         </div>
@@ -209,32 +209,32 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
         {/* Filters */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900">Filtres</CardTitle>
+            <CardTitle className="text-lg text-gray-900">Filters</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Brick</label>
-                <Select value={selectedBrick} onValueChange={setSelectedBrick}>
+                <label className="text-sm font-medium text-gray-700">Territory</label>
+                <Select value={selectedTerritory} onValueChange={setSelectedTerritory}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Tous les bricks" />
+                    <SelectValue placeholder="All territories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les bricks</SelectItem>
+                    <SelectItem value="all">All territories</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Mois</label>
+                <label className="text-sm font-medium text-gray-700">Month</label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner mois" />
+                    <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="10">Octobre 2024</SelectItem>
-                    <SelectItem value="11">Novembre 2024</SelectItem>
-                    <SelectItem value="12">Décembre 2024</SelectItem>
+                    <SelectItem value="10">October 2024</SelectItem>
+                    <SelectItem value="11">November 2024</SelectItem>
+                    <SelectItem value="12">December 2024</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -244,8 +244,8 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {products.map((produit, index) => {
-            const couleurs = [
+          {products.map((product, index) => {
+            const colors = [
               'from-blue-500 to-blue-600',
               'from-indigo-500 to-indigo-600', 
               'from-green-500 to-green-600',
@@ -253,23 +253,23 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
               'from-red-500 to-red-600',
               'from-orange-500 to-orange-600'
             ];
-            const couleur = couleurs[index % couleurs.length];
+            const color = colors[index % colors.length];
             
             return (
-              <Card key={produit.id} className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+              <Card key={product.id} className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className={`p-3 bg-gradient-to-r ${couleur} rounded-lg`}>
+                      <div className={`p-3 bg-gradient-to-r ${color} rounded-lg`}>
                         <Package className="h-6 w-6 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl text-gray-900">{produit.nom}</CardTitle>
-                        <p className="text-sm text-gray-600">{produit.classe_therapeutique || 'Classe non renseignée'}</p>
+                        <CardTitle className="text-xl text-gray-900">{product.name}</CardTitle>
+                        <p className="text-sm text-gray-600">{product.therapeutic_class || 'Class not specified'}</p>
                       </div>
                     </div>
-                    <Badge className={`${getPerformanceColor(produit.pourcentageObjectif)} bg-opacity-10`}>
-                      {produit.pourcentageObjectif}%
+                    <Badge className={`${getPerformanceColor(product.objectivePercentage)} bg-opacity-10`}>
+                      {product.objectivePercentage}%
                     </Badge>
                   </div>
                 </CardHeader>
@@ -277,28 +277,28 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
                   {/* Performance Bar */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Progression vers l'objectif</span>
-                      <span className={`text-sm font-bold ${getPerformanceColor(produit.pourcentageObjectif)}`}>
-                        {produit.pourcentageObjectif}%
+                      <span className="text-sm font-medium text-gray-700">Progress towards objective</span>
+                      <span className={`text-sm font-bold ${getPerformanceColor(product.objectivePercentage)}`}>
+                        {product.objectivePercentage}%
                       </span>
                     </div>
-                    <Progress value={produit.pourcentageObjectif} className="h-3" />
+                    <Progress value={product.objectivePercentage} className="h-3" />
                   </div>
 
                   {/* Sales Info */}
                   <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Transactions réalisées</span>
-                      <span className="font-semibold text-gray-900">{formatNumber(produit.totalVentes)}</span>
+                      <span className="text-sm text-gray-600">Transactions completed</span>
+                      <span className="font-semibold text-gray-900">{formatNumber(product.totalSales)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Objectif mensuel</span>
-                      <span className="font-semibold text-gray-900">{formatNumber(produit.totalObjectifs)}</span>
+                      <span className="text-sm text-gray-600">Monthly objective</span>
+                      <span className="font-semibold text-gray-900">{formatNumber(product.totalObjectives)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Reste à réaliser</span>
+                      <span className="text-sm text-gray-600">Remaining to achieve</span>
                       <span className="font-semibold text-red-600">
-                        {formatNumber(Math.max(0, produit.totalObjectifs - produit.totalVentes))}
+                        {formatNumber(Math.max(0, product.totalObjectives - product.totalSales))}
                       </span>
                     </div>
                   </div>
@@ -308,20 +308,20 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
                     <div className="text-center p-3 bg-blue-50 rounded-lg">
                       <div className="flex items-center justify-center space-x-1 mb-1">
                         <TrendingUp className="h-4 w-4 text-blue-600" />
-                        <span className="text-xs font-medium text-blue-600">Bricks</span>
+                        <span className="text-xs font-medium text-blue-600">Territories</span>
                       </div>
                       <div className="text-lg font-bold text-blue-700">
-                        {produit.nombreBricks}
+                        {product.numberOfTerritories}
                       </div>
                     </div>
 
                     <div className="text-center p-3 bg-green-50 rounded-lg">
                       <div className="flex items-center justify-center space-x-1 mb-1">
                         <Activity className="h-4 w-4 text-green-600" />
-                        <span className="text-xs font-medium text-green-600">Statut</span>
+                        <span className="text-xs font-medium text-green-600">Status</span>
                       </div>
                       <div className="text-sm font-bold text-green-700">
-                        {produit.totalVentes > 0 ? 'Actif' : 'Inactif'}
+                        {product.totalSales > 0 ? 'Active' : 'Inactive'}
                       </div>
                     </div>
                   </div>
@@ -330,7 +330,7 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
                     variant="outline" 
                     className="w-full hover:bg-blue-50 hover:border-blue-300 transition-colors"
                   >
-                    Voir détails analytiques
+                    View analytics details
                   </Button>
                 </CardContent>
               </Card>
@@ -342,8 +342,8 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun produit trouvé</h3>
-              <p className="text-gray-600">Aucune donnée disponible pour la période sélectionnée.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+              <p className="text-gray-600">No data available for the selected period.</p>
             </CardContent>
           </Card>
         )}
