@@ -13,33 +13,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type Brick = Database['public']['Tables']['bricks']['Row'];
-type Secteur = Database['public']['Tables']['secteurs']['Row'];
+type Territory = Database['public']['Tables']['territories']['Row'];
+type Sector = Database['public']['Tables']['sectors']['Row'];
 
 interface BricksManagerProps {
   onBack: () => void;
 }
 
 const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
-  const [bricks, setBricks] = useState<Brick[]>([]);
-  const [secteurs, setSecteurs] = useState<Secteur[]>([]);
+  const [territories, setTerritories] = useState<Territory[]>([]);
+  const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Dialog states for bricks
-  const [bricksDialogOpen, setBricksDialogOpen] = useState(false);
-  const [editingBrick, setEditingBrick] = useState<Brick | null>(null);
-  const [brickFormData, setBrickFormData] = useState({
-    nom: '',
+  // Dialog states for territories
+  const [territoriesDialogOpen, setTerritoriesDialogOpen] = useState(false);
+  const [editingTerritory, setEditingTerritory] = useState<Territory | null>(null);
+  const [territoryFormData, setTerritoryFormData] = useState({
+    name: '',
     description: '',
-    secteur_id: '',
+    sector_id: '',
   });
 
-  // Dialog states for secteurs
-  const [secteursDialogOpen, setSecteursDialogOpen] = useState(false);
-  const [editingSecteur, setEditingSecteur] = useState<Secteur | null>(null);
-  const [secteurFormData, setSecteurFormData] = useState({
-    nom: '',
-    selectedBricks: [] as string[],
+  // Dialog states for sectors
+  const [sectorsDialogOpen, setSectorsDialogOpen] = useState(false);
+  const [editingSector, setEditingSector] = useState<Sector | null>(null);
+  const [sectorFormData, setSectorFormData] = useState({
+    name: '',
+    selectedTerritories: [] as string[],
   });
 
   useEffect(() => {
@@ -51,44 +51,44 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
     try {
       setLoading(true);
       
-      // Fetch bricks with secteur information
-      const { data: bricksData, error: bricksError } = await supabase
-        .from('bricks')
+      // Fetch territories with sector information
+      const { data: territoriesData, error: territoriesError } = await supabase
+        .from('territories')
         .select(`
           *,
-          secteurs:secteur_id (
+          sectors:sector_id (
             id,
-            nom
+            name
           )
         `)
-        .order('nom', { ascending: true });
+        .order('name', { ascending: true });
 
-      if (bricksError) {
-        console.error('Error fetching bricks:', bricksError);
-        throw bricksError;
+      if (territoriesError) {
+        console.error('Error fetching territories:', territoriesError);
+        throw territoriesError;
       }
 
-      // Fetch all secteurs - force fresh data
-      const { data: secteursData, error: secteursError } = await supabase
-        .from('secteurs')
+      // Fetch all sectors - force fresh data
+      const { data: sectorsData, error: sectorsError } = await supabase
+        .from('sectors')
         .select('*')
-        .order('nom', { ascending: true });
+        .order('name', { ascending: true });
 
-      if (secteursError) {
-        console.error('Error fetching secteurs:', secteursError);
-        throw secteursError;
+      if (sectorsError) {
+        console.error('Error fetching sectors:', sectorsError);
+        throw sectorsError;
       }
 
-      console.log('Fetched bricks:', bricksData);
-      console.log('Fetched secteurs:', secteursData);
+      console.log('Fetched territories:', territoriesData);
+      console.log('Fetched sectors:', sectorsData);
 
-      setBricks(bricksData || []);
-      setSecteurs(secteursData || []);
+      setTerritories(territoriesData || []);
+      setSectors(sectorsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible de charger les données",
+        title: "Error",
+        description: "Unable to load data",
         variant: "destructive",
       });
     } finally {
@@ -96,14 +96,14 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
     }
   };
 
-  // Brick CRUD operations
-  const handleBrickSubmit = async (e: React.FormEvent) => {
+  // Territory CRUD operations
+  const handleTerritorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!brickFormData.nom.trim()) {
+    if (!territoryFormData.name.trim()) {
       toast({
-        title: "Erreur",
-        description: "Le nom de la brick est requis",
+        title: "Error",
+        description: "Territory name is required",
         variant: "destructive",
       });
       return;
@@ -113,45 +113,45 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
     try {
       const submitData = {
-        nom: brickFormData.nom.trim(),
-        description: brickFormData.description.trim() || null,
-        secteur_id: brickFormData.secteur_id || null,
+        name: territoryFormData.name.trim(),
+        description: territoryFormData.description.trim() || null,
+        sector_id: territoryFormData.sector_id || null,
       };
 
-      if (editingBrick) {
+      if (editingTerritory) {
         const { error } = await supabase
-          .from('bricks')
+          .from('territories')
           .update(submitData)
-          .eq('id', editingBrick.id);
+          .eq('id', editingTerritory.id);
 
         if (error) throw error;
         
         toast({
-          title: "Succès",
-          description: "Brick mise à jour avec succès",
+          title: "Success",
+          description: "Territory updated successfully",
         });
       } else {
         const { error } = await supabase
-          .from('bricks')
+          .from('territories')
           .insert([submitData]);
 
         if (error) throw error;
         
         toast({
-          title: "Succès",
-          description: "Brick créée avec succès",
+          title: "Success",
+          description: "Territory created successfully",
         });
       }
 
-      setBricksDialogOpen(false);
-      setEditingBrick(null);
-      setBrickFormData({ nom: '', description: '', secteur_id: '' });
+      setTerritoriesDialogOpen(false);
+      setEditingTerritory(null);
+      setTerritoryFormData({ name: '', description: '', sector_id: '' });
       await fetchData();
     } catch (error) {
-      console.error('Error saving brick:', error);
+      console.error('Error saving territory:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder la brick",
+        title: "Error",
+        description: "Unable to save territory",
         variant: "destructive",
       });
     } finally {
@@ -159,56 +159,56 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
     }
   };
 
-  const handleBrickDelete = async (brick: Brick) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la brick "${brick.nom}" ?`)) {
+  const handleTerritoryDelete = async (territory: Territory) => {
+    if (confirm(`Are you sure you want to delete the territory "${territory.name}"?`)) {
       try {
         const { error } = await supabase
-          .from('bricks')
+          .from('territories')
           .delete()
-          .eq('id', brick.id);
+          .eq('id', territory.id);
 
         if (error) throw error;
         
         toast({
-          title: "Succès",
-          description: "Brick supprimée avec succès",
+          title: "Success",
+          description: "Territory deleted successfully",
         });
         await fetchData();
       } catch (error) {
-        console.error('Error deleting brick:', error);
+        console.error('Error deleting territory:', error);
         toast({
-          title: "Erreur",
-          description: "Impossible de supprimer la brick",
+          title: "Error",
+          description: "Unable to delete territory",
           variant: "destructive",
         });
       }
     }
   };
 
-  const openEditBrickDialog = (brick: Brick) => {
-    setEditingBrick(brick);
-    setBrickFormData({
-      nom: brick.nom,
-      description: brick.description || '',
-      secteur_id: brick.secteur_id || '',
+  const openEditTerritoryDialog = (territory: Territory) => {
+    setEditingTerritory(territory);
+    setTerritoryFormData({
+      name: territory.name,
+      description: territory.description || '',
+      sector_id: territory.sector_id || '',
     });
-    setBricksDialogOpen(true);
+    setTerritoriesDialogOpen(true);
   };
 
-  const openCreateBrickDialog = () => {
-    setEditingBrick(null);
-    setBrickFormData({ nom: '', description: '', secteur_id: '' });
-    setBricksDialogOpen(true);
+  const openCreateTerritoryDialog = () => {
+    setEditingTerritory(null);
+    setTerritoryFormData({ name: '', description: '', sector_id: '' });
+    setTerritoriesDialogOpen(true);
   };
 
-  // Secteur CRUD operations
-  const handleSecteurSubmit = async (e: React.FormEvent) => {
+  // Sector CRUD operations
+  const handleSectorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!secteurFormData.nom.trim()) {
+    if (!sectorFormData.name.trim()) {
       toast({
-        title: "Erreur",
-        description: "Le nom du secteur est requis",
+        title: "Error",
+        description: "Sector name is required",
         variant: "destructive",
       });
       return;
@@ -218,118 +218,118 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
 
     try {
       const submitData = {
-        nom: secteurFormData.nom.trim(),
+        name: sectorFormData.name.trim(),
       };
 
-      let secteurId: string;
+      let sectorId: string;
 
-      if (editingSecteur) {
-        console.log('Updating secteur with ID:', editingSecteur.id);
-        console.log('Updating secteur with data:', submitData);
+      if (editingSector) {
+        console.log('Updating sector with ID:', editingSector.id);
+        console.log('Updating sector with data:', submitData);
         
-        // Update the secteur
+        // Update the sector
         const { data: updatedData, error: updateError } = await supabase
-          .from('secteurs')
+          .from('sectors')
           .update(submitData)
-          .eq('id', editingSecteur.id)
+          .eq('id', editingSector.id)
           .select();
 
         if (updateError) {
-          console.error('Error updating secteur:', updateError);
-          throw new Error(`Impossible de mettre à jour le secteur: ${updateError.message}`);
+          console.error('Error updating sector:', updateError);
+          throw new Error(`Unable to update sector: ${updateError.message}`);
         }
 
         if (!updatedData || updatedData.length === 0) {
           console.error('No data returned from update');
-          throw new Error('Aucune donnée retournée lors de la mise à jour');
+          throw new Error('No data returned from update');
         }
         
-        console.log('Secteur updated successfully:', updatedData[0]);
-        secteurId = editingSecteur.id;
+        console.log('Sector updated successfully:', updatedData[0]);
+        sectorId = editingSector.id;
         
         toast({
-          title: "Succès",
-          description: `Secteur "${updatedData[0].nom}" mis à jour avec succès`,
+          title: "Success",
+          description: `Sector "${updatedData[0].name}" updated successfully`,
         });
       } else {
-        console.log('Creating new secteur with data:', submitData);
+        console.log('Creating new sector with data:', submitData);
         
         const { data, error } = await supabase
-          .from('secteurs')
+          .from('sectors')
           .insert([submitData])
           .select()
           .single();
 
         if (error) {
-          console.error('Error creating secteur:', error);
+          console.error('Error creating sector:', error);
           throw error;
         }
         
-        console.log('Secteur created successfully:', data);
-        secteurId = data.id;
+        console.log('Sector created successfully:', data);
+        sectorId = data.id;
         
         toast({
-          title: "Succès",
-          description: "Secteur créé avec succès",
+          title: "Success",
+          description: "Sector created successfully",
         });
       }
 
-      // Handle brick assignments
-      console.log('Updating brick assignments for secteur:', secteurId);
-      console.log('Selected bricks:', secteurFormData.selectedBricks);
+      // Handle territory assignments
+      console.log('Updating territory assignments for sector:', sectorId);
+      console.log('Selected territories:', sectorFormData.selectedTerritories);
 
-      // Get current brick assignments for this secteur
-      const currentBricks = bricks.filter(brick => brick.secteur_id === secteurId).map(brick => brick.id);
-      console.log('Current bricks for secteur:', currentBricks);
+      // Get current territory assignments for this sector
+      const currentTerritories = territories.filter(territory => territory.sector_id === sectorId).map(territory => territory.id);
+      console.log('Current territories for sector:', currentTerritories);
 
-      // Find bricks to unassign (currently assigned but not selected)
-      const bricksToUnassign = currentBricks.filter(brickId => !secteurFormData.selectedBricks.includes(brickId));
+      // Find territories to unassign (currently assigned but not selected)
+      const territoriesToUnassign = currentTerritories.filter(territoryId => !sectorFormData.selectedTerritories.includes(territoryId));
       
-      // Find bricks to assign (selected but not currently assigned)
-      const bricksToAssign = secteurFormData.selectedBricks.filter(brickId => !currentBricks.includes(brickId));
+      // Find territories to assign (selected but not currently assigned)
+      const territoriesToAssign = sectorFormData.selectedTerritories.filter(territoryId => !currentTerritories.includes(territoryId));
 
-      console.log('Bricks to unassign:', bricksToUnassign);
-      console.log('Bricks to assign:', bricksToAssign);
+      console.log('Territories to unassign:', territoriesToUnassign);
+      console.log('Territories to assign:', territoriesToAssign);
 
-      // Unassign bricks that should no longer be in this secteur
-      if (bricksToUnassign.length > 0) {
+      // Unassign territories that should no longer be in this sector
+      if (territoriesToUnassign.length > 0) {
         const { error: unassignError } = await supabase
-          .from('bricks')
-          .update({ secteur_id: null })
-          .in('id', bricksToUnassign);
+          .from('territories')
+          .update({ sector_id: null })
+          .in('id', territoriesToUnassign);
 
         if (unassignError) {
-          console.error('Error unassigning bricks:', unassignError);
+          console.error('Error unassigning territories:', unassignError);
           throw unassignError;
         }
       }
 
-      // Assign new bricks to this secteur
-      if (bricksToAssign.length > 0) {
+      // Assign new territories to this sector
+      if (territoriesToAssign.length > 0) {
         const { error: assignError } = await supabase
-          .from('bricks')
-          .update({ secteur_id: secteurId })
-          .in('id', bricksToAssign);
+          .from('territories')
+          .update({ sector_id: sectorId })
+          .in('id', territoriesToAssign);
 
         if (assignError) {
-          console.error('Error assigning bricks:', assignError);
+          console.error('Error assigning territories:', assignError);
           throw assignError;
         }
       }
 
       // Close dialog and reset form
-      setSecteursDialogOpen(false);
-      setEditingSecteur(null);
-      setSecteurFormData({ nom: '', selectedBricks: [] });
+      setSectorsDialogOpen(false);
+      setEditingSector(null);
+      setSectorFormData({ name: '', selectedTerritories: [] });
       
       // Refresh data immediately
       await fetchData();
       
     } catch (error: any) {
-      console.error('Error saving secteur:', error);
+      console.error('Error saving sector:', error);
       toast({
-        title: "Erreur",
-        description: `Impossible de sauvegarder le secteur: ${error.message || 'Erreur inconnue'}`,
+        title: "Error",
+        description: `Unable to save sector: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {
@@ -337,72 +337,72 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
     }
   };
 
-  const handleSecteurDelete = async (secteur: Secteur) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer le secteur "${secteur.nom}" ?`)) {
+  const handleSectorDelete = async (sector: Sector) => {
+    if (confirm(`Are you sure you want to delete the sector "${sector.name}"?`)) {
       try {
-        // First, update bricks to remove secteur reference
+        // First, update territories to remove sector reference
         await supabase
-          .from('bricks')
-          .update({ secteur_id: null })
-          .eq('secteur_id', secteur.id);
+          .from('territories')
+          .update({ sector_id: null })
+          .eq('sector_id', sector.id);
 
         const { error } = await supabase
-          .from('secteurs')
+          .from('sectors')
           .delete()
-          .eq('id', secteur.id);
+          .eq('id', sector.id);
 
         if (error) throw error;
         
         toast({
-          title: "Succès",
-          description: "Secteur supprimé avec succès",
+          title: "Success",
+          description: "Sector deleted successfully",
         });
         await fetchData();
       } catch (error) {
-        console.error('Error deleting secteur:', error);
+        console.error('Error deleting sector:', error);
         toast({
-          title: "Erreur",
-          description: "Impossible de supprimer le secteur",
+          title: "Error",
+          description: "Unable to delete sector",
           variant: "destructive",
         });
       }
     }
   };
 
-  const openEditSecteurDialog = (secteur: Secteur) => {
-    console.log('Opening edit dialog for secteur:', secteur);
-    setEditingSecteur(secteur);
-    const secteurBricks = bricks.filter(brick => brick.secteur_id === secteur.id).map(brick => brick.id);
-    console.log('Secteur bricks:', secteurBricks);
-    setSecteurFormData({
-      nom: secteur.nom,
-      selectedBricks: secteurBricks,
+  const openEditSectorDialog = (sector: Sector) => {
+    console.log('Opening edit dialog for sector:', sector);
+    setEditingSector(sector);
+    const sectorTerritories = territories.filter(territory => territory.sector_id === sector.id).map(territory => territory.id);
+    console.log('Sector territories:', sectorTerritories);
+    setSectorFormData({
+      name: sector.name,
+      selectedTerritories: sectorTerritories,
     });
-    setSecteursDialogOpen(true);
+    setSectorsDialogOpen(true);
   };
 
-  const openCreateSecteurDialog = () => {
-    setEditingSecteur(null);
-    setSecteurFormData({ nom: '', selectedBricks: [] });
-    setSecteursDialogOpen(true);
+  const openCreateSectorDialog = () => {
+    setEditingSector(null);
+    setSectorFormData({ name: '', selectedTerritories: [] });
+    setSectorsDialogOpen(true);
   };
 
-  const handleBrickSelection = (brickId: string, checked: boolean) => {
-    console.log('Brick selection changed:', brickId, checked);
-    setSecteurFormData(prev => ({
+  const handleTerritorySelection = (territoryId: string, checked: boolean) => {
+    console.log('Territory selection changed:', territoryId, checked);
+    setSectorFormData(prev => ({
       ...prev,
-      selectedBricks: checked 
-        ? [...prev.selectedBricks, brickId]
-        : prev.selectedBricks.filter(id => id !== brickId)
+      selectedTerritories: checked 
+        ? [...prev.selectedTerritories, territoryId]
+        : prev.selectedTerritories.filter(id => id !== territoryId)
     }));
   };
 
-  const getSecteurName = (brick: any) => {
-    return brick.secteurs?.nom || 'N/A';
+  const getSectorName = (territory: any) => {
+    return territory.sectors?.name || 'N/A';
   };
 
-  const getBricksCount = (secteurId: string) => {
-    return bricks.filter(brick => brick.secteur_id === secteurId).length;
+  const getTerritoriesCount = (sectorId: string) => {
+    return territories.filter(territory => territory.sector_id === sectorId).length;
   };
 
   return (
@@ -418,74 +418,74 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
               className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
+              <span>Back</span>
             </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des Bricks</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Territory Management</h1>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Secteurs Management Section */}
+        {/* Sectors Management Section */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Liste des Secteurs</CardTitle>
-                <CardDescription>Gérer les secteurs et leurs bricks associées</CardDescription>
+                <CardTitle>Sectors List</CardTitle>
+                <CardDescription>Manage sectors and their associated territories</CardDescription>
               </div>
-              <Dialog open={secteursDialogOpen} onOpenChange={setSecteursDialogOpen}>
+              <Dialog open={sectorsDialogOpen} onOpenChange={setSectorsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={openCreateSecteurDialog} className="flex items-center space-x-2">
+                  <Button onClick={openCreateSectorDialog} className="flex items-center space-x-2">
                     <Plus className="h-4 w-4" />
-                    <span>Nouveau Secteur</span>
+                    <span>New Sector</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>
-                      {editingSecteur ? 'Modifier le Secteur' : 'Nouveau Secteur'}
+                      {editingSector ? 'Edit Sector' : 'New Sector'}
                     </DialogTitle>
                     <DialogDescription>
-                      {editingSecteur 
-                        ? 'Modifiez les informations du secteur et sélectionnez les bricks associées'
-                        : 'Créez un nouveau secteur et sélectionnez les bricks associées'}
+                      {editingSector 
+                        ? 'Edit sector information and select associated territories'
+                        : 'Create a new sector and select associated territories'}
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleSecteurSubmit} className="space-y-4">
+                  <form onSubmit={handleSectorSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="secteur-nom">Nom du secteur</Label>
+                      <Label htmlFor="sector-name">Sector name</Label>
                       <Input
-                        id="secteur-nom"
-                        value={secteurFormData.nom}
-                        onChange={(e) => setSecteurFormData({ ...secteurFormData, nom: e.target.value })}
-                        placeholder="Ex: Nord"
+                        id="sector-name"
+                        value={sectorFormData.name}
+                        onChange={(e) => setSectorFormData({ ...sectorFormData, name: e.target.value })}
+                        placeholder="Ex: North"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Bricks associées</Label>
+                      <Label>Associated territories</Label>
                       <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2">
-                        {bricks.map((brick) => (
-                          <div key={brick.id} className="flex items-center space-x-2">
+                        {territories.map((territory) => (
+                          <div key={territory.id} className="flex items-center space-x-2">
                             <Checkbox
-                              id={`brick-${brick.id}`}
-                              checked={secteurFormData.selectedBricks.includes(brick.id)}
-                              onCheckedChange={(checked) => handleBrickSelection(brick.id, checked as boolean)}
+                              id={`territory-${territory.id}`}
+                              checked={sectorFormData.selectedTerritories.includes(territory.id)}
+                              onCheckedChange={(checked) => handleTerritorySelection(territory.id, checked as boolean)}
                             />
-                            <Label htmlFor={`brick-${brick.id}`} className="text-sm">
-                              {brick.nom}
+                            <Label htmlFor={`territory-${territory.id}`} className="text-sm">
+                              {territory.name}
                             </Label>
                           </div>
                         ))}
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setSecteursDialogOpen(false)}>
-                        Annuler
+                      <Button type="button" variant="outline" onClick={() => setSectorsDialogOpen(false)}>
+                        Cancel
                       </Button>
                       <Button type="submit" disabled={loading}>
-                        {loading ? 'Enregistrement...' : 'Enregistrer'}
+                        {loading ? 'Saving...' : 'Save'}
                       </Button>
                     </div>
                   </form>
@@ -495,36 +495,36 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="text-center py-8">Chargement...</div>
+              <div className="text-center py-8">Loading...</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Nombre de bricks</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Number of territories</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {secteurs.map((secteur) => (
-                    <TableRow key={secteur.id}>
+                  {sectors.map((sector) => (
+                    <TableRow key={sector.id}>
                       <TableCell className="font-medium">
-                        {secteur.nom}
+                        {sector.name}
                       </TableCell>
-                      <TableCell>{getBricksCount(secteur.id)}</TableCell>
+                      <TableCell>{getTerritoriesCount(sector.id)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openEditSecteurDialog(secteur)}
+                            onClick={() => openEditSectorDialog(sector)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleSecteurDelete(secteur)}
+                            onClick={() => handleSectorDelete(sector)}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -539,56 +539,56 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           </CardContent>
         </Card>
 
-        {/* Bricks Management Section */}
+        {/* Territories Management Section */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Liste des Bricks</CardTitle>
-                <CardDescription>Gérer les zones géographiques</CardDescription>
+                <CardTitle>Territories List</CardTitle>
+                <CardDescription>Manage geographical zones</CardDescription>
               </div>
-              <Dialog open={bricksDialogOpen} onOpenChange={setBricksDialogOpen}>
+              <Dialog open={territoriesDialogOpen} onOpenChange={setTerritoriesDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={openCreateBrickDialog} className="flex items-center space-x-2">
+                  <Button onClick={openCreateTerritoryDialog} className="flex items-center space-x-2">
                     <Plus className="h-4 w-4" />
-                    <span>Nouvelle Brick</span>
+                    <span>New Territory</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>
-                      {editingBrick ? 'Modifier la Brick' : 'Nouvelle Brick'}
+                      {editingTerritory ? 'Edit Territory' : 'New Territory'}
                     </DialogTitle>
                     <DialogDescription>
-                      {editingBrick 
-                        ? 'Modifiez les informations de la brick'
-                        : 'Créez une nouvelle brick géographique'}
+                      {editingTerritory 
+                        ? 'Edit territory information'
+                        : 'Create a new geographical territory'}
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleBrickSubmit} className="space-y-4">
+                  <form onSubmit={handleTerritorySubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="nom">Nom de la brick</Label>
+                      <Label htmlFor="name">Territory name</Label>
                       <Input
-                        id="nom"
-                        value={brickFormData.nom}
-                        onChange={(e) => setBrickFormData({ ...brickFormData, nom: e.target.value })}
-                        placeholder="Ex: Nord-1"
+                        id="name"
+                        value={territoryFormData.name}
+                        onChange={(e) => setTerritoryFormData({ ...territoryFormData, name: e.target.value })}
+                        placeholder="Ex: North-1"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="secteur">Secteur</Label>
+                      <Label htmlFor="sector">Sector</Label>
                       <Select
-                        value={brickFormData.secteur_id}
-                        onValueChange={(value) => setBrickFormData({ ...brickFormData, secteur_id: value })}
+                        value={territoryFormData.sector_id}
+                        onValueChange={(value) => setTerritoryFormData({ ...territoryFormData, sector_id: value })}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un secteur" />
+                          <SelectValue placeholder="Select a sector" />
                         </SelectTrigger>
                         <SelectContent>
-                          {secteurs.map((secteur) => (
-                            <SelectItem key={secteur.id} value={secteur.id}>
-                              {secteur.nom}
+                          {sectors.map((sector) => (
+                            <SelectItem key={sector.id} value={sector.id}>
+                              {sector.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -598,17 +598,17 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
                       <Label htmlFor="description">Description</Label>
                       <Input
                         id="description"
-                        value={brickFormData.description}
-                        onChange={(e) => setBrickFormData({ ...brickFormData, description: e.target.value })}
-                        placeholder="Description optionnelle"
+                        value={territoryFormData.description}
+                        onChange={(e) => setTerritoryFormData({ ...territoryFormData, description: e.target.value })}
+                        placeholder="Optional description"
                       />
                     </div>
                     <div className="flex justify-end space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setBricksDialogOpen(false)}>
-                        Annuler
+                      <Button type="button" variant="outline" onClick={() => setTerritoriesDialogOpen(false)}>
+                        Cancel
                       </Button>
                       <Button type="submit" disabled={loading}>
-                        {loading ? 'Enregistrement...' : 'Enregistrer'}
+                        {loading ? 'Saving...' : 'Save'}
                       </Button>
                     </div>
                   </form>
@@ -618,36 +618,36 @@ const BricksManager: React.FC<BricksManagerProps> = ({ onBack }) => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="text-center py-8">Chargement...</div>
+              <div className="text-center py-8">Loading...</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Secteur</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Sector</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bricks.map((brick) => (
-                    <TableRow key={brick.id}>
-                      <TableCell className="font-medium">{brick.nom}</TableCell>
-                      <TableCell>{getSecteurName(brick)}</TableCell>
-                      <TableCell>{brick.description || 'N/A'}</TableCell>
+                  {territories.map((territory) => (
+                    <TableRow key={territory.id}>
+                      <TableCell className="font-medium">{territory.name}</TableCell>
+                      <TableCell>{getSectorName(territory)}</TableCell>
+                      <TableCell>{territory.description || 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openEditBrickDialog(brick)}
+                            onClick={() => openEditTerritoryDialog(territory)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleBrickDelete(brick)}
+                            onClick={() => handleTerritoryDelete(territory)}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
