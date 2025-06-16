@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,18 +41,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Fetching profile for user:', userId);
       
-      // Set a timeout for the profile fetch to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
-      });
-      
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('Error fetching profile:', error);
@@ -64,6 +58,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Error in fetchProfile:', error);
       return null;
     }
+  };
+
+  const clearAuthState = () => {
+    setSession(null);
+    setUser(null);
+    setProfile(null);
   };
 
   useEffect(() => {
@@ -100,7 +100,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           } catch (error) {
             console.error('Failed to fetch profile during initialization:', error);
-            // Continue anyway, don't block the app
           }
         }
         
@@ -127,6 +126,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (!mounted) return;
       
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out, clearing state...');
+        clearAuthState();
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -139,7 +145,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } catch (error) {
           console.error('Failed to fetch profile after auth change:', error);
-          // Continue anyway, don't block the app
         }
       } else {
         console.log('User logged out, clearing profile...');
@@ -185,11 +190,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw error;
+    try {
+      console.log('Signing out user...');
+      
+      // Clear state immediately to provide instant feedback
+      clearAuthState();
+      setLoading(true);
+      
+      // Then call the actual sign out
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        // Don't throw the error, just log it since we've already cleared the state
+      } else {
+        console.log('Successfully signed out');
+      }
+    } catch (error) {
+      console.error('Error in signOut:', error);
+    } finally {
+      setLoading(false);
     }
-    setProfile(null);
   };
 
   const isAdmin = profile?.user_type === 'Admin';
