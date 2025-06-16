@@ -11,7 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserRole = Database['public']['Enums']['user_role'];
+type UserRole = Database['public']['Enums']['user_type'];
 
 interface UsersManagerProps {
   onBack: () => void;
@@ -73,9 +73,11 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'superuser':
+      case 'Admin':
         return <Crown className="h-4 w-4" />;
-      case 'admin':
+      case 'Sales Director':
+      case 'Marketing Manager':
+      case 'Supervisor':
         return <Shield className="h-4 w-4" />;
       default:
         return <User className="h-4 w-4" />;
@@ -84,10 +86,13 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'superuser':
+      case 'Admin':
         return 'bg-purple-100 text-purple-800';
-      case 'admin':
+      case 'Sales Director':
+      case 'Marketing Manager':
         return 'bg-blue-100 text-blue-800';
+      case 'Supervisor':
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -125,8 +130,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>ID</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Date de création</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -136,16 +140,12 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                   {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
-                        {user.first_name || user.last_name 
-                          ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
-                          : 'Non renseigné'
-                        }
+                        {user.id}
                       </TableCell>
-                      <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge className={`flex items-center space-x-1 ${getRoleColor(user.role || 'user')}`}>
-                          {getRoleIcon(user.role || 'user')}
-                          <span>{user.role || 'user'}</span>
+                        <Badge className={`flex items-center space-x-1 ${getRoleColor(user.role || 'Delegate')}`}>
+                          {getRoleIcon(user.role || 'Delegate')}
+                          <span>{user.role || 'Delegate'}</span>
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -153,16 +153,18 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                       </TableCell>
                       <TableCell className="text-right">
                         <Select
-                          value={user.role || 'user'}
+                          value={user.role || 'Delegate'}
                           onValueChange={(newRole: UserRole) => updateUserRole(user.id, newRole)}
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger className="w-48">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="superuser">Superuser</SelectItem>
+                            <SelectItem value="Delegate">Delegate</SelectItem>
+                            <SelectItem value="Supervisor">Supervisor</SelectItem>
+                            <SelectItem value="Marketing Manager">Marketing Manager</SelectItem>
+                            <SelectItem value="Sales Director">Sales Director</SelectItem>
+                            <SelectItem value="Admin">Admin</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>

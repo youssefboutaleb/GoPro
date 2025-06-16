@@ -17,7 +17,7 @@ interface DoctorDialogProps {
     name: string;
     first_name: string;
     specialty: string | null;
-    territory_id: string | null;
+    brick_id: string | null;
   } | null;
 }
 
@@ -26,17 +26,17 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
     name: '',
     first_name: '',
     specialty: '',
-    territory_id: ''
+    brick_id: ''
   });
 
   const queryClient = useQueryClient();
 
-  // Fetch territories for selection
-  const { data: territories = [] } = useQuery({
-    queryKey: ['territories'],
+  // Fetch bricks for selection
+  const { data: bricks = [] } = useQuery({
+    queryKey: ['bricks'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('territories')
+        .from('bricks')
         .select('id, name')
         .order('name');
       
@@ -51,14 +51,14 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
         name: doctor.name,
         first_name: doctor.first_name,
         specialty: doctor.specialty || '',
-        territory_id: doctor.territory_id || 'no-territory'
+        brick_id: doctor.brick_id || 'no-brick'
       });
     } else {
       setFormData({
         name: '',
         first_name: '',
         specialty: '',
-        territory_id: 'no-territory'
+        brick_id: 'no-brick'
       });
     }
   }, [doctor]);
@@ -71,7 +71,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
           name: data.name,
           first_name: data.first_name,
           specialty: data.specialty || null,
-          territory_id: data.territory_id === 'no-territory' ? null : data.territory_id
+          brick_id: data.brick_id === 'no-brick' ? null : data.brick_id
         });
       
       if (error) throw error;
@@ -95,7 +95,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
           name: data.name,
           first_name: data.first_name,
           specialty: data.specialty || null,
-          territory_id: data.territory_id === 'no-territory' ? null : data.territory_id
+          brick_id: data.brick_id === 'no-brick' ? null : data.brick_id
         })
         .eq('id', doctor!.id);
       
@@ -170,15 +170,15 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="territory">Territoire</Label>
-            <Select value={formData.territory_id} onValueChange={(value) => setFormData(prev => ({ ...prev, territory_id: value }))}>
+            <Label htmlFor="brick">Brick</Label>
+            <Select value={formData.brick_id} onValueChange={(value) => setFormData(prev => ({ ...prev, brick_id: value }))}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un territoire" />
+                <SelectValue placeholder="Sélectionner un brick" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no-territory">Aucun territoire</SelectItem>
-                {territories.map(territory => (
-                  <SelectItem key={territory.id} value={territory.id}>{territory.name}</SelectItem>
+                <SelectItem value="no-brick">Aucun brick</SelectItem>
+                {bricks.map(brick => (
+                  <SelectItem key={brick.id} value={brick.id}>{brick.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,37 +36,12 @@ const Index = () => {
     setCurrentMonth(monthNames[now.getMonth()]);
   }, []);
 
-  // Fetch delegue's secteur name
+  // Note: Since we removed the delegates table and user_id from profiles,
+  // we'll use a placeholder for sector name for now
   useEffect(() => {
-    const fetchDeleagueSecteur = async () => {
-      if (!user) return;
-
-      try {
-        const { data: delegue, error } = await supabase
-          .from('delegates')
-          .select(`
-            sector_id,
-            sector:sector_id (
-              name
-            )
-          `)
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching delegue secteur:', error);
-          return;
-        }
-
-        if (delegue?.sector?.name) {
-          setSecteurName(delegue.sector.name);
-        }
-      } catch (error) {
-        console.error('Error in fetchDeleagueSecteur:', error);
-      }
-    };
-
-    fetchDeleagueSecteur();
+    // This would need to be implemented based on the new schema
+    // where user roles are managed differently
+    setSecteurName('Région Nord'); // Placeholder
   }, [user]);
 
   if (loading) {
@@ -186,7 +162,7 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                {profile?.role && (profile.role === 'admin' || profile.role === 'superuser') && (
+                {profile?.role && profile.role === 'Admin' && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -198,7 +174,7 @@ const Index = () => {
                   </Button>
                 )}
                 <div className="text-sm text-gray-600">
-                  {profile?.first_name} {profile?.last_name}
+                  Utilisateur connecté
                 </div>
                 <Button variant="outline" size="sm" onClick={handleSignOut}>
                   Déconnexion
