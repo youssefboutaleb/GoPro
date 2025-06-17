@@ -210,11 +210,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Starting sign out process...');
       setLoading(true);
       
-      // Clear local state first
+      // Clear local state immediately
       clearAuthState();
       
-      // Sign out from Supabase and wait for completion
-      const { error } = await supabase.auth.signOut();
+      // Clear any stored auth tokens from localStorage
+      localStorage.removeItem('sb-wlmmxnnbabvfbxlxcgol-auth-token');
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut({
+        scope: 'global' // This ensures sign out from all devices
+      });
       
       if (error) {
         console.error('Error signing out from Supabase:', error);
@@ -222,16 +227,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Successfully signed out from Supabase');
       }
       
-      // Wait a moment to ensure the auth state change event is processed
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Force clear any remaining session data
-      await supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          console.log('Force clearing remaining session...');
-          // Additional cleanup if needed
-        }
-      });
+      // Force a complete session check to ensure cleanup
+      await supabase.auth.getSession();
       
       setLoading(false);
       
