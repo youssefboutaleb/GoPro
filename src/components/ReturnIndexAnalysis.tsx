@@ -54,98 +54,103 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
       console.log('Fetching visit plans for delegate:', user.id);
 
-      // Fetch visit plans for the current delegate
-      const { data: visitPlans, error: visitPlansError } = await supabase
-        .from('visit_plans')
-        .select(`
-          id,
-          visit_frequency,
-          doctor_id,
-          doctors!inner (
+      try {
+        // Fetch visit plans for the current delegate
+        const { data: visitPlans, error: visitPlansError } = await supabase
+          .from('visit_plans')
+          .select(`
             id,
-            first_name,
-            last_name
-          )
-        `)
-        .eq('delegate_id', user.id);
+            visit_frequency,
+            doctor_id,
+            doctors!inner (
+              id,
+              first_name,
+              last_name
+            )
+          `)
+          .eq('delegate_id', user.id);
 
-      if (visitPlansError) {
-        console.error('Error fetching visit plans:', visitPlansError);
-        throw visitPlansError;
-      }
-
-      console.log('Visit plans fetched:', visitPlans);
-
-      if (!visitPlans || visitPlans.length === 0) {
-        console.log('No visit plans found for delegate');
-        return [];
-      }
-
-      // Fetch visits for each visit plan
-      const visitPlanIds = visitPlans.map(vp => vp.id);
-      const { data: visits, error: visitsError } = await supabase
-        .from('visits')
-        .select('visit_plan_id, visit_date')
-        .in('visit_plan_id', visitPlanIds)
-        .gte('visit_date', `${new Date().getFullYear()}-01-01`)
-        .lte('visit_date', new Date().toISOString().split('T')[0]);
-
-      if (visitsError) {
-        console.error('Error fetching visits:', visitsError);
-        throw visitsError;
-      }
-
-      console.log('Visits fetched:', visits);
-
-      // Process the data to calculate return index
-      const processedData: DoctorVisitData[] = visitPlans.map(plan => {
-        const doctorVisits = visits?.filter(v => v.visit_plan_id === plan.id) || [];
-        
-        // Calculate monthly visits
-        const monthlyVisits = new Array(monthsElapsed).fill(0);
-        doctorVisits.forEach(visit => {
-          const visitMonth = new Date(visit.visit_date).getMonth();
-          if (visitMonth < monthsElapsed) {
-            monthlyVisits[visitMonth]++;
-          }
-        });
-
-        const totalVisits = doctorVisits.length;
-        
-        // Calculate expected visits based on frequency
-        let expectedVisitsPerMonth = 0;
-        let frequencyLabel = '';
-        
-        switch (plan.visit_frequency) {
-          case '1':
-            expectedVisitsPerMonth = 1;
-            frequencyLabel = 'Monthly';
-            break;
-          case '2':
-            expectedVisitsPerMonth = 2;
-            frequencyLabel = 'Bi-weekly';
-            break;
-          default:
-            expectedVisitsPerMonth = 1;
-            frequencyLabel = 'Monthly';
+        if (visitPlansError) {
+          console.error('Error fetching visit plans:', visitPlansError);
+          throw visitPlansError;
         }
 
-        const expectedVisits = Math.round(expectedVisitsPerMonth * monthsElapsed);
-        const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+        console.log('Visit plans fetched:', visitPlans);
 
-        return {
-          doctor_id: plan.doctor_id,
-          doctor_name: plan.doctors ? `${plan.doctors.first_name} ${plan.doctors.last_name}` : 'Unknown Doctor',
-          visit_frequency: frequencyLabel,
-          monthly_visits: monthlyVisits,
-          total_visits: totalVisits,
-          expected_visits: expectedVisits,
-          return_index: returnIndex
-        };
-      });
+        if (!visitPlans || visitPlans.length === 0) {
+          console.log('No visit plans found for delegate');
+          return [];
+        }
 
-      console.log('Processed visit data:', processedData);
-      return processedData;
+        // Fetch visits for each visit plan
+        const visitPlanIds = visitPlans.map(vp => vp.id);
+        const { data: visits, error: visitsError } = await supabase
+          .from('visits')
+          .select('visit_plan_id, visit_date')
+          .in('visit_plan_id', visitPlanIds)
+          .gte('visit_date', `${new Date().getFullYear()}-01-01`)
+          .lte('visit_date', new Date().toISOString().split('T')[0]);
+
+        if (visitsError) {
+          console.error('Error fetching visits:', visitsError);
+          throw visitsError;
+        }
+
+        console.log('Visits fetched:', visits);
+
+        // Process the data to calculate return index
+        const processedData: DoctorVisitData[] = visitPlans.map(plan => {
+          const doctorVisits = visits?.filter(v => v.visit_plan_id === plan.id) || [];
+          
+          // Calculate monthly visits
+          const monthlyVisits = new Array(monthsElapsed).fill(0);
+          doctorVisits.forEach(visit => {
+            const visitMonth = new Date(visit.visit_date).getMonth();
+            if (visitMonth < monthsElapsed) {
+              monthlyVisits[visitMonth]++;
+            }
+          });
+
+          const totalVisits = doctorVisits.length;
+          
+          // Calculate expected visits based on frequency
+          let expectedVisitsPerMonth = 0;
+          let frequencyLabel = '';
+          
+          switch (plan.visit_frequency) {
+            case '1':
+              expectedVisitsPerMonth = 1;
+              frequencyLabel = 'Monthly';
+              break;
+            case '2':
+              expectedVisitsPerMonth = 2;
+              frequencyLabel = 'Bi-weekly';
+              break;
+            default:
+              expectedVisitsPerMonth = 1;
+              frequencyLabel = 'Monthly';
+          }
+
+          const expectedVisits = Math.round(expectedVisitsPerMonth * monthsElapsed);
+          const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+
+          return {
+            doctor_id: plan.doctor_id,
+            doctor_name: plan.doctors ? `${plan.doctors.first_name} ${plan.doctors.last_name}` : 'Unknown Doctor',
+            visit_frequency: frequencyLabel,
+            monthly_visits: monthlyVisits,
+            total_visits: totalVisits,
+            expected_visits: expectedVisits,
+            return_index: returnIndex
+          };
+        });
+
+        console.log('Processed visit data:', processedData);
+        return processedData;
+      } catch (error) {
+        console.error('Error in query function:', error);
+        throw error;
+      }
     },
     enabled: !!user?.id && !!profile && profile.user_type === 'Delegate',
   });
