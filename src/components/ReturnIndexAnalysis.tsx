@@ -48,24 +48,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
       console.log('🔍 Fetching visit plans for delegate:', user.id);
 
-      // Get visit plans with doctor and brick information
+      // First, get visit plans for current user
       const { data: visitPlans, error: visitPlansError } = await supabase
         .from('visit_plans')
-        .select(`
-          id,
-          visit_frequency,
-          doctor_id,
-          doctors!inner (
-            id,
-            first_name,
-            last_name,
-            specialty,
-            brick_id,
-            bricks (
-              name
-            )
-          )
-        `)
+        .select('id, visit_frequency, doctor_id, delegate_id')
         .eq('delegate_id', user.id);
 
       if (visitPlansError) {
@@ -78,7 +64,37 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         return [];
       }
 
-      console.log('📋 Visit plans found:', visitPlans.length);
+      console.log('📋 Visit plans found:', visitPlans.length, visitPlans);
+
+      // Get doctor IDs from visit plans
+      const doctorIds = visitPlans.map(vp => vp.doctor_id).filter(Boolean);
+
+      if (doctorIds.length === 0) {
+        console.log('⚠️ No doctor IDs found in visit plans');
+        return [];
+      }
+
+      // Fetch doctors information
+      const { data: doctors, error: doctorsError } = await supabase
+        .from('doctors')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          specialty,
+          brick_id,
+          bricks:brick_id (
+            name
+          )
+        `)
+        .in('id', doctorIds);
+
+      if (doctorsError) {
+        console.error('❌ Error fetching doctors:', doctorsError);
+        throw doctorsError;
+      }
+
+      console.log('👨‍⚕️ Doctors found:', doctors?.length || 0, doctors);
 
       // Get all visit plan IDs to fetch visits
       const visitPlanIds = visitPlans.map(vp => vp.id);
@@ -96,12 +112,17 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         throw visitsError;
       }
 
-      console.log('📅 Visits found:', visits?.length || 0);
+      console.log('📅 Visits found:', visits?.length || 0, visits);
 
       // Process each doctor's data
-      const processedData: DoctorData[] = visitPlans.map(plan => {
-        const doctor = plan.doctors;
-        const doctorVisits = visits?.filter(v => v.visit_plan_id === plan.id) || [];
+      const processedData: DoctorData[] = [];
+
+      for (const doctor of doctors || []) {
+        // Find the visit plan for this doctor
+        const visitPlan = visitPlans.find(vp => vp.doctor_id === doctor.id);
+        if (!visitPlan) continue;
+
+        const doctorVisits = visits?.filter(v => v.visit_plan_id === visitPlan.id) || [];
 
         // Calculate monthly visits
         const monthlyVisits = new Array(currentMonth).fill(0);
@@ -114,7 +135,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         });
 
         const totalVisits = doctorVisits.length;
-        const frequencyPerMonth = parseInt(plan.visit_frequency) || 1;
+        const frequencyPerMonth = parseInt(visitPlan.visit_frequency) || 1;
         const expectedVisits = frequencyPerMonth * monthsElapsed;
         const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
 
@@ -132,20 +153,20 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           rowColor = 'yellow';
         }
 
-        return {
+        processedData.push({
           id: doctor.id,
           first_name: doctor.first_name,
           last_name: doctor.last_name,
           specialty: doctor.specialty,
           brick_name: doctor.bricks?.name || null,
-          visit_frequency: plan.visit_frequency,
+          visit_frequency: visitPlan.visit_frequency,
           monthly_visits: monthlyVisits,
           total_visits: totalVisits,
           expected_visits: expectedVisits,
           return_index: returnIndex,
           row_color: rowColor
-        };
-      });
+        });
+      }
 
       console.log('📊 Processed doctor data:', processedData);
       return processedData;
