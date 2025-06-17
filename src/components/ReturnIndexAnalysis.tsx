@@ -52,7 +52,28 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       }
 
       try {
-        // Fetch visit plans for the current delegate using profile.id
+        // First, let's check if the visit plans exist for this delegate
+        console.log('🔍 Checking visit plans for delegate_id:', profile.id);
+        
+        const { data: visitPlansCheck, error: checkError } = await supabase
+          .from('visit_plans')
+          .select('id, delegate_id, doctor_id, visit_frequency')
+          .eq('delegate_id', profile.id);
+
+        console.log('📋 Visit plans check result:', visitPlansCheck);
+        console.log('📋 Visit plans check error:', checkError);
+
+        if (checkError) {
+          console.error('❌ Error checking visit plans:', checkError);
+          throw checkError;
+        }
+
+        if (!visitPlansCheck || visitPlansCheck.length === 0) {
+          console.log('⚠️ No visit plans found for delegate:', profile.id);
+          return [];
+        }
+
+        // Now fetch visit plans with doctor information
         const { data: visitPlans, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
@@ -68,16 +89,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           `)
           .eq('delegate_id', profile.id);
 
-        console.log('📋 Visit plans query result:', visitPlans);
-        console.log('📋 Visit plans error:', visitPlansError);
+        console.log('📋 Visit plans with doctors result:', visitPlans);
+        console.log('📋 Visit plans with doctors error:', visitPlansError);
 
         if (visitPlansError) {
-          console.error('❌ Error fetching visit plans:', visitPlansError);
+          console.error('❌ Error fetching visit plans with doctors:', visitPlansError);
           throw visitPlansError;
         }
 
         if (!visitPlans || visitPlans.length === 0) {
-          console.log('⚠️ No visit plans found for delegate:', profile.id);
+          console.log('⚠️ No visit plans with doctors found for delegate:', profile.id);
           return [];
         }
 
