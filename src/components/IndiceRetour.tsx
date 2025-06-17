@@ -57,7 +57,7 @@ const IndiceRetour = ({ onBack }: IndiceRetourProps) => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role')
+        .select('id, user_type')
         .eq('id', user.id)
         .maybeSingle();
 
