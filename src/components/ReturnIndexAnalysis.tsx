@@ -105,7 +105,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
           const totalVisits = doctorVisits.length;
           
-          // Calculate expected visits based on frequency
+          // Calculate expected visits based on frequency (only handle valid enum values)
           let expectedVisitsPerMonth = 0;
           let frequencyLabel = '';
           
@@ -117,14 +117,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             case '2':
               expectedVisitsPerMonth = 2;
               frequencyLabel = 'Bi-weekly';
-              break;
-            case '3':
-              expectedVisitsPerMonth = 3;
-              frequencyLabel = 'Weekly';
-              break;
-            case '4':
-              expectedVisitsPerMonth = 4;
-              frequencyLabel = 'Twice Weekly';
               break;
             default:
               expectedVisitsPerMonth = 1;
