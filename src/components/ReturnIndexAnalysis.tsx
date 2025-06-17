@@ -40,136 +40,147 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch visit plans with doctor and brick information
+  // Fetch and process all data
   const { data: doctorsData = [], isLoading } = useQuery({
     queryKey: ['return-index-analysis', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      console.log('🔍 Fetching visit plans for delegate:', user.id);
+      console.log('🔍 Fetching data for delegate:', user.id);
 
-      // First, get visit plans for current user
-      const { data: visitPlans, error: visitPlansError } = await supabase
-        .from('visit_plans')
-        .select('id, visit_frequency, doctor_id, delegate_id')
-        .eq('delegate_id', user.id);
+      try {
+        // Step 1: Get visit plans for current user
+        const { data: visitPlans, error: visitPlansError } = await supabase
+          .from('visit_plans')
+          .select('id, visit_frequency, doctor_id')
+          .eq('delegate_id', user.id);
 
-      if (visitPlansError) {
-        console.error('❌ Error fetching visit plans:', visitPlansError);
-        throw visitPlansError;
-      }
-
-      if (!visitPlans || visitPlans.length === 0) {
-        console.log('⚠️ No visit plans found for delegate');
-        return [];
-      }
-
-      console.log('📋 Visit plans found:', visitPlans.length, visitPlans);
-
-      // Get doctor IDs from visit plans
-      const doctorIds = visitPlans.map(vp => vp.doctor_id).filter(Boolean);
-
-      if (doctorIds.length === 0) {
-        console.log('⚠️ No doctor IDs found in visit plans');
-        return [];
-      }
-
-      // Fetch doctors information
-      const { data: doctors, error: doctorsError } = await supabase
-        .from('doctors')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          specialty,
-          brick_id,
-          bricks:brick_id (
-            name
-          )
-        `)
-        .in('id', doctorIds);
-
-      if (doctorsError) {
-        console.error('❌ Error fetching doctors:', doctorsError);
-        throw doctorsError;
-      }
-
-      console.log('👨‍⚕️ Doctors found:', doctors?.length || 0, doctors);
-
-      // Get all visit plan IDs to fetch visits
-      const visitPlanIds = visitPlans.map(vp => vp.id);
-
-      // Fetch all visits for these visit plans in the current year
-      const { data: visits, error: visitsError } = await supabase
-        .from('visits')
-        .select('visit_plan_id, visit_date')
-        .in('visit_plan_id', visitPlanIds)
-        .gte('visit_date', `${currentYear}-01-01`)
-        .lte('visit_date', `${currentYear}-12-31`);
-
-      if (visitsError) {
-        console.error('❌ Error fetching visits:', visitsError);
-        throw visitsError;
-      }
-
-      console.log('📅 Visits found:', visits?.length || 0, visits);
-
-      // Process each doctor's data
-      const processedData: DoctorData[] = [];
-
-      for (const doctor of doctors || []) {
-        // Find the visit plan for this doctor
-        const visitPlan = visitPlans.find(vp => vp.doctor_id === doctor.id);
-        if (!visitPlan) continue;
-
-        const doctorVisits = visits?.filter(v => v.visit_plan_id === visitPlan.id) || [];
-
-        // Calculate monthly visits
-        const monthlyVisits = new Array(currentMonth).fill(0);
-        doctorVisits.forEach(visit => {
-          const visitDate = new Date(visit.visit_date);
-          const visitMonth = visitDate.getMonth(); // 0-based
-          if (visitMonth < currentMonth) {
-            monthlyVisits[visitMonth]++;
-          }
-        });
-
-        const totalVisits = doctorVisits.length;
-        const frequencyPerMonth = parseInt(visitPlan.visit_frequency) || 1;
-        const expectedVisits = frequencyPerMonth * monthsElapsed;
-        const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
-
-        // Determine row color based on last month and month before last
-        let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        const lastMonth = currentMonth - 1; // Current month - 1 (1-based to 0-based)
-        const monthBeforeLast = currentMonth - 2; // Current month - 2 (1-based to 0-based)
-
-        const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
-        const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
-
-        if (visitedLastMonth) {
-          rowColor = 'green';
-        } else if (visitedMonthBeforeLast) {
-          rowColor = 'yellow';
+        if (visitPlansError) {
+          console.error('❌ Error fetching visit plans:', visitPlansError);
+          throw visitPlansError;
         }
 
-        processedData.push({
-          id: doctor.id,
-          first_name: doctor.first_name,
-          last_name: doctor.last_name,
-          specialty: doctor.specialty,
-          brick_name: doctor.bricks?.name || null,
-          visit_frequency: visitPlan.visit_frequency,
-          monthly_visits: monthlyVisits,
-          total_visits: totalVisits,
-          expected_visits: expectedVisits,
-          return_index: returnIndex,
-          row_color: rowColor
-        });
-      }
+        console.log('📋 Visit plans found:', visitPlans?.length || 0, visitPlans);
 
-      console.log('📊 Processed doctor data:', processedData);
-      return processedData;
+        if (!visitPlans || visitPlans.length === 0) {
+          console.log('⚠️ No visit plans found');
+          return [];
+        }
+
+        // Step 2: Get doctor IDs and fetch doctor details
+        const doctorIds = visitPlans.map(vp => vp.doctor_id).filter(Boolean);
+        console.log('👤 Doctor IDs to fetch:', doctorIds);
+
+        if (doctorIds.length === 0) {
+          console.log('⚠️ No doctor IDs found in visit plans');
+          return [];
+        }
+
+        const { data: doctors, error: doctorsError } = await supabase
+          .from('doctors')
+          .select(`
+            id,
+            first_name,
+            last_name,
+            specialty,
+            brick_id,
+            bricks:brick_id (
+              name
+            )
+          `)
+          .in('id', doctorIds);
+
+        if (doctorsError) {
+          console.error('❌ Error fetching doctors:', doctorsError);
+          throw doctorsError;
+        }
+
+        console.log('👨‍⚕️ Doctors fetched:', doctors?.length || 0, doctors);
+
+        // Step 3: Get all visits for these visit plans
+        const visitPlanIds = visitPlans.map(vp => vp.id);
+        console.log('📝 Visit plan IDs to fetch visits for:', visitPlanIds);
+
+        const { data: visits, error: visitsError } = await supabase
+          .from('visits')
+          .select('visit_plan_id, visit_date')
+          .in('visit_plan_id', visitPlanIds)
+          .gte('visit_date', `${currentYear}-01-01`)
+          .lte('visit_date', `${currentYear}-12-31`);
+
+        if (visitsError) {
+          console.error('❌ Error fetching visits:', visitsError);
+          throw visitsError;
+        }
+
+        console.log('📅 Visits fetched:', visits?.length || 0, visits);
+
+        // Step 4: Process data for each doctor
+        const processedData: DoctorData[] = [];
+
+        for (const doctor of doctors || []) {
+          // Find the visit plan for this doctor
+          const visitPlan = visitPlans.find(vp => vp.doctor_id === doctor.id);
+          if (!visitPlan) {
+            console.log('⚠️ No visit plan found for doctor:', doctor.id);
+            continue;
+          }
+
+          // Get visits for this specific visit plan
+          const doctorVisits = visits?.filter(v => v.visit_plan_id === visitPlan.id) || [];
+          console.log(`📊 Doctor ${doctor.first_name} ${doctor.last_name} has ${doctorVisits.length} visits`);
+
+          // Calculate monthly visits
+          const monthlyVisits = new Array(currentMonth).fill(0);
+          doctorVisits.forEach(visit => {
+            const visitDate = new Date(visit.visit_date);
+            const visitMonth = visitDate.getMonth(); // 0-based
+            if (visitMonth < currentMonth) {
+              monthlyVisits[visitMonth]++;
+            }
+          });
+
+          const totalVisits = doctorVisits.length;
+          const frequencyPerMonth = parseInt(visitPlan.visit_frequency) || 1;
+          const expectedVisits = frequencyPerMonth * monthsElapsed;
+          const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+
+          // Determine row color based on last month and month before last
+          let rowColor: 'red' | 'yellow' | 'green' = 'red';
+          const lastMonth = currentMonth - 1; // Current month - 1 (1-based to 0-based)
+          const monthBeforeLast = currentMonth - 2; // Current month - 2 (1-based to 0-based)
+
+          const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
+          const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
+
+          if (visitedLastMonth) {
+            rowColor = 'green';
+          } else if (visitedMonthBeforeLast) {
+            rowColor = 'yellow';
+          }
+
+          processedData.push({
+            id: doctor.id,
+            first_name: doctor.first_name,
+            last_name: doctor.last_name,
+            specialty: doctor.specialty,
+            brick_name: doctor.bricks?.name || null,
+            visit_frequency: visitPlan.visit_frequency,
+            monthly_visits: monthlyVisits,
+            total_visits: totalVisits,
+            expected_visits: expectedVisits,
+            return_index: returnIndex,
+            row_color: rowColor
+          });
+        }
+
+        console.log('✅ Final processed data:', processedData);
+        return processedData;
+
+      } catch (error) {
+        console.error('💥 Error in query function:', error);
+        throw error;
+      }
     },
     enabled: !!user?.id
   });
@@ -337,7 +348,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Doctors Found</h3>
                 <p className="text-gray-600">
-                  No targeted doctors match the selected criteria.
+                  {doctorsData.length === 0 
+                    ? "No visit plans found for your profile. Please contact your administrator."
+                    : "No targeted doctors match the selected criteria."
+                  }
                 </p>
               </div>
             ) : (
