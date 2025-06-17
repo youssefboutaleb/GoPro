@@ -81,7 +81,7 @@ const Index = () => {
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
                     <User className="h-4 w-4" />
                     <span>
-                      {profile?.id ? `Welcome, ${profile.user.first_name} ${profile.user.last_name}` : 'Welcome'}
+                      {profile?.id ? `Welcome, ${profile.id}` : 'Welcome'}
                     </span>
                   </div>
                   {profile?.user_type === 'Admin' && (
