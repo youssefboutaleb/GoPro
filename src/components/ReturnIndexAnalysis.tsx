@@ -34,9 +34,22 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
   // Fetch visit plans and related data for the current delegate
   const { data: visitData, isLoading, error } = useQuery({
-    queryKey: ['delegate-visits', user?.id],
+    queryKey: ['delegate-visits', user?.id, profile?.user_type],
     queryFn: async () => {
-      if (!user?.id || profile?.user_type !== 'Delegate') {
+      console.log('Query starting with user:', user?.id, 'profile:', profile);
+      
+      if (!user?.id) {
+        console.log('No user ID found');
+        return [];
+      }
+
+      if (!profile) {
+        console.log('Profile not loaded yet');
+        return [];
+      }
+
+      if (profile.user_type !== 'Delegate') {
+        console.log('User is not a delegate, user_type:', profile.user_type);
         return [];
       }
 
@@ -135,7 +148,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       console.log('Processed visit data:', processedData);
       return processedData;
     },
-    enabled: !!user?.id && profile?.user_type === 'Delegate',
+    enabled: !!user?.id && !!profile && profile.user_type === 'Delegate',
   });
 
   // Log any query errors
@@ -158,7 +171,40 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   };
 
   // Check if user is a delegate
-  if (profile?.user_type !== 'Delegate') {
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="bg-white shadow-lg border-b border-blue-100">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-blue-50">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Return Index Analysis</h1>
+                  <p className="text-sm text-gray-600">Delegate performance tracking</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="text-center py-12">
+              <div className="text-center py-8">Loading profile...</div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (profile.user_type !== 'Delegate') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
         <div className="bg-white shadow-lg border-b border-blue-100">
