@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -34,12 +33,14 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const currentYearMonths = monthNames.slice(0, monthsElapsed);
 
   // Fetch visit plans and related data for the current delegate
-  const { data: visitData, isLoading } = useQuery({
+  const { data: visitData, isLoading, error } = useQuery({
     queryKey: ['delegate-visits', user?.id],
     queryFn: async () => {
       if (!user?.id || profile?.user_type !== 'Delegate') {
         return [];
       }
+
+      console.log('Fetching visit plans for delegate:', user.id);
 
       // Fetch visit plans for the current delegate
       const { data: visitPlans, error: visitPlansError } = await supabase
@@ -48,7 +49,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           id,
           visit_frequency,
           doctor_id,
-          doctors (
+          doctors!inner (
             id,
             first_name,
             last_name
@@ -61,7 +62,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         throw visitPlansError;
       }
 
+      console.log('Visit plans fetched:', visitPlans);
+
       if (!visitPlans || visitPlans.length === 0) {
+        console.log('No visit plans found for delegate');
         return [];
       }
 
@@ -78,6 +82,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         console.error('Error fetching visits:', visitsError);
         throw visitsError;
       }
+
+      console.log('Visits fetched:', visits);
 
       // Process the data to calculate return index
       const processedData: DoctorVisitData[] = visitPlans.map(plan => {
@@ -126,10 +132,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         };
       });
 
+      console.log('Processed visit data:', processedData);
       return processedData;
     },
     enabled: !!user?.id && profile?.user_type === 'Delegate',
   });
+
+  // Log any query errors
+  if (error) {
+    console.error('Query error:', error);
+  }
 
   // Calculate summary statistics
   const totalDoctors = visitData?.length || 0;
@@ -258,6 +270,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           <CardContent>
             {isLoading ? (
               <div className="text-center py-8">Loading visit data...</div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <div className="text-red-600 mb-2">Error loading data</div>
+                <p className="text-sm text-gray-600">{error.message}</p>
+              </div>
             ) : !visitData || visitData.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
