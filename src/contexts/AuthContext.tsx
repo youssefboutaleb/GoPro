@@ -194,24 +194,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Starting sign out process...');
       
-      // First clear local state immediately to update UI
-      clearAuthState();
-      setLoading(false);
-      
-      // Then sign out from Supabase
+      // Sign out from Supabase first to trigger proper auth state change
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Error signing out from Supabase:', error);
-        // Even if Supabase signOut fails, we've already cleared local state
-        // so the user appears signed out in the UI
       } else {
         console.log('Successfully signed out from Supabase');
       }
       
+      // The onAuthStateChange listener will handle clearing the local state
+      // when it receives the SIGNED_OUT event
+      
     } catch (error) {
       console.error('Error in signOut:', error);
-      // Even if there's an error, we've cleared local state
+      // Fallback: clear local state if Supabase signOut fails
+      clearAuthState();
+      setLoading(false);
     }
   };
 
