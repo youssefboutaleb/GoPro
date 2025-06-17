@@ -42,34 +42,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         return [];
       }
 
-      console.log('🔍 Starting query with user ID:', user.id);
-      console.log('🔍 User profile:', profile);
+      // Only proceed if user is a delegate
+      if (profile?.user_type !== 'Delegate') {
+        console.log('❌ User is not a delegate');
+        return [];
+      }
+
+      console.log('🔍 Starting query for delegate:', user.id);
 
       try {
-        // First, let's check if this user exists in profiles
-        const { data: profileCheck, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id);
-
-        console.log('👤 Profile check result:', profileCheck);
-        if (profileError) {
-          console.error('❌ Profile check error:', profileError);
-        }
-
-        // Check all visit plans in the database (for debugging)
-        const { data: allVisitPlans, error: allPlansError } = await supabase
-          .from('visit_plans')
-          .select('*');
-
-        console.log('📋 All visit plans in DB:', allVisitPlans);
-        if (allPlansError) {
-          console.error('❌ Error fetching all visit plans:', allPlansError);
-        }
-
-        // Now try to fetch visit plans for the current delegate
-        console.log('🔍 Fetching visit plans for delegate:', user.id);
-
+        // Fetch visit plans for the current delegate
         const { data: visitPlans, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
@@ -86,7 +68,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           .eq('delegate_id', user.id);
 
         console.log('📋 Visit plans query result:', visitPlans);
-        console.log('📋 Visit plans query error:', visitPlansError);
 
         if (visitPlansError) {
           console.error('❌ Error fetching visit plans:', visitPlansError);
@@ -95,15 +76,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
         if (!visitPlans || visitPlans.length === 0) {
           console.log('⚠️ No visit plans found for delegate:', user.id);
-          
-          // Let's also check if there are visit plans with this delegate_id but different format
-          const { data: debugPlans, error: debugError } = await supabase
-            .from('visit_plans')
-            .select('*')
-            .ilike('delegate_id', `%${user.id}%`);
-          
-          console.log('🔍 Debug search result:', debugPlans);
-          
           return [];
         }
 
@@ -140,7 +112,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
           const totalVisits = doctorVisits.length;
           
-          // Calculate expected visits based on frequency (only handle valid enum values)
+          // Calculate expected visits based on frequency
           let expectedVisitsPerMonth = 0;
           let frequencyLabel = '';
           
@@ -179,13 +151,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         throw error;
       }
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && profile?.user_type === 'Delegate',
   });
-
-  // Log any query errors
-  if (error) {
-    console.error('🔥 Query error:', error);
-  }
 
   // Calculate summary statistics
   const totalDoctors = visitData?.length || 0;
@@ -224,21 +191,19 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Debug Info */}
-        <Card className="bg-yellow-50 border-yellow-200 mb-6">
-          <CardHeader>
-            <CardTitle className="text-yellow-800">Debug Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-yellow-700 space-y-1">
-              <p>Current User ID: {user?.id || 'Not available'}</p>
-              <p>Profile User Type: {profile?.user_type || 'Not available'}</p>
-              <p>Visit Data Length: {visitData?.length || 0}</p>
-              <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
-              <p>Error: {error ? error.message : 'None'}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Show message if user is not a delegate */}
+        {profile?.user_type !== 'Delegate' && (
+          <Card className="bg-yellow-50 border-yellow-200 mb-6">
+            <CardHeader>
+              <CardTitle className="text-yellow-800">Access Restricted</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-yellow-700">
+                This page is only available for users with delegate access. Your current role: {profile?.user_type || 'Unknown'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -297,15 +262,20 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <div className="text-red-600 mb-2">Error loading data</div>
                 <p className="text-sm text-gray-600">{error.message}</p>
               </div>
+            ) : profile?.user_type !== 'Delegate' ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Access Required</h3>
+                <p className="text-gray-600">
+                  You need delegate access to view this analysis.
+                </p>
+              </div>
             ) : !visitData || visitData.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Visit Plans Found</h3>
                 <p className="text-gray-600">
                   No visit plans have been assigned to you yet.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Check the console for detailed debugging information.
                 </p>
               </div>
             ) : (
