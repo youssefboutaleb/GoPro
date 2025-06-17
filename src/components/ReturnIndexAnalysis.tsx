@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,18 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const { data: visitData, isLoading, error } = useQuery({
     queryKey: ['delegate-visits', user?.id],
     queryFn: async () => {
-      if (!user?.id || profile?.user_type !== 'Delegate') {
+      if (!user?.id) {
+        console.log('No user ID available');
+        return [];
+      }
+
+      if (!profile) {
+        console.log('Profile not loaded yet');
+        return [];
+      }
+
+      if (profile.user_type !== 'Delegate') {
+        console.log('User is not a delegate, user_type:', profile.user_type);
         return [];
       }
 
@@ -113,6 +125,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             expectedVisitsPerMonth = 2;
             frequencyLabel = 'Bi-weekly';
             break;
+          case '4':
+            expectedVisitsPerMonth = 4;
+            frequencyLabel = 'Weekly';
+            break;
           default:
             expectedVisitsPerMonth = 1;
             frequencyLabel = 'Monthly';
@@ -135,7 +151,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       console.log('Processed visit data:', processedData);
       return processedData;
     },
-    enabled: !!user?.id && profile?.user_type === 'Delegate',
+    enabled: !!user?.id && !!profile && profile.user_type === 'Delegate',
   });
 
   // Log any query errors
@@ -158,7 +174,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   };
 
   // Check if user is a delegate
-  if (profile?.user_type !== 'Delegate') {
+  if (!profile || profile.user_type !== 'Delegate') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
         <div className="bg-white shadow-lg border-b border-blue-100">
