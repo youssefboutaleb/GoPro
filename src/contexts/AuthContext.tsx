@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const clearAuthState = () => {
+    console.log('Clearing auth state...');
     setSession(null);
     setUser(null);
     setProfile(null);
@@ -126,7 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (!mounted) return;
       
-      if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT' || !session) {
         console.log('User signed out, clearing state...');
         clearAuthState();
         setLoading(false);
@@ -193,15 +194,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Signing out user...');
       
+      // Clear local state immediately
+      clearAuthState();
+      
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Error signing out:', error);
+        throw error;
       } else {
         console.log('Successfully signed out');
       }
     } catch (error) {
       console.error('Error in signOut:', error);
+      throw error;
     }
   };
 
