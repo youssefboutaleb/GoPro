@@ -39,16 +39,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Optimized single query to fetch all data
+  // Single optimized query to fetch all necessary data
   const { data: doctorsData = [], isLoading } = useQuery({
-    queryKey: ['return-index-analysis-optimized', user?.id],
+    queryKey: ['return-index-analysis-fixed', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      console.log('🔍 Fetching optimized data for delegate:', user.id);
+      console.log('🔍 Fetching return index data for delegate:', user.id);
 
       try {
-        // Single optimized query to get all necessary data
+        // Query visit_plans with related data - NO ROLE COLUMN REFERENCES
         const { data: visitPlansData, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
@@ -77,10 +77,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           throw visitPlansError;
         }
 
-        console.log('📋 Visit plans with all data:', visitPlansData);
+        console.log('📋 Visit plans data fetched successfully:', visitPlansData?.length || 0, 'plans');
 
         if (!visitPlansData || visitPlansData.length === 0) {
-          console.log('⚠️ No visit plans found');
+          console.log('⚠️ No visit plans found for delegate');
           return [];
         }
 
@@ -148,11 +148,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           });
         }
 
-        console.log('✅ Final processed data:', processedData);
+        console.log('✅ Processing complete. Total doctors:', processedData.length);
         return processedData;
 
       } catch (error) {
-        console.error('💥 Error in optimized query:', error);
+        console.error('💥 Error in return index query:', error);
         throw error;
       }
     },
