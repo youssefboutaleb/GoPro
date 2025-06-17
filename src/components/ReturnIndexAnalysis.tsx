@@ -40,19 +40,37 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch and process all data
+  // Optimized single query to fetch all data
   const { data: doctorsData = [], isLoading } = useQuery({
-    queryKey: ['return-index-analysis', user?.id],
+    queryKey: ['return-index-analysis-optimized', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      console.log('🔍 Fetching data for delegate:', user.id);
+      console.log('🔍 Fetching optimized data for delegate:', user.id);
 
       try {
-        // Step 1: Get visit plans for current user
-        const { data: visitPlans, error: visitPlansError } = await supabase
+        // Single optimized query to get all necessary data
+        const { data: visitPlansData, error: visitPlansError } = await supabase
           .from('visit_plans')
-          .select('id, visit_frequency, doctor_id')
+          .select(`
+            id,
+            visit_frequency,
+            doctor_id,
+            doctors:doctor_id (
+              id,
+              first_name,
+              last_name,
+              specialty,
+              brick_id,
+              bricks:brick_id (
+                name
+              )
+            ),
+            visits (
+              id,
+              visit_date
+            )
+          `)
           .eq('delegate_id', user.id);
 
         if (visitPlansError) {
@@ -60,79 +78,36 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           throw visitPlansError;
         }
 
-        console.log('📋 Visit plans found:', visitPlans?.length || 0, visitPlans);
+        console.log('📋 Visit plans with all data:', visitPlansData);
 
-        if (!visitPlans || visitPlans.length === 0) {
+        if (!visitPlansData || visitPlansData.length === 0) {
           console.log('⚠️ No visit plans found');
           return [];
         }
 
-        // Step 2: Get doctor IDs and fetch doctor details
-        const doctorIds = visitPlans.map(vp => vp.doctor_id).filter(Boolean);
-        console.log('👤 Doctor IDs to fetch:', doctorIds);
-
-        if (doctorIds.length === 0) {
-          console.log('⚠️ No doctor IDs found in visit plans');
-          return [];
-        }
-
-        const { data: doctors, error: doctorsError } = await supabase
-          .from('doctors')
-          .select(`
-            id,
-            first_name,
-            last_name,
-            specialty,
-            brick_id,
-            bricks:brick_id (
-              name
-            )
-          `)
-          .in('id', doctorIds);
-
-        if (doctorsError) {
-          console.error('❌ Error fetching doctors:', doctorsError);
-          throw doctorsError;
-        }
-
-        console.log('👨‍⚕️ Doctors fetched:', doctors?.length || 0, doctors);
-
-        // Step 3: Get all visits for these visit plans
-        const visitPlanIds = visitPlans.map(vp => vp.id);
-        console.log('📝 Visit plan IDs to fetch visits for:', visitPlanIds);
-
-        const { data: visits, error: visitsError } = await supabase
-          .from('visits')
-          .select('visit_plan_id, visit_date')
-          .in('visit_plan_id', visitPlanIds)
-          .gte('visit_date', `${currentYear}-01-01`)
-          .lte('visit_date', `${currentYear}-12-31`);
-
-        if (visitsError) {
-          console.error('❌ Error fetching visits:', visitsError);
-          throw visitsError;
-        }
-
-        console.log('📅 Visits fetched:', visits?.length || 0, visits);
-
-        // Step 4: Process data for each doctor
+        // Process data for each visit plan
         const processedData: DoctorData[] = [];
 
-        for (const doctor of doctors || []) {
-          // Find the visit plan for this doctor
-          const visitPlan = visitPlans.find(vp => vp.doctor_id === doctor.id);
-          if (!visitPlan) {
-            console.log('⚠️ No visit plan found for doctor:', doctor.id);
+        for (const visitPlan of visitPlansData) {
+          if (!visitPlan.doctors) {
+            console.log('⚠️ No doctor found for visit plan:', visitPlan.id);
             continue;
           }
 
-          // Get visits for this specific visit plan
-          const doctorVisits = visits?.filter(v => v.visit_plan_id === visitPlan.id) || [];
-          console.log(`📊 Doctor ${doctor.first_name} ${doctor.last_name} has ${doctorVisits.length} visits`);
+          const doctor = visitPlan.doctors;
+          const visits = visitPlan.visits || [];
+
+          console.log(`📊 Processing doctor ${doctor.first_name} ${doctor.last_name} with ${visits.length} visits`);
+
+          // Filter visits for current year
+          const currentYearVisits = visits.filter(visit => {
+            const visitDate = new Date(visit.visit_date);
+            return visitDate.getFullYear() === currentYear;
+          });
 
           // Calculate monthly visits
           const monthlyVisits = new Array(currentMonth).fill(0);
-          doctorVisits.forEach(visit => {
+          currentYearVisits.forEach(visit => {
             const visitDate = new Date(visit.visit_date);
             const visitMonth = visitDate.getMonth(); // 0-based
             if (visitMonth < currentMonth) {
@@ -140,7 +115,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             }
           });
 
-          const totalVisits = doctorVisits.length;
+          const totalVisits = currentYearVisits.length;
           const frequencyPerMonth = parseInt(visitPlan.visit_frequency) || 1;
           const expectedVisits = frequencyPerMonth * monthsElapsed;
           const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
@@ -178,7 +153,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         return processedData;
 
       } catch (error) {
-        console.error('💥 Error in query function:', error);
+        console.error('💥 Error in optimized query:', error);
         throw error;
       }
     },
