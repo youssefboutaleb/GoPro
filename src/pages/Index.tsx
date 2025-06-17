@@ -15,11 +15,26 @@ type View = 'dashboard' | 'doctors' | 'products' | 'returnIndex' | 'visitReport'
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const { user, profile, signOut } = useAuth();
   const { t } = useLanguage();
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isSigningOut) {
+      return;
+    }
+    
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error during sign out:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   const handleAdminRedirect = () => {
@@ -84,10 +99,11 @@ const Index = () => {
                     variant="outline"
                     size="sm"
                     onClick={handleSignOut}
+                    disabled={isSigningOut}
                     className="flex items-center space-x-2"
                   >
                     <LogOut className="h-4 w-4" />
-                    <span>{t('common.signOut')}</span>
+                    <span>{isSigningOut ? 'Signing out...' : t('common.signOut')}</span>
                   </Button>
                 </>
               )}
