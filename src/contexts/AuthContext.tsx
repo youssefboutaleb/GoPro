@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -132,8 +131,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('User signed out, clearing state...');
         clearAuthState();
         setLoading(false);
-        // Force page refresh to ensure clean state
-        window.location.href = '/';
         return;
       }
       
@@ -210,6 +207,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       console.log('Starting sign out process...');
+      
+      // Clear local state immediately
+      clearAuthState();
       setLoading(true);
       
       // Sign out from Supabase
@@ -217,19 +217,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) {
         console.error('Error signing out from Supabase:', error);
-        // Even if there's an error, clear local state
-        clearAuthState();
-        setLoading(false);
-        window.location.href = '/';
-        return;
+      } else {
+        console.log('Successfully signed out from Supabase');
       }
       
-      console.log('Successfully signed out from Supabase');
-      // The onAuthStateChange listener will handle the rest
+      // Always redirect regardless of errors
+      setLoading(false);
+      window.location.href = '/';
       
     } catch (error) {
       console.error('Error in signOut:', error);
-      // Always clear local state on error and redirect
+      // Always clear local state and redirect on any error
       clearAuthState();
       setLoading(false);
       window.location.href = '/';
