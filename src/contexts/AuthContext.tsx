@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -207,12 +208,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       console.log('Starting sign out process...');
-      
-      // Clear local state immediately
-      clearAuthState();
       setLoading(true);
       
-      // Sign out from Supabase
+      // Clear local state first
+      clearAuthState();
+      
+      // Sign out from Supabase and wait for completion
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -221,8 +222,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Successfully signed out from Supabase');
       }
       
-      // Always redirect regardless of errors
+      // Wait a moment to ensure the auth state change event is processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Force clear any remaining session data
+      await supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          console.log('Force clearing remaining session...');
+          // Additional cleanup if needed
+        }
+      });
+      
       setLoading(false);
+      
+      // Redirect to home page
       window.location.href = '/';
       
     } catch (error) {
