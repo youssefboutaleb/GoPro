@@ -42,16 +42,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         return [];
       }
 
-      if (!profile) {
-        console.log('Profile not loaded yet');
-        return [];
-      }
-
-      if (profile.user_type !== 'Delegate') {
-        console.log('User is not a delegate, user_type:', profile.user_type);
-        return [];
-      }
-
       console.log('Fetching visit plans for delegate:', user.id);
 
       try {
@@ -84,6 +74,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
         // Fetch visits for each visit plan
         const visitPlanIds = visitPlans.map(vp => vp.id);
+        console.log('Visit plan IDs:', visitPlanIds);
+
         const { data: visits, error: visitsError } = await supabase
           .from('visits')
           .select('visit_plan_id, visit_date')
@@ -126,6 +118,14 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               expectedVisitsPerMonth = 2;
               frequencyLabel = 'Bi-weekly';
               break;
+            case '3':
+              expectedVisitsPerMonth = 3;
+              frequencyLabel = 'Weekly';
+              break;
+            case '4':
+              expectedVisitsPerMonth = 4;
+              frequencyLabel = 'Twice Weekly';
+              break;
             default:
               expectedVisitsPerMonth = 1;
               frequencyLabel = 'Monthly';
@@ -152,7 +152,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         throw error;
       }
     },
-    enabled: !!user?.id && !!profile && profile.user_type === 'Delegate',
+    enabled: !!user?.id,
   });
 
   // Log any query errors
@@ -173,44 +173,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     if (returnIndex >= 50) return 'text-yellow-600 bg-yellow-50';
     return 'text-red-600 bg-red-50';
   };
-
-  // Check if user is a delegate
-  if (!profile || profile.user_type !== 'Delegate') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        <div className="bg-white shadow-lg border-b border-blue-100">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-blue-50">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Return Index Analysis</h1>
-                  <p className="text-sm text-gray-600">Delegate performance tracking</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
-              <p className="text-gray-600">
-                This feature is only available for users with Delegate profile type.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
