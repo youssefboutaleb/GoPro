@@ -35,23 +35,24 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
   // Fetch visit plans and related data for the current delegate
   const { data: visitData, isLoading, error } = useQuery({
-    queryKey: ['delegate-visits', user?.id],
+    queryKey: ['delegate-visits', profile?.id],
     queryFn: async () => {
-      if (!user?.id) {
-        console.log('❌ No user ID available');
+      console.log('🔍 Starting query for delegate:', profile?.id);
+      console.log('📋 Profile:', profile);
+
+      if (!profile?.id) {
+        console.log('❌ No profile ID available');
         return [];
       }
 
       // Only proceed if user is a delegate
       if (profile?.user_type !== 'Delegate') {
-        console.log('❌ User is not a delegate');
+        console.log('❌ User is not a delegate, user_type:', profile?.user_type);
         return [];
       }
 
-      console.log('🔍 Starting query for delegate:', user.id);
-
       try {
-        // Fetch visit plans for the current delegate
+        // Fetch visit plans for the current delegate using profile.id
         const { data: visitPlans, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
@@ -65,9 +66,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               last_name
             )
           `)
-          .eq('delegate_id', user.id);
+          .eq('delegate_id', profile.id);
 
         console.log('📋 Visit plans query result:', visitPlans);
+        console.log('📋 Visit plans error:', visitPlansError);
 
         if (visitPlansError) {
           console.error('❌ Error fetching visit plans:', visitPlansError);
@@ -75,7 +77,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         }
 
         if (!visitPlans || visitPlans.length === 0) {
-          console.log('⚠️ No visit plans found for delegate:', user.id);
+          console.log('⚠️ No visit plans found for delegate:', profile.id);
           return [];
         }
 
@@ -83,11 +85,12 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const visitPlanIds = visitPlans.map(vp => vp.id);
         console.log('🔍 Visit plan IDs:', visitPlanIds);
 
+        const currentYear = new Date().getFullYear();
         const { data: visits, error: visitsError } = await supabase
           .from('visits')
           .select('visit_plan_id, visit_date')
           .in('visit_plan_id', visitPlanIds)
-          .gte('visit_date', `${new Date().getFullYear()}-01-01`)
+          .gte('visit_date', `${currentYear}-01-01`)
           .lte('visit_date', new Date().toISOString().split('T')[0]);
 
         if (visitsError) {
@@ -104,8 +107,12 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           // Calculate monthly visits
           const monthlyVisits = new Array(monthsElapsed).fill(0);
           doctorVisits.forEach(visit => {
-            const visitMonth = new Date(visit.visit_date).getMonth();
-            if (visitMonth < monthsElapsed) {
+            const visitDate = new Date(visit.visit_date);
+            const visitMonth = visitDate.getMonth();
+            const visitYear = visitDate.getFullYear();
+            
+            // Only count visits from current year and within elapsed months
+            if (visitYear === currentYear && visitMonth < monthsElapsed) {
               monthlyVisits[visitMonth]++;
             }
           });
@@ -119,22 +126,29 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           switch (plan.visit_frequency) {
             case '1':
               expectedVisitsPerMonth = 1;
-              frequencyLabel = 'Monthly';
+              frequencyLabel = 'Monthly (1x)';
               break;
             case '2':
               expectedVisitsPerMonth = 2;
-              frequencyLabel = 'Bi-weekly';
+              frequencyLabel = 'Bi-weekly (2x)';
               break;
             default:
               expectedVisitsPerMonth = 1;
-              frequencyLabel = 'Monthly';
+              frequencyLabel = 'Monthly (1x)';
           }
 
-          const expectedVisits = Math.round(expectedVisitsPerMonth * monthsElapsed);
+          const expectedVisits = expectedVisitsPerMonth * monthsElapsed;
           const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
 
+          console.log(`📊 Doctor ${plan.doctors?.first_name} ${plan.doctors?.last_name}:`, {
+            totalVisits,
+            expectedVisits,
+            returnIndex,
+            monthlyVisits
+          });
+
           return {
-            doctor_id: plan.doctor_id,
+            doctor_id: plan.doctor_id || '',
             doctor_name: plan.doctors ? `${plan.doctors.first_name} ${plan.doctors.last_name}` : 'Unknown Doctor',
             visit_frequency: frequencyLabel,
             monthly_visits: monthlyVisits,
@@ -144,14 +158,14 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           };
         });
 
-        console.log('📊 Processed visit data:', processedData);
+        console.log('📊 Final processed visit data:', processedData);
         return processedData;
       } catch (error) {
         console.error('💥 Error in query function:', error);
         throw error;
       }
     },
-    enabled: !!user?.id && profile?.user_type === 'Delegate',
+    enabled: !!profile?.id && profile?.user_type === 'Delegate',
   });
 
   // Calculate summary statistics
@@ -191,6 +205,24 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Debug Information */}
+        {profile && (
+          <Card className="bg-blue-50 border-blue-200 mb-6">
+            <CardHeader>
+              <CardTitle className="text-blue-800">Debug Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-blue-700 space-y-1">
+                <p><strong>Profile ID:</strong> {profile.id}</p>
+                <p><strong>User Type:</strong> {profile.user_type}</p>
+                <p><strong>Data Loading:</strong> {isLoading ? 'Loading...' : 'Completed'}</p>
+                <p><strong>Visit Data Count:</strong> {visitData?.length || 0}</p>
+                {error && <p><strong>Error:</strong> {error.message}</p>}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Show message if user is not a delegate */}
         {profile?.user_type !== 'Delegate' && (
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
