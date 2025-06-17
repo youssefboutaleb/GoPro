@@ -127,35 +127,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (!mounted) return;
       
-      if (event === 'SIGNED_OUT' || !session) {
+      // Handle sign out explicitly
+      if (event === 'SIGNED_OUT') {
         console.log('User signed out, clearing state...');
         clearAuthState();
         setLoading(false);
         return;
       }
       
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Handle token refresh without fetching profile again
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed, updating session...');
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        return;
+      }
       
-      if (session?.user) {
-        console.log('User logged in, fetching profile...');
+      // Handle sign in
+      if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in, updating state...');
+        setSession(session);
+        setUser(session.user);
+        
         try {
           const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
             setProfile(userProfile);
           }
         } catch (error) {
-          console.error('Failed to fetch profile after auth change:', error);
+          console.error('Failed to fetch profile after sign in:', error);
         }
-      } else {
-        console.log('User logged out, clearing profile...');
+        
         if (mounted) {
-          setProfile(null);
+          setLoading(false);
         }
+        return;
       }
       
-      if (mounted) {
+      // If no session exists, clear everything
+      if (!session) {
+        console.log('No session, clearing state...');
+        clearAuthState();
         setLoading(false);
+        return;
       }
     });
 
@@ -193,9 +208,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       console.log('Starting sign out process...');
+      setLoading(true);
       
-      // Sign out from Supabase first to trigger proper auth state change
-      const { error } = await supabase.auth.signOut();
+      // Clear local storage manually to ensure session is removed
+      localStorage.removeItem('sb-wlmmxnnbabvfbxlxcgol-auth-token');
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       
       if (error) {
         console.error('Error signing out from Supabase:', error);
@@ -203,12 +222,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Successfully signed out from Supabase');
       }
       
-      // The onAuthStateChange listener will handle clearing the local state
-      // when it receives the SIGNED_OUT event
+      // Always clear local state regardless of Supabase response
+      clearAuthState();
+      setLoading(false);
       
     } catch (error) {
       console.error('Error in signOut:', error);
-      // Fallback: clear local state if Supabase signOut fails
+      // Always clear local state on error
       clearAuthState();
       setLoading(false);
     }
