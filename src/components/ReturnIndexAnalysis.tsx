@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -124,10 +123,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           case '2':
             expectedVisitsPerMonth = 2;
             frequencyLabel = 'Bi-weekly';
-            break;
-          case '4':
-            expectedVisitsPerMonth = 4;
-            frequencyLabel = 'Weekly';
             break;
           default:
             expectedVisitsPerMonth = 1;
