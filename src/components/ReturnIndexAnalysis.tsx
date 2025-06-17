@@ -38,20 +38,45 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     queryKey: ['delegate-visits', user?.id],
     queryFn: async () => {
       if (!user?.id) {
-        console.log('No user ID available');
+        console.log('❌ No user ID available');
         return [];
       }
 
-      console.log('Fetching visit plans for delegate:', user.id);
+      console.log('🔍 Starting query with user ID:', user.id);
+      console.log('🔍 User profile:', profile);
 
       try {
-        // Fetch visit plans for the current delegate
+        // First, let's check if this user exists in profiles
+        const { data: profileCheck, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id);
+
+        console.log('👤 Profile check result:', profileCheck);
+        if (profileError) {
+          console.error('❌ Profile check error:', profileError);
+        }
+
+        // Check all visit plans in the database (for debugging)
+        const { data: allVisitPlans, error: allPlansError } = await supabase
+          .from('visit_plans')
+          .select('*');
+
+        console.log('📋 All visit plans in DB:', allVisitPlans);
+        if (allPlansError) {
+          console.error('❌ Error fetching all visit plans:', allPlansError);
+        }
+
+        // Now try to fetch visit plans for the current delegate
+        console.log('🔍 Fetching visit plans for delegate:', user.id);
+
         const { data: visitPlans, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
             id,
             visit_frequency,
             doctor_id,
+            delegate_id,
             doctors!inner (
               id,
               first_name,
@@ -60,21 +85,31 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           `)
           .eq('delegate_id', user.id);
 
+        console.log('📋 Visit plans query result:', visitPlans);
+        console.log('📋 Visit plans query error:', visitPlansError);
+
         if (visitPlansError) {
-          console.error('Error fetching visit plans:', visitPlansError);
+          console.error('❌ Error fetching visit plans:', visitPlansError);
           throw visitPlansError;
         }
 
-        console.log('Visit plans fetched:', visitPlans);
-
         if (!visitPlans || visitPlans.length === 0) {
-          console.log('No visit plans found for delegate');
+          console.log('⚠️ No visit plans found for delegate:', user.id);
+          
+          // Let's also check if there are visit plans with this delegate_id but different format
+          const { data: debugPlans, error: debugError } = await supabase
+            .from('visit_plans')
+            .select('*')
+            .ilike('delegate_id', `%${user.id}%`);
+          
+          console.log('🔍 Debug search result:', debugPlans);
+          
           return [];
         }
 
         // Fetch visits for each visit plan
         const visitPlanIds = visitPlans.map(vp => vp.id);
-        console.log('Visit plan IDs:', visitPlanIds);
+        console.log('🔍 Visit plan IDs:', visitPlanIds);
 
         const { data: visits, error: visitsError } = await supabase
           .from('visits')
@@ -84,11 +119,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           .lte('visit_date', new Date().toISOString().split('T')[0]);
 
         if (visitsError) {
-          console.error('Error fetching visits:', visitsError);
+          console.error('❌ Error fetching visits:', visitsError);
           throw visitsError;
         }
 
-        console.log('Visits fetched:', visits);
+        console.log('📅 Visits fetched:', visits);
 
         // Process the data to calculate return index
         const processedData: DoctorVisitData[] = visitPlans.map(plan => {
@@ -137,10 +172,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           };
         });
 
-        console.log('Processed visit data:', processedData);
+        console.log('📊 Processed visit data:', processedData);
         return processedData;
       } catch (error) {
-        console.error('Error in query function:', error);
+        console.error('💥 Error in query function:', error);
         throw error;
       }
     },
@@ -149,7 +184,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
   // Log any query errors
   if (error) {
-    console.error('Query error:', error);
+    console.error('🔥 Query error:', error);
   }
 
   // Calculate summary statistics
@@ -189,6 +224,22 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Debug Info */}
+        <Card className="bg-yellow-50 border-yellow-200 mb-6">
+          <CardHeader>
+            <CardTitle className="text-yellow-800">Debug Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-yellow-700 space-y-1">
+              <p>Current User ID: {user?.id || 'Not available'}</p>
+              <p>Profile User Type: {profile?.user_type || 'Not available'}</p>
+              <p>Visit Data Length: {visitData?.length || 0}</p>
+              <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
+              <p>Error: {error ? error.message : 'None'}</p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
@@ -252,6 +303,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Visit Plans Found</h3>
                 <p className="text-gray-600">
                   No visit plans have been assigned to you yet.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Check the console for detailed debugging information.
                 </p>
               </div>
             ) : (
