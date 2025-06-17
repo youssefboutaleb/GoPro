@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -39,16 +40,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Single optimized query to fetch all necessary data
+  // Clean query without any role column references
   const { data: doctorsData = [], isLoading } = useQuery({
-    queryKey: ['return-index-analysis-fixed', user?.id],
+    queryKey: ['return-index-analysis-clean', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
       console.log('🔍 Fetching return index data for delegate:', user.id);
 
       try {
-        // Query visit_plans with related data - NO ROLE COLUMN REFERENCES
+        // Query visit_plans with only existing columns
         const { data: visitPlansData, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
