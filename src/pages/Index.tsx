@@ -15,30 +15,32 @@ const Index = () => {
   const [currentView, setCurrentView] = useState('dashboard');
 
   useEffect(() => {
-    console.log('Index page - Auth state:', { user: user?.id, loading });
+    console.log('📊 Index page - Auth state:', { 
+      user: user?.id, 
+      profile: profile ? `${profile.first_name} ${profile.last_name}` : 'No profile',
+      loading 
+    });
     
     if (!loading && !user) {
-      console.log('No user found, redirecting to auth');
+      console.log('🔄 No user found, redirecting to auth');
       navigate('/auth');
     }
-  }, [user, loading, navigate]);
+    
+    if (user && profile) {
+      console.log('🎉 Successfully connected! Welcome:', profile.first_name, profile.last_name);
+    }
+  }, [user, profile, loading, navigate]);
 
   const handleSignOut = async () => {
-    console.log('Sign out button clicked');
-    console.log('Current state before sign out:', {
-      user: !!user,
-      userId: user?.id,
-      signOutLoading,
-      timestamp: new Date().toISOString()
-    });
+    console.log('🚪 Sign out button clicked');
     
     const { error } = await signOut();
     
     if (error) {
-      console.error('Sign out failed with error:', error);
+      console.error('❌ Sign out failed with error:', error);
       toast.error('Erreur lors de la déconnexion');
     } else {
-      console.log('Sign out API call completed successfully');
+      console.log('✅ Sign out completed successfully');
     }
   };
 
@@ -51,7 +53,7 @@ const Index = () => {
   };
 
   if (loading) {
-    console.log('Index page showing loading state');
+    console.log('⏳ Index page showing loading state');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-lg">Loading...</div>
@@ -60,7 +62,7 @@ const Index = () => {
   }
 
   if (!user) {
-    console.log('Index page - no user, should redirect');
+    console.log('❌ Index page - no user, should redirect');
     return null;
   }
 
@@ -72,7 +74,7 @@ const Index = () => {
     return <ReturnIndexAnalysis onBack={handleBackToDashboard} />;
   }
 
-  console.log('Index page rendering main content for user:', user.id);
+  console.log('🖥️ Index page rendering main content for user:', user.id);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -82,9 +84,13 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              {profile && (
+              {profile ? (
                 <p className="text-lg text-gray-600 mt-1">
                   Bienvenue, {profile.first_name} {profile.last_name}
+                </p>
+              ) : (
+                <p className="text-lg text-gray-600 mt-1">
+                  Bienvenue! (Profile loading...)
                 </p>
               )}
             </div>
