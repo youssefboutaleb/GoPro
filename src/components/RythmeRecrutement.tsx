@@ -191,6 +191,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         // Calculate sum of achievements YTD (up to selected month)
         const achievementsYTD = achievements.slice(0, selectedMonth).reduce((sum, achievement) => sum + (achievement || 0), 0);
         
+        // Calculate sum of targets YTD (up to selected month)
+        const targetsYTD = targets.slice(0, selectedMonth).reduce((sum, target) => sum + (target || 0), 0);
+        
         // Calculate n = 12 - m (where m is selected month)
         const n = 12 - selectedMonth;
         
@@ -198,8 +201,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         const denominator = n > 0 ? (n * (n + 1)) / 2 : 1;
         const recruitmentRhythm = denominator > 0 ? Math.ceil((sumTargets - achievementsYTD) / denominator) : 0;
 
-        // Calculate sales percentage for color coding: (Sum of achievementsYTD)/(sum of targets) *100
-        const salesPercentage = sumTargets > 0 ? (achievementsYTD / sumTargets) * 100 : 0;
+        // Calculate sales percentage for color coding: (Sum of achievementsYTD)/(sum of targetsYTD) *100
+        const salesPercentage = targetsYTD > 0 ? (achievementsYTD / targetsYTD) * 100 : 0;
 
         // Determine row color based on sales percentage
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
