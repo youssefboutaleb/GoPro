@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +14,11 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import ReturnIndexAnalysis from '@/components/ReturnIndexAnalysis';
-import RythmeRecrutementAnalysis from '@/components/RythmeRecrutementAnalysis';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Lazy load heavy components
+const ReturnIndexAnalysis = lazy(() => import('@/components/ReturnIndexAnalysis'));
+const RythmeRecrutementAnalysis = lazy(() => import('@/components/RythmeRecrutementAnalysis'));
 
 const Index = () => {
   const { profile, signOut, isAdmin, loading, user } = useAuth();
@@ -48,15 +51,28 @@ const Index = () => {
     return null;
   }
 
-  // Component mapping for different views
-  const viewComponents = {
-    returnIndex: <ReturnIndexAnalysis onBack={() => setActiveView(null)} />,
-    recruitment: <RythmeRecrutementAnalysis onBack={() => setActiveView(null)} />,
+  // Component mapping for different views with Suspense
+  const renderActiveView = () => {
+    if (!activeView) return null;
+
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading analysis...</p>
+          </div>
+        </div>
+      }>
+        {activeView === 'returnIndex' && <ReturnIndexAnalysis onBack={() => setActiveView(null)} />}
+        {activeView === 'recruitment' && <RythmeRecrutementAnalysis onBack={() => setActiveView(null)} />}
+      </Suspense>
+    );
   };
 
   // If a specific view is active, render it
-  if (activeView && viewComponents[activeView as keyof typeof viewComponents]) {
-    return viewComponents[activeView as keyof typeof viewComponents];
+  if (activeView) {
+    return renderActiveView();
   }
 
   return (

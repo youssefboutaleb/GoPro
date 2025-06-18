@@ -23,8 +23,6 @@ export const useRecruitmentData = (selectedMonth: string) => {
     queryFn: async (): Promise<SalesPlanData[]> => {
       if (!user?.id) return [];
 
-      console.log('🔍 Fetching recruitment rhythm data for delegate:', user.id);
-
       try {
         const { data: salesPlansData, error: salesPlansError } = await supabase
           .from('sales_plans')
@@ -50,14 +48,10 @@ export const useRecruitmentData = (selectedMonth: string) => {
           .eq('delegate_id', user.id);
 
         if (salesPlansError) {
-          console.error('❌ Error fetching sales plans:', salesPlansError);
           throw salesPlansError;
         }
 
-        console.log('📋 Sales plans data fetched successfully:', salesPlansData?.length || 0, 'plans');
-
         if (!salesPlansData || salesPlansData.length === 0) {
-          console.log('⚠️ No sales plans found for delegate');
           return [];
         }
 
@@ -65,15 +59,12 @@ export const useRecruitmentData = (selectedMonth: string) => {
 
         for (const salesPlan of salesPlansData) {
           if (!salesPlan.products) {
-            console.log('⚠️ No product found for sales plan:', salesPlan.id);
             continue;
           }
 
           const product = salesPlan.products;
           const sales = salesPlan.sales || [];
           const currentYearSales = sales.filter(sale => sale.year === currentYear);
-
-          console.log(`📊 Processing product ${product.name} with ${currentYearSales.length} sales records`);
 
           const targets = currentYearSales[0]?.targets || new Array(12).fill(0);
           const achievements = currentYearSales[0]?.achievements || new Array(12).fill(0);
@@ -110,14 +101,14 @@ export const useRecruitmentData = (selectedMonth: string) => {
           });
         }
 
-        console.log('✅ Processing complete. Total sales plans:', processedData.length);
         return processedData;
 
       } catch (error) {
-        console.error('💥 Error in recruitment rhythm query:', error);
         throw error;
       }
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };

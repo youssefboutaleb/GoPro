@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, TrendingUp, Users, Target } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,8 +26,6 @@ interface VisitPlanData {
 
 const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => {
   const { user } = useAuth();
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
-  const [selectedBrick, setSelectedBrick] = useState<string>('all');
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1; // 1-based
@@ -42,8 +39,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     queryKey: ['visit-plans-analysis', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-
-      console.log('🔍 Fetching visit plans for delegate:', user.id);
 
       try {
         const { data: visitPlansData, error: visitPlansError } = await supabase
@@ -70,14 +65,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           .eq('delegate_id', user.id);
 
         if (visitPlansError) {
-          console.error('❌ Error fetching visit plans:', visitPlansError);
           throw visitPlansError;
         }
 
-        console.log('📋 Visit plans data fetched successfully:', visitPlansData?.length || 0, 'plans');
-
         if (!visitPlansData || visitPlansData.length === 0) {
-          console.log('⚠️ No visit plans found for delegate');
           return [];
         }
 
@@ -85,7 +76,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
         for (const visitPlan of visitPlansData) {
           if (!visitPlan.doctors) {
-            console.log('⚠️ No doctor found for visit plan:', visitPlan.id);
             continue;
           }
 
@@ -144,26 +134,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           });
         }
 
-        console.log('✅ Processing complete. Total visit plans:', processedData.length);
         return processedData;
 
       } catch (error) {
-        console.error('💥 Error in visit plans query:', error);
         throw error;
       }
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
-
-  // Get unique specialties and bricks for filters
-  const specialties = [...new Set(visitPlansData.map(d => {
-    // Extract specialty from doctor data if available
-    return 'N/A'; // We'll need to get this from the doctor relationship
-  }))];
-  const bricks = [...new Set(visitPlansData.map(d => {
-    // Extract brick from doctor data if available  
-    return 'N/A'; // We'll need to get this from the doctor relationship
-  }))];
 
   // Calculate average return index
   const averageReturnIndex = visitPlansData.length > 0 
