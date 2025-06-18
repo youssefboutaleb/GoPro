@@ -550,13 +550,14 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                       >
-                        {/* Swipe action background - positioned absolutely to not affect table layout */}
+                        {/* Swipe action background - positioned absolutely behind the row */}
                         {!plan.has_visit_today && !plan.is_frequency_met && (
                           <div 
-                            className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none z-0"
+                            className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
                             style={{ 
                               width: `${getSwipeOffset(plan.id)}px`,
-                              opacity: getSwipeOpacity(plan.id)
+                              opacity: getSwipeOpacity(plan.id),
+                              zIndex: 0
                             }}
                           >
                             <Check className="h-6 w-6 text-white" />
