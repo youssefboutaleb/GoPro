@@ -3,10 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, TrendingUp, Users, Target, GripVertical } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, Target, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { useToast } from '@/hooks/use-toast';
 
 interface ReturnIndexAnalysisProps {
@@ -213,19 +212,29 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     staleTime: 5 * 60 * 1000,
   });
 
-  // Add mutation for recording a visit
+  // Add mutation for recording a visit with better error handling
   const recordVisitMutation = useMutation({
     mutationFn: async (visitPlanId: string) => {
       const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
       
-      const { error } = await supabase
+      console.log('Recording visit for plan:', visitPlanId, 'on date:', today);
+      
+      const { data, error } = await supabase
         .from('visits')
         .insert({
           visit_plan_id: visitPlanId,
-          visit_date: today
-        });
+          visit_date: today,
+          delegate_id: user?.id // Include delegate_id to satisfy RLS policy
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting visit:', error);
+        throw error;
+      }
+
+      console.log('Visit recorded successfully:', data);
+      return data;
     },
     onSuccess: () => {
       // Invalidate and refetch the visits data to update the table
@@ -237,26 +246,18 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         description: "A visit has been recorded for today",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error recording visit:', error);
       toast({
         title: "Error",
-        description: "Failed to record visit",
+        description: error.message || "Failed to record visit",
         variant: "destructive",
       });
     },
   });
 
-  const handleDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId } = result;
-
-    // If dropped outside the list or in the same position, do nothing
-    if (!destination || destination.index === source.index) {
-      return;
-    }
-
-    // Record a visit for the dragged visit plan
-    recordVisitMutation.mutate(draggableId);
+  const handleRecordVisit = (visitPlanId: string) => {
+    recordVisitMutation.mutate(visitPlanId);
   };
 
   const isLoading = visitPlansLoading || doctorsLoading || visitsLoading || isProcessing;
@@ -383,7 +384,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle>Visit Plans Analysis</CardTitle>
-            <p className="text-sm text-gray-600">Drag and drop rows to record a visit for today</p>
+            <p className="text-sm text-gray-600">Click the "+" button to record a visit for today</p>
           </CardHeader>
           <CardContent>
             {processedData.length === 0 ? (
@@ -396,71 +397,65 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-8"></TableHead>
-                        <TableHead>Doctor Name</TableHead>
-                        <TableHead>Visit Frequency</TableHead>
-                        <TableHead>Remaining This Month</TableHead>
-                        {displayMonths.map(month => (
-                          <TableHead key={month} className="text-center min-w-[60px]">{month}</TableHead>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">Action</TableHead>
+                      <TableHead>Doctor Name</TableHead>
+                      <TableHead>Visit Frequency</TableHead>
+                      <TableHead>Remaining This Month</TableHead>
+                      {displayMonths.map(month => (
+                        <TableHead key={month} className="text-center min-w-[60px]">{month}</TableHead>
+                      ))}
+                      <TableHead className="text-center">Total</TableHead>
+                      <TableHead className="text-center">Expected</TableHead>
+                      <TableHead className="text-center">Return Index</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {processedData.map((plan) => (
+                      <TableRow
+                        key={plan.id}
+                        className={getRowColorClass(plan.row_color)}
+                      >
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRecordVisit(plan.id)}
+                            disabled={recordVisitMutation.isPending}
+                            className="h-8 w-8 p-0 hover:bg-green-50"
+                          >
+                            <Plus className="h-4 w-4 text-green-600" />
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {plan.doctor_name}
+                        </TableCell>
+                        <TableCell>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                            {plan.visit_frequency}x/month
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center font-medium">
+                          {plan.remaining_visits_this_month}
+                        </TableCell>
+                        {plan.monthly_visits.map((visits, monthIndex) => (
+                          <TableCell key={monthIndex} className="text-center">
+                            {visits}
+                          </TableCell>
                         ))}
-                        <TableHead className="text-center">Total</TableHead>
-                        <TableHead className="text-center">Expected</TableHead>
-                        <TableHead className="text-center">Return Index</TableHead>
+                        <TableCell className="text-center font-medium">{plan.total_visits}</TableCell>
+                        <TableCell className="text-center">{plan.expected_visits}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReturnIndexColor(plan.return_index)}`}>
+                            {plan.return_index}%
+                          </span>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <Droppable droppableId="visit-plans">
-                      {(provided) => (
-                        <TableBody {...provided.droppableProps} ref={provided.innerRef}>
-                          {processedData.map((plan, index) => (
-                            <Draggable key={plan.id} draggableId={plan.id} index={index}>
-                              {(provided, snapshot) => (
-                                <TableRow
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  className={`${getRowColorClass(plan.row_color)} ${
-                                    snapshot.isDragging ? 'shadow-lg' : ''
-                                  }`}
-                                >
-                                  <TableCell {...provided.dragHandleProps} className="text-center">
-                                    <GripVertical className="h-4 w-4 text-gray-400 cursor-grab" />
-                                  </TableCell>
-                                  <TableCell className="font-medium">
-                                    {plan.doctor_name}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                                      {plan.visit_frequency}x/month
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-center font-medium">
-                                    {plan.remaining_visits_this_month}
-                                  </TableCell>
-                                  {plan.monthly_visits.map((visits, monthIndex) => (
-                                    <TableCell key={monthIndex} className="text-center">
-                                      {visits}
-                                    </TableCell>
-                                  ))}
-                                  <TableCell className="text-center font-medium">{plan.total_visits}</TableCell>
-                                  <TableCell className="text-center">{plan.expected_visits}</TableCell>
-                                  <TableCell className="text-center">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReturnIndexColor(plan.return_index)}`}>
-                                      {plan.return_index}%
-                                    </span>
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </TableBody>
-                      )}
-                    </Droppable>
-                  </Table>
-                </DragDropContext>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
@@ -488,7 +483,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             </div>
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Tip:</strong> Drag and drop any row to record a visit for today. The table will update automatically.
+                <strong>Tip:</strong> Click the "+" button in any row to record a visit for today. The table will update automatically.
               </p>
             </div>
           </CardContent>
