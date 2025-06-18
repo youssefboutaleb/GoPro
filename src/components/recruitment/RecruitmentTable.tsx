@@ -45,6 +45,14 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
     return 'text-red-600 bg-red-100';
   };
 
+  const getMonthHighlightClass = (monthIndex: number) => {
+    // Highlight selected month and all preceding months
+    if (monthIndex < monthsElapsed) {
+      return 'bg-blue-50 border-2 border-blue-200';
+    }
+    return '';
+  };
+
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
       <CardHeader>
@@ -66,8 +74,13 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                 <TableRow>
                   <TableHead>Product Name</TableHead>
                   <TableHead>Brick Name</TableHead>
-                  {displayMonths.map(month => (
-                    <TableHead key={month} className="text-center min-w-[100px]">{month}</TableHead>
+                  {displayMonths.map((month, index) => (
+                    <TableHead 
+                      key={month} 
+                      className={`text-center min-w-[100px] ${getMonthHighlightClass(index)}`}
+                    >
+                      {month}
+                    </TableHead>
                   ))}
                   <TableHead className="text-center">Recruitment Rhythm</TableHead>
                 </TableRow>
@@ -82,7 +95,10 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                       {plan.brick_name || 'N/A'}
                     </TableCell>
                     {displayMonths.map((_, index) => (
-                      <TableCell key={index} className="text-center">
+                      <TableCell 
+                        key={index} 
+                        className={`text-center ${getMonthHighlightClass(index)}`}
+                      >
                         <div className="flex flex-col space-y-1">
                           <span className="text-green-600 font-medium">
                             {plan.monthly_achievements[index] || 0}
