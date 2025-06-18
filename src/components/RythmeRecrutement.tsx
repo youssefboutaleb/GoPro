@@ -1,130 +1,153 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Users, TrendingUp, Calendar, Star, Plus } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Calendar, Target } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RythmeRecrutementProps {
   onBack: () => void;
 }
 
-interface UserInfo {
+interface SalesPlanData {
   id: string;
-  role: string;
-  created_at: string | null;
-}
-
-interface RecruitmentMetrics {
-  totalUsers: number;
-  newThisMonth: number;
-  newThisQuarter: number;
-  performanceRating: number;
-  trend: 'up' | 'down' | 'stable';
+  product_name: string;
+  brick_name: string;
+  targets: number[];
+  achievements: number[];
+  recruitment_rhythm: number;
+  row_color: 'red' | 'yellow' | 'green';
 }
 
 const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const { user } = useAuth();
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
-  const { data: users = [], isLoading, error } = useQuery({
-    queryKey: ['users_recruitment'],
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  // Generate month names for table headers
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const displayMonths = monthNames.slice(0, currentMonth);
+
+  const { data: salesPlansData = [], isLoading, error } = useQuery({
+    queryKey: ['sales-plans-recruitment', user?.id, selectedMonth],
     queryFn: async () => {
-      console.log('Fetching users for recruitment analysis...');
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, created_at')
-        .order('created_at', { ascending: false });
+      if (!user?.id) return [];
 
-      if (error) {
-        console.error('Error fetching users:', error);
+      try {
+        const { data: salesPlansData, error: salesPlansError } = await supabase
+          .from('sales_plans')
+          .select(`
+            id,
+            products:product_id (
+              id,
+              name
+            ),
+            bricks:brick_id (
+              id,
+              name
+            ),
+            sales (
+              id,
+              targets,
+              achievements,
+              year
+            )
+          `)
+          .eq('delegate_id', user.id);
+
+        if (salesPlansError) {
+          throw salesPlansError;
+        }
+
+        if (!salesPlansData || salesPlansData.length === 0) {
+          return [];
+        }
+
+        const processedData: SalesPlanData[] = [];
+
+        for (const salesPlan of salesPlansData) {
+          if (!salesPlan.products || !salesPlan.bricks) {
+            continue;
+          }
+
+          const product = salesPlan.products;
+          const brick = salesPlan.bricks;
+          const sales = salesPlan.sales?.find(s => s.year === currentYear);
+
+          if (!sales) continue;
+
+          const targets = sales.targets || [];
+          const achievements = sales.achievements || [];
+
+          // Calculate recruitment rhythm
+          const sumTargets = targets.reduce((sum, target) => sum + (target || 0), 0);
+          const achievementsYTD = achievements.slice(0, selectedMonth).reduce((sum, achievement) => sum + (achievement || 0), 0);
+          const n = 12 - selectedMonth;
+          const expectedGrowth = n > 0 ? (n * (n + 1)) / 2 : 1;
+          const recruitmentRhythm = expectedGrowth > 0 ? Math.round(((sumTargets - achievementsYTD) / expectedGrowth) * 100) : 0;
+
+          // Determine row color based on recruitment rhythm
+          let rowColor: 'red' | 'yellow' | 'green' = 'red';
+          if (recruitmentRhythm >= 80) {
+            rowColor = 'green';
+          } else if (recruitmentRhythm >= 50) {
+            rowColor = 'yellow';
+          }
+
+          processedData.push({
+            id: salesPlan.id,
+            product_name: product.name,
+            brick_name: brick.name,
+            targets,
+            achievements,
+            recruitment_rhythm: recruitmentRhythm,
+            row_color: rowColor
+          });
+        }
+
+        return processedData;
+
+      } catch (error) {
         throw error;
       }
-
-      console.log('Fetched users:', data);
-      return data as UserInfo[];
-    }
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
-  // Calculate recruitment metrics
-  const calculateMetrics = (): RecruitmentMetrics => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    const totalUsers = users.length;
-    
-    // New users this month
-    const newThisMonth = users.filter(user => {
-      if (!user.created_at) return false;
-      const createdDate = new Date(user.created_at);
-      return createdDate.getMonth() === currentMonth && 
-             createdDate.getFullYear() === currentYear;
-    }).length;
-
-    // New users this quarter
-    const quarterStart = Math.floor(currentMonth / 3) * 3;
-    const newThisQuarter = users.filter(user => {
-      if (!user.created_at) return false;
-      const createdDate = new Date(user.created_at);
-      const userMonth = createdDate.getMonth();
-      return userMonth >= quarterStart && userMonth <= currentMonth && 
-             createdDate.getFullYear() === currentYear;
-    }).length;
-
-    // Simple performance rating based on recruitment rate
-    const performanceRating = totalUsers > 0 ? Math.min(5, Math.ceil((newThisQuarter / totalUsers) * 100)) : 0;
-    
-    // Trend calculation (simplified)
-    const trend: 'up' | 'down' | 'stable' = newThisMonth > 2 ? 'up' : newThisMonth === 0 ? 'down' : 'stable';
-
-    return {
-      totalUsers,
-      newThisMonth,
-      newThisQuarter,
-      performanceRating,
-      trend
-    };
-  };
-
-  const metrics = calculateMetrics();
-
-  // Filter users based on selected period
-  const getFilteredUsers = () => {
-    const now = new Date();
-    let filteredByTime = users;
-
-    if (selectedPeriod === 'month') {
-      filteredByTime = users.filter(user => {
-        if (!user.created_at) return false;
-        const createdDate = new Date(user.created_at);
-        return createdDate.getMonth() === now.getMonth() && 
-               createdDate.getFullYear() === now.getFullYear();
-      });
-    } else if (selectedPeriod === 'quarter') {
-      const quarterStart = Math.floor(now.getMonth() / 3) * 3;
-      filteredByTime = users.filter(user => {
-        if (!user.created_at) return false;
-        const createdDate = new Date(user.created_at);
-        const userMonth = createdDate.getMonth();
-        return userMonth >= quarterStart && userMonth <= now.getMonth() && 
-               createdDate.getFullYear() === now.getFullYear();
-      });
+  // Helper functions for row styling
+  const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
+    switch (color) {
+      case 'green':
+        return 'bg-green-50 border-l-4 border-l-green-500';
+      case 'yellow':
+        return 'bg-yellow-50 border-l-4 border-l-yellow-500';
+      case 'red':
+        return 'bg-red-50 border-l-4 border-l-red-500';
+      default:
+        return '';
     }
-
-    return filteredByTime;
   };
 
-  const filteredUsers = getFilteredUsers();
+  const getRecruitmentRhythmColor = (rhythm: number) => {
+    if (rhythm >= 80) return 'text-green-600 bg-green-100';
+    if (rhythm >= 50) return 'text-yellow-600 bg-yellow-100';
+    return 'text-red-600 bg-red-100';
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading recruitment data...</p>
+          <p className="text-gray-600">Loading recruitment rhythm data...</p>
         </div>
       </div>
     );
@@ -134,7 +157,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading recruitment data</p>
+          <p className="text-red-600 mb-4">Error loading recruitment rhythm data</p>
           <Button onClick={onBack}>Back</Button>
         </div>
       </div>
@@ -153,23 +176,25 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
               </Button>
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
-                  <Users className="h-6 w-6 text-white" />
+                  <TrendingUp className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Recruitment Rhythm</h1>
-                  <p className="text-sm text-gray-600">User recruitment analysis and trends</p>
+                  <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement</h1>
+                  <p className="text-sm text-gray-600">Sales plans analysis and recruitment rhythm</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select period" />
+                  <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="quarter">This Quarter</SelectItem>
-                  <SelectItem value="year">This Year</SelectItem>
+                  {displayMonths.map((month, index) => (
+                    <SelectItem key={index + 1} value={(index + 1).toString()}>
+                      {month}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -178,123 +203,54 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                Active users
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New This Month</CardTitle>
-              <Plus className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.newThisMonth}</div>
-              <p className="text-xs text-muted-foreground">
-                New recruits
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Quarter Total</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.newThisQuarter}</div>
-              <p className="text-xs text-muted-foreground">
-                Q{Math.floor(new Date().getMonth() / 3) + 1} recruits
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Performance</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <div className="text-2xl font-bold">{metrics.performanceRating}</div>
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`h-4 w-4 ${i < metrics.performanceRating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                    />
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Recruitment rating
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Recruits Table */}
+        {/* Sales Plans Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-gray-900">
-                Recent Recruits - {selectedPeriod === 'month' ? 'This Month' : selectedPeriod === 'quarter' ? 'This Quarter' : 'This Year'}
-              </CardTitle>
-              <Badge className={`${
-                metrics.trend === 'up' ? 'bg-green-100 text-green-800' :
-                metrics.trend === 'down' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
-              }`}>
-                Trend: {metrics.trend === 'up' ? '↗️ Rising' : metrics.trend === 'down' ? '↘️ Declining' : '→ Stable'}
-              </Badge>
-            </div>
+            <CardTitle>Sales Plans Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredUsers.length === 0 ? (
+            {salesPlansData.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No recruits found</h3>
-                <p className="text-gray-600">No new users for the selected period.</p>
+                <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
+                <p className="text-gray-600">
+                  No sales plans found for your profile.
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">User ID</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Role</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Registration Date</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
+                      {displayMonths.map(month => (
+                        <th key={month} className="text-center py-3 px-4 font-medium text-gray-700 min-w-[80px]">{month}</th>
+                      ))}
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Recruitment Rhythm</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                    {salesPlansData.map((plan) => (
+                      <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
+                        <td className="py-4 px-4 font-medium">
+                          {plan.product_name}
+                        </td>
                         <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">
-                            {user.id.substring(0, 8)}...
-                          </div>
+                          {plan.brick_name}
                         </td>
-                        <td className="py-4 px-4 text-gray-600">
-                          {user.role}
-                        </td>
-                        <td className="py-4 px-4 text-center text-gray-600">
-                          {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                        </td>
+                        {displayMonths.map((_, index) => (
+                          <td key={index} className="py-4 px-4 text-center">
+                            <div className="text-sm">
+                              <div className="font-medium">{plan.achievements[index] || 0}</div>
+                              <div className="text-gray-500">/ {plan.targets[index] || 0}</div>
+                            </div>
+                          </td>
+                        ))}
                         <td className="py-4 px-4 text-center">
-                          <Badge className="bg-blue-100 text-blue-800">
-                            Active
-                          </Badge>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(plan.recruitment_rhythm)}`}>
+                            {plan.recruitment_rhythm}%
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -302,6 +258,29 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                 </table>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Legend */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
+          <CardHeader>
+            <CardTitle className="text-sm">Color Legend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
+                <span>Green: Recruitment Rhythm ≥ 80%</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
+                <span>Yellow: 50% ≤ Recruitment Rhythm ≤ 79%</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
+                <span>Red: Recruitment Rhythm < 50%</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

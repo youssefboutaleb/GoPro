@@ -1,15 +1,18 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart3, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import RythmeRecrutement from '@/components/RythmeRecrutement';
+import ReturnIndexAnalysis from '@/components/ReturnIndexAnalysis';
 
 const Index = () => {
-  const { user, signOut, loading, signOutLoading } = useAuth();
+  const { user, profile, signOut, loading, signOutLoading } = useAuth();
   const navigate = useNavigate();
+  const [currentView, setCurrentView] = useState('dashboard');
 
   useEffect(() => {
     console.log('Index page - Auth state:', { user: user?.id, loading });
@@ -39,6 +42,14 @@ const Index = () => {
     }
   };
 
+  const handleCardClick = (view: string) => {
+    setCurrentView(view);
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+  };
+
   if (loading) {
     console.log('Index page showing loading state');
     return (
@@ -53,15 +64,30 @@ const Index = () => {
     return null;
   }
 
+  if (currentView === 'recruitment') {
+    return <RythmeRecrutement onBack={handleBackToDashboard} />;
+  }
+
+  if (currentView === 'return-index') {
+    return <ReturnIndexAnalysis onBack={handleBackToDashboard} />;
+  }
+
   console.log('Index page rendering main content for user:', user.id);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Header with signout button */}
+      {/* Header with welcome message and signout button */}
       <div className="bg-white shadow-lg border-b border-blue-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              {profile && (
+                <p className="text-lg text-gray-600 mt-1">
+                  Bienvenue, {profile.first_name} {profile.last_name}
+                </p>
+              )}
+            </div>
             <Button 
               variant="outline" 
               onClick={handleSignOut}
@@ -77,7 +103,10 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Indice de Retour Card */}
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0">
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleCardClick('return-index')}
+          >
             <CardHeader>
               <div className="flex items-center space-x-3">
                 <div className="p-3 bg-orange-100 rounded-lg">
@@ -95,7 +124,10 @@ const Index = () => {
           </Card>
 
           {/* Rythme de Recrutement Card */}
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0">
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleCardClick('recruitment')}
+          >
             <CardHeader>
               <div className="flex items-center space-x-3">
                 <div className="p-3 bg-indigo-100 rounded-lg">
