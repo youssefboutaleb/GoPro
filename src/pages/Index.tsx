@@ -29,16 +29,7 @@ const Index = () => {
       console.error('Sign out failed:', error);
       toast.error('Erreur lors de la déconnexion');
     } else {
-      console.log('Sign out successful, waiting for auth state change');
-      // Don't show success toast immediately - wait for actual sign out
-      
-      // Add a backup navigation if auth state change doesn't redirect
-      setTimeout(() => {
-        if (!user) {
-          console.log('Backup navigation to /auth');
-          navigate('/auth');
-        }
-      }, 2000);
+      console.log('Sign out successful, onAuthStateChange will handle redirect');
     }
   };
 

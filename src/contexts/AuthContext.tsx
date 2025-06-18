@@ -83,10 +83,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } else {
         setProfile(null);
-        // Reset sign out loading when user becomes null (successful sign out)
+        
+        // Handle successful sign out
         if (event === 'SIGNED_OUT') {
-          console.log('User signed out, resetting signOutLoading');
+          console.log('User signed out successfully');
           setSignOutLoading(false);
+          
+          // Navigate to auth page after sign out
+          setTimeout(() => {
+            window.location.href = '/auth';
+          }, 100);
         }
       }
       
@@ -121,7 +127,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const timeoutId = setTimeout(() => {
       console.log('Auth initialization timeout reached');
       setLoading(false);
-      setSignOutLoading(false); // Reset sign out loading on timeout
     }, 5000);
 
     initializeAuth();
@@ -195,21 +200,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) {
         console.error('Sign out error:', error);
-        setSignOutLoading(false); // Reset loading on error
+        setSignOutLoading(false);
         return { error };
       }
       
-      console.log('Sign out API call successful');
-      
-      // Add backup redirect after 3 seconds if onAuthStateChange doesn't fire
-      setTimeout(() => {
-        if (signOutLoading) {
-          console.log('Backup redirect: onAuthStateChange did not fire within 3 seconds');
-          setSignOutLoading(false);
-          window.location.href = '/auth';
-        }
-      }, 3000);
-      
+      console.log('Sign out API call successful, waiting for auth state change');
       return { error: null };
     } catch (error) {
       console.error('Sign out exception:', error);
