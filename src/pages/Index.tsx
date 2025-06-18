@@ -22,14 +22,20 @@ const Index = () => {
 
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
+    console.log('Current state before sign out:', {
+      user: !!user,
+      userId: user?.id,
+      signOutLoading,
+      timestamp: new Date().toISOString()
+    });
     
     const { error } = await signOut();
     
     if (error) {
-      console.error('Sign out failed:', error);
+      console.error('Sign out failed with error:', error);
       toast.error('Erreur lors de la déconnexion');
     } else {
-      console.log('Sign out successful, onAuthStateChange will handle redirect');
+      console.log('Sign out API call completed successfully');
     }
   };
 

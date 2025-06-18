@@ -60,6 +60,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const clearSessionAndRedirect = () => {
+    console.log('Clearing session and redirecting manually');
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setSignOutLoading(false);
+    
+    // Clear any local storage items related to Supabase
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('supabase.auth.token') || key.startsWith('sb-')) {
+        localStorage.removeItem(key);
+        console.log('Removed local storage key:', key);
+      }
+    });
+    
+    // Force redirect
+    setTimeout(() => {
+      window.location.href = '/auth';
+    }, 100);
+  };
+
   useEffect(() => {
     console.log('AuthProvider initializing...');
     
@@ -67,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
+      console.log('Auth state changed:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id);
       
       setSession(session);
       setUser(session?.user ?? null);
@@ -86,11 +108,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Handle successful sign out
         if (event === 'SIGNED_OUT') {
-          console.log('User signed out successfully');
+          console.log('SIGNED_OUT event detected - user signed out successfully');
           setSignOutLoading(false);
           
           // Navigate to auth page after sign out
           setTimeout(() => {
+            console.log('Redirecting to /auth after SIGNED_OUT event');
             window.location.href = '/auth';
           }, 100);
         }
@@ -194,21 +217,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       setSignOutLoading(true);
-      console.log('Signing out...');
+      console.log('Starting sign out process...');
+      console.log('Current session exists:', !!session);
+      console.log('Current user exists:', !!user);
       
+      // Check Supabase client status
+      console.log('Supabase client config:', {
+        url: supabase.supabaseUrl,
+        key: supabase.supabaseKey.substring(0, 20) + '...',
+      });
+      
+      console.log('Calling supabase.auth.signOut()...');
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('Sign out error:', error);
-        setSignOutLoading(false);
+        console.error('Supabase signOut API returned error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          statusCode: error.statusCode,
+        });
+        
+        // If API call failed, force manual sign out
+        console.log('API sign out failed, attempting manual session clearing');
+        clearSessionAndRedirect();
         return { error };
       }
       
-      console.log('Sign out API call successful, waiting for auth state change');
+      console.log('Supabase signOut API call successful');
+      console.log('Waiting for onAuthStateChange to fire SIGNED_OUT event...');
+      
+      // Set up a fallback mechanism in case onAuthStateChange doesn't fire
+      const fallbackTimeout = setTimeout(() => {
+        console.log('Fallback: onAuthStateChange SIGNED_OUT event did not fire within 5 seconds');
+        console.log('Current auth state:', { user: !!user, session: !!session, signOutLoading });
+        
+        // Check if we're still authenticated - if so, force manual sign out
+        if (user || session) {
+          console.log('User still authenticated after 5 seconds, forcing manual sign out');
+          clearSessionAndRedirect();
+        } else {
+          console.log('User appears to be signed out, just redirecting');
+          setSignOutLoading(false);
+          window.location.href = '/auth';
+        }
+      }, 5000);
+      
+      // Clear the fallback if successful sign out happens
+      const clearFallback = () => {
+        console.log('Clearing fallback timeout');
+        clearTimeout(fallbackTimeout);
+      };
+      
+      // Store the clear function for potential cleanup
+      (window as any).__clearSignOutFallback = clearFallback;
+      
       return { error: null };
     } catch (error) {
       console.error('Sign out exception:', error);
-      setSignOutLoading(false);
+      console.log('Exception during sign out, attempting manual session clearing');
+      clearSessionAndRedirect();
       return { error };
     }
   };
