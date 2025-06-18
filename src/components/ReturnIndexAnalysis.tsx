@@ -225,13 +225,18 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     mutationFn: async (visitPlanId: string) => {
       const today = new Date().toISOString().split('T')[0];
       
-      console.log('Recording visit for plan:', visitPlanId, 'on date:', today);
+      console.log('Recording visit for plan:', visitPlanId, 'on date:', today, 'for user:', user?.id);
       
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('visits')
         .insert({
           visit_plan_id: visitPlanId,
-          visit_date: today
+          visit_date: today,
+          delegate_id: user.id
         })
         .select();
 
@@ -451,6 +456,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead>Doctor Name</TableHead>
                       <TableHead>Visit Frequency</TableHead>
                       <TableHead>Remaining This Month</TableHead>
@@ -476,7 +482,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         onTouchEnd={handleTouchEnd}
                       >
                         {/* Swipe action background */}
-                        <div 
+                        <TableCell 
                           className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
                           style={{ 
                             width: `${getSwipeOffset(plan.id)}px`,
@@ -485,8 +491,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         >
                           <Check className="h-6 w-6 text-white" />
                           <span className="text-white font-medium ml-2">Record Visit</span>
-                        </div>
+                        </TableCell>
 
+                        <TableCell className="w-8"></TableCell>
                         <TableCell className="font-medium">
                           {plan.doctor_name}
                         </TableCell>
