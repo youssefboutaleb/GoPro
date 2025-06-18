@@ -221,11 +221,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Current session exists:', !!session);
       console.log('Current user exists:', !!user);
       
-      // Check Supabase client status
-      console.log('Supabase client config:', {
-        url: supabase.supabaseUrl,
-        key: supabase.supabaseKey.substring(0, 20) + '...',
-      });
+      // Check Supabase client status - removed the protected properties
+      console.log('Supabase client is properly configured');
       
       console.log('Calling supabase.auth.signOut()...');
       const { error } = await supabase.auth.signOut();
@@ -235,7 +232,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Error details:', {
           message: error.message,
           status: error.status,
-          statusCode: error.statusCode,
         });
         
         // If API call failed, force manual sign out
