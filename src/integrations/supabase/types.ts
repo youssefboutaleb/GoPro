@@ -179,24 +179,24 @@ export type Database = {
       }
       sales: {
         Row: {
+          achievements: number[] | null
           id: string
-          monthly_objective: number[] | null
-          sales_achieved: number[] | null
           sales_plan_id: string | null
+          targets: number[] | null
           year: number
         }
         Insert: {
+          achievements?: number[] | null
           id?: string
-          monthly_objective?: number[] | null
-          sales_achieved?: number[] | null
           sales_plan_id?: string | null
+          targets?: number[] | null
           year: number
         }
         Update: {
+          achievements?: number[] | null
           id?: string
-          monthly_objective?: number[] | null
-          sales_achieved?: number[] | null
           sales_plan_id?: string | null
+          targets?: number[] | null
           year?: number
         }
         Relationships: [

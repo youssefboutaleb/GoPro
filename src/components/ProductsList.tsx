@@ -59,10 +59,10 @@ const ProductsList = ({ onBack }: ProductsListProps) => {
           // Count the number of sales records as proxy for sales volume
           const totalSales = sales?.length || 0;
           
-          // Calculate monthly objective from the sales table
+          // Calculate monthly objective from the sales table using the new column name 'targets'
           const monthIndex = parseInt(selectedMonth) - 1;
           const totalObjectives = sales?.reduce((sum, sale) => {
-            const monthlyObjective = sale.monthly_objective?.[monthIndex] || 0;
+            const monthlyObjective = sale.targets?.[monthIndex] || 0;
             return sum + Number(monthlyObjective);
           }, 0) || 1;
           
