@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -526,6 +525,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead>Doctor Name</TableHead>
                       <TableHead>Visit Frequency</TableHead>
                       <TableHead>Remaining This Month</TableHead>
@@ -550,10 +550,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                       >
-                        {/* Swipe action background */}
+                        {/* Swipe action background - positioned absolutely to not affect table layout */}
                         {!plan.has_visit_today && !plan.is_frequency_met && (
-                          <TableCell 
-                            className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
+                          <div 
+                            className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none z-0"
                             style={{ 
                               width: `${getSwipeOffset(plan.id)}px`,
                               opacity: getSwipeOpacity(plan.id)
@@ -561,38 +561,38 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                           >
                             <Check className="h-6 w-6 text-white" />
                             <span className="text-white font-medium ml-2">Record Visit</span>
-                          </TableCell>
+                          </div>
                         )}
 
-                        <TableCell className="font-medium relative">
-                          <div className="flex items-center space-x-2">
-                            <span>{plan.doctor_name}</span>
-                            {plan.has_visit_today && (
-                              <Check className="h-4 w-4 text-green-600" />
-                            )}
-                            {plan.is_frequency_met && !plan.has_visit_today && (
-                              <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">✓</span>
-                              </div>
-                            )}
-                          </div>
+                        <TableCell className="w-8 relative z-10">
+                          {plan.has_visit_today && (
+                            <Check className="h-4 w-4 text-green-600" />
+                          )}
+                          {plan.is_frequency_met && !plan.has_visit_today && (
+                            <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">✓</span>
+                            </div>
+                          )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="font-medium relative z-10">
+                          {plan.doctor_name}
+                        </TableCell>
+                        <TableCell className="relative z-10">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
                             {plan.visit_frequency}x/month
                           </span>
                         </TableCell>
-                        <TableCell className="text-center font-medium">
+                        <TableCell className="text-center font-medium relative z-10">
                           {plan.remaining_visits_this_month}
                         </TableCell>
                         {plan.monthly_visits.map((visits, monthIndex) => (
-                          <TableCell key={monthIndex} className="text-center">
+                          <TableCell key={monthIndex} className="text-center relative z-10">
                             {visits}
                           </TableCell>
                         ))}
-                        <TableCell className="text-center font-medium">{plan.total_visits}</TableCell>
-                        <TableCell className="text-center">{plan.expected_visits}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center font-medium relative z-10">{plan.total_visits}</TableCell>
+                        <TableCell className="text-center relative z-10">{plan.expected_visits}</TableCell>
+                        <TableCell className="text-center relative z-10">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReturnIndexColor(plan.return_index)}`}>
                             {plan.return_index}%
                           </span>
