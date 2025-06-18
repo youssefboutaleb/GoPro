@@ -35,119 +35,187 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  const { data: visitPlansData = [], isLoading } = useQuery({
-    queryKey: ['visit-plans-analysis', user?.id],
+  // Fetch visit plans first
+  const { data: visitPlans = [], isLoading: visitPlansLoading, error: visitPlansError } = useQuery({
+    queryKey: ['visit-plans', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
+      console.log('Fetching visit plans for user:', user?.id);
+      
+      if (!user?.id) {
+        console.log('No user ID found');
+        return [];
+      }
 
       try {
-        const { data: visitPlansData, error: visitPlansError } = await supabase
+        const { data, error } = await supabase
           .from('visit_plans')
-          .select(`
-            id,
-            visit_frequency,
-            doctor_id,
-            doctors:doctor_id (
-              id,
-              first_name,
-              last_name,
-              specialty,
-              brick_id,
-              bricks:brick_id (
-                name
-              )
-            ),
-            visits (
-              id,
-              visit_date
-            )
-          `)
+          .select('id, doctor_id, delegate_id, visit_frequency')
           .eq('delegate_id', user.id);
 
-        if (visitPlansError) {
-          throw visitPlansError;
+        if (error) {
+          console.error('Visit plans query error:', error);
+          throw error;
         }
 
-        if (!visitPlansData || visitPlansData.length === 0) {
-          return [];
-        }
-
-        const processedData: VisitPlanData[] = [];
-
-        for (const visitPlan of visitPlansData) {
-          if (!visitPlan.doctors) {
-            continue;
-          }
-
-          const doctor = visitPlan.doctors;
-          const visits = visitPlan.visits || [];
-
-          // Filter visits for current year
-          const currentYearVisits = visits.filter(visit => {
-            const visitDate = new Date(visit.visit_date);
-            return visitDate.getFullYear() === currentYear;
-          });
-
-          // Calculate monthly visits
-          const monthlyVisits = new Array(currentMonth).fill(0);
-          currentYearVisits.forEach(visit => {
-            const visitDate = new Date(visit.visit_date);
-            const visitMonth = visitDate.getMonth(); // 0-based
-            if (visitMonth < currentMonth) {
-              monthlyVisits[visitMonth]++;
-            }
-          });
-
-          const totalVisits = currentYearVisits.length;
-          const visitFrequency = parseInt(visitPlan.visit_frequency) || 1;
-          const expectedVisits = visitFrequency * monthsElapsed;
-          const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
-
-          // Calculate remaining visits for this month (current month)
-          const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
-          const remainingVisitsThisMonth = Math.abs(visitFrequency - currentMonthVisits);
-
-          // Determine row color based on last month and month before last
-          let rowColor: 'red' | 'yellow' | 'green' = 'red';
-          const lastMonth = currentMonth - 1; // Current month - 1 (1-based to 0-based)
-          const monthBeforeLast = currentMonth - 2; // Current month - 2 (1-based to 0-based)
-
-          const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
-          const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
-
-          if (visitedLastMonth) {
-            rowColor = 'green';
-          } else if (visitedMonthBeforeLast) {
-            rowColor = 'yellow';
-          }
-
-          processedData.push({
-            id: visitPlan.id,
-            doctor_name: `${doctor.first_name} ${doctor.last_name}`,
-            visit_frequency: visitFrequency,
-            remaining_visits_this_month: remainingVisitsThisMonth,
-            monthly_visits: monthlyVisits,
-            total_visits: totalVisits,
-            expected_visits: expectedVisits,
-            return_index: returnIndex,
-            row_color: rowColor
-          });
-        }
-
-        return processedData;
-
+        console.log('Visit plans fetched:', data?.length || 0);
+        return data || [];
       } catch (error) {
+        console.error('Error in visit plans query:', error);
         throw error;
       }
     },
     enabled: !!user?.id,
+    retry: 2,
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
   });
 
+  // Fetch doctors separately
+  const { data: doctors = [], isLoading: doctorsLoading } = useQuery({
+    queryKey: ['doctors'],
+    queryFn: async () => {
+      console.log('Fetching doctors');
+      
+      try {
+        const { data, error } = await supabase
+          .from('doctors')
+          .select('id, first_name, last_name, specialty');
+
+        if (error) {
+          console.error('Doctors query error:', error);
+          throw error;
+        }
+
+        console.log('Doctors fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('Error in doctors query:', error);
+        throw error;
+      }
+    },
+    retry: 2,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch visits separately
+  const { data: visits = [], isLoading: visitsLoading } = useQuery({
+    queryKey: ['visits-data', visitPlans.map(p => p.id), currentYear],
+    queryFn: async () => {
+      console.log('Fetching visits data for plans:', visitPlans.length);
+      
+      if (visitPlans.length === 0) {
+        console.log('No visit plans to fetch visits for');
+        return [];
+      }
+
+      try {
+        const visitPlanIds = visitPlans.map(plan => plan.id);
+        
+        const { data, error } = await supabase
+          .from('visits')
+          .select('id, visit_plan_id, visit_date')
+          .in('visit_plan_id', visitPlanIds)
+          .gte('visit_date', `${currentYear}-01-01`);
+
+        if (error) {
+          console.error('Visits query error:', error);
+          throw error;
+        }
+
+        console.log('Visits fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('Error in visits query:', error);
+        throw error;
+      }
+    },
+    enabled: visitPlans.length > 0,
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Process data when all queries are complete
+  const { data: processedData = [], isLoading: isProcessing } = useQuery({
+    queryKey: ['processed-visit-data', visitPlans, doctors, visits],
+    queryFn: async () => {
+      console.log('Processing visit data...');
+      
+      if (!visitPlans.length || !doctors.length) {
+        console.log('Missing required data for processing');
+        return [];
+      }
+
+      const processed: VisitPlanData[] = [];
+
+      for (const visitPlan of visitPlans) {
+        const doctor = doctors.find(d => d.id === visitPlan.doctor_id);
+        
+        if (!doctor) {
+          console.log('Missing doctor data for plan:', visitPlan.id);
+          continue;
+        }
+
+        // Filter visits for this visit plan
+        const planVisits = visits.filter(visit => visit.visit_plan_id === visitPlan.id);
+
+        // Calculate monthly visits
+        const monthlyVisits = new Array(currentMonth).fill(0);
+        planVisits.forEach(visit => {
+          const visitDate = new Date(visit.visit_date);
+          const visitMonth = visitDate.getMonth(); // 0-based
+          if (visitMonth < currentMonth) {
+            monthlyVisits[visitMonth]++;
+          }
+        });
+
+        const totalVisits = planVisits.length;
+        const visitFrequency = parseInt(visitPlan.visit_frequency) || 1;
+        const expectedVisits = visitFrequency * monthsElapsed;
+        const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+
+        // Calculate remaining visits for this month (current month)
+        const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
+        const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
+
+        // Determine row color based on last month and month before last
+        let rowColor: 'red' | 'yellow' | 'green' = 'red';
+        const lastMonth = currentMonth - 1; // Current month - 1 (1-based to 0-based)
+        const monthBeforeLast = currentMonth - 2; // Current month - 2 (1-based to 0-based)
+
+        const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
+        const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
+
+        if (visitedLastMonth) {
+          rowColor = 'green';
+        } else if (visitedMonthBeforeLast) {
+          rowColor = 'yellow';
+        }
+
+        processed.push({
+          id: visitPlan.id,
+          doctor_name: `${doctor.first_name} ${doctor.last_name}`,
+          visit_frequency: visitFrequency,
+          remaining_visits_this_month: remainingVisitsThisMonth,
+          monthly_visits: monthlyVisits,
+          total_visits: totalVisits,
+          expected_visits: expectedVisits,
+          return_index: returnIndex,
+          row_color: rowColor
+        });
+      }
+
+      console.log('Processed visit data:', processed.length, 'items');
+      return processed;
+    },
+    enabled: !visitPlansLoading && !doctorsLoading && !visitsLoading,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isLoading = visitPlansLoading || doctorsLoading || visitsLoading || isProcessing;
+  const error = visitPlansError;
+
   // Calculate average return index
-  const averageReturnIndex = visitPlansData.length > 0 
-    ? Math.round(visitPlansData.reduce((sum, plan) => sum + plan.return_index, 0) / visitPlansData.length)
+  const averageReturnIndex = processedData.length > 0 
+    ? Math.round(processedData.reduce((sum, plan) => sum + plan.return_index, 0) / processedData.length)
     : 0;
 
   // Helper functions for row styling
@@ -176,6 +244,22 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading return index analysis...</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Loading: {visitPlansLoading && 'Plans'} {doctorsLoading && 'Doctors'} {visitsLoading && 'Visits'} {isProcessing && 'Processing'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    console.error('Component error:', error);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error loading return index data</p>
+          <p className="text-sm text-gray-600 mb-4">{error.message}</p>
+          <Button onClick={onBack}>Back</Button>
         </div>
       </div>
     );
@@ -197,7 +281,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                 <p className="text-sm text-gray-600">
-                  Tracking {visitPlansData.length} visit plans
+                  Tracking {processedData.length} visit plans
                 </p>
               </div>
             </div>
@@ -214,7 +298,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{visitPlansData.length}</div>
+              <div className="text-2xl font-bold text-blue-600">{processedData.length}</div>
               <p className="text-xs text-muted-foreground">Active plans</p>
             </CardContent>
           </Card>
@@ -226,7 +310,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {visitPlansData.reduce((sum, plan) => sum + plan.total_visits, 0)}
+                {processedData.reduce((sum, plan) => sum + plan.total_visits, 0)}
               </div>
               <p className="text-xs text-muted-foreground">This year</p>
             </CardContent>
@@ -252,7 +336,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             <CardTitle>Visit Plans Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            {visitPlansData.length === 0 ? (
+            {processedData.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Visit Plans Found</h3>
@@ -277,7 +361,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {visitPlansData.map((plan) => (
+                    {processedData.map((plan) => (
                       <TableRow key={plan.id} className={getRowColorClass(plan.row_color)}>
                         <TableCell className="font-medium">
                           {plan.doctor_name}

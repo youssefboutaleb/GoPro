@@ -34,93 +34,192 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  const { data: salesPlansData = [], isLoading, error } = useQuery({
-    queryKey: ['sales-plans-recruitment', user?.id, selectedMonth],
+  // Fetch sales plans first
+  const { data: salesPlans = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
+    queryKey: ['sales-plans', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
+      console.log('Fetching sales plans for user:', user?.id);
+      
+      if (!user?.id) {
+        console.log('No user ID found');
+        return [];
+      }
 
       try {
-        const { data: salesPlansData, error: salesPlansError } = await supabase
+        const { data, error } = await supabase
           .from('sales_plans')
-          .select(`
-            id,
-            products:product_id (
-              id,
-              name
-            ),
-            bricks:brick_id (
-              id,
-              name
-            ),
-            sales (
-              id,
-              targets,
-              achievements,
-              year
-            )
-          `)
+          .select('id, product_id, brick_id, delegate_id')
           .eq('delegate_id', user.id);
 
-        if (salesPlansError) {
-          throw salesPlansError;
+        if (error) {
+          console.error('Sales plans query error:', error);
+          throw error;
         }
 
-        if (!salesPlansData || salesPlansData.length === 0) {
-          return [];
-        }
-
-        const processedData: SalesPlanData[] = [];
-
-        for (const salesPlan of salesPlansData) {
-          if (!salesPlan.products || !salesPlan.bricks) {
-            continue;
-          }
-
-          const product = salesPlan.products;
-          const brick = salesPlan.bricks;
-          const sales = salesPlan.sales?.find(s => s.year === currentYear);
-
-          if (!sales) continue;
-
-          const targets = sales.targets || [];
-          const achievements = sales.achievements || [];
-
-          // Calculate recruitment rhythm
-          const sumTargets = targets.reduce((sum, target) => sum + (target || 0), 0);
-          const achievementsYTD = achievements.slice(0, selectedMonth).reduce((sum, achievement) => sum + (achievement || 0), 0);
-          const n = 12 - selectedMonth;
-          const expectedGrowth = n > 0 ? (n * (n + 1)) / 2 : 1;
-          const recruitmentRhythm = expectedGrowth > 0 ? Math.round(((sumTargets - achievementsYTD) / expectedGrowth) * 100) : 0;
-
-          // Determine row color based on recruitment rhythm
-          let rowColor: 'red' | 'yellow' | 'green' = 'red';
-          if (recruitmentRhythm >= 80) {
-            rowColor = 'green';
-          } else if (recruitmentRhythm >= 50) {
-            rowColor = 'yellow';
-          }
-
-          processedData.push({
-            id: salesPlan.id,
-            product_name: product.name,
-            brick_name: brick.name,
-            targets,
-            achievements,
-            recruitment_rhythm: recruitmentRhythm,
-            row_color: rowColor
-          });
-        }
-
-        return processedData;
-
+        console.log('Sales plans fetched:', data?.length || 0);
+        return data || [];
       } catch (error) {
+        console.error('Error in sales plans query:', error);
         throw error;
       }
     },
     enabled: !!user?.id,
+    retry: 2,
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000
   });
+
+  // Fetch products separately
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      console.log('Fetching products');
+      
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, name');
+
+        if (error) {
+          console.error('Products query error:', error);
+          throw error;
+        }
+
+        console.log('Products fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('Error in products query:', error);
+        throw error;
+      }
+    },
+    retry: 2,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch bricks separately
+  const { data: bricks = [], isLoading: bricksLoading } = useQuery({
+    queryKey: ['bricks'],
+    queryFn: async () => {
+      console.log('Fetching bricks');
+      
+      try {
+        const { data, error } = await supabase
+          .from('bricks')
+          .select('id, name');
+
+        if (error) {
+          console.error('Bricks query error:', error);
+          throw error;
+        }
+
+        console.log('Bricks fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('Error in bricks query:', error);
+        throw error;
+      }
+    },
+    retry: 2,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch sales data separately
+  const { data: salesData = [], isLoading: salesLoading } = useQuery({
+    queryKey: ['sales-data', salesPlans.map(p => p.id), currentYear],
+    queryFn: async () => {
+      console.log('Fetching sales data for plans:', salesPlans.length);
+      
+      if (salesPlans.length === 0) {
+        console.log('No sales plans to fetch data for');
+        return [];
+      }
+
+      try {
+        const salesPlanIds = salesPlans.map(plan => plan.id);
+        
+        const { data, error } = await supabase
+          .from('sales')
+          .select('id, sales_plan_id, targets, achievements, year')
+          .in('sales_plan_id', salesPlanIds)
+          .eq('year', currentYear);
+
+        if (error) {
+          console.error('Sales data query error:', error);
+          throw error;
+        }
+
+        console.log('Sales data fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('Error in sales data query:', error);
+        throw error;
+      }
+    },
+    enabled: salesPlans.length > 0,
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Process data when all queries are complete
+  const { data: processedData = [], isLoading: isProcessing } = useQuery({
+    queryKey: ['processed-sales-data', salesPlans, products, bricks, salesData, selectedMonth],
+    queryFn: async () => {
+      console.log('Processing sales data...');
+      
+      if (!salesPlans.length || !products.length || !bricks.length) {
+        console.log('Missing required data for processing');
+        return [];
+      }
+
+      const processed: SalesPlanData[] = [];
+
+      for (const salesPlan of salesPlans) {
+        const product = products.find(p => p.id === salesPlan.product_id);
+        const brick = bricks.find(b => b.id === salesPlan.brick_id);
+        const sales = salesData.find(s => s.sales_plan_id === salesPlan.id);
+
+        if (!product || !brick) {
+          console.log('Missing product or brick data for plan:', salesPlan.id);
+          continue;
+        }
+
+        const targets = sales?.targets || [];
+        const achievements = sales?.achievements || [];
+
+        // Calculate recruitment rhythm
+        const sumTargets = targets.reduce((sum, target) => sum + (target || 0), 0);
+        const achievementsYTD = achievements.slice(0, selectedMonth).reduce((sum, achievement) => sum + (achievement || 0), 0);
+        const n = 12 - selectedMonth;
+        const expectedGrowth = n > 0 ? (n * (n + 1)) / 2 : 1;
+        const recruitmentRhythm = expectedGrowth > 0 ? Math.round(((sumTargets - achievementsYTD) / expectedGrowth) * 100) : 0;
+
+        // Determine row color based on recruitment rhythm
+        let rowColor: 'red' | 'yellow' | 'green' = 'red';
+        if (recruitmentRhythm >= 80) {
+          rowColor = 'green';
+        } else if (recruitmentRhythm >= 50) {
+          rowColor = 'yellow';
+        }
+
+        processed.push({
+          id: salesPlan.id,
+          product_name: product.name,
+          brick_name: brick.name,
+          targets,
+          achievements,
+          recruitment_rhythm: recruitmentRhythm,
+          row_color: rowColor
+        });
+      }
+
+      console.log('Processed data:', processed.length, 'items');
+      return processed;
+    },
+    enabled: !salesPlansLoading && !productsLoading && !bricksLoading && !salesLoading,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isLoading = salesPlansLoading || productsLoading || bricksLoading || salesLoading || isProcessing;
+  const error = salesPlansError;
 
   // Helper functions for row styling
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
@@ -148,16 +247,21 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading recruitment rhythm data...</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Loading: {salesPlansLoading && 'Plans'} {productsLoading && 'Products'} {bricksLoading && 'Bricks'} {salesLoading && 'Sales'} {isProcessing && 'Processing'}
+          </p>
         </div>
       </div>
     );
   }
 
   if (error) {
+    console.error('Component error:', error);
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error loading recruitment rhythm data</p>
+          <p className="text-sm text-gray-600 mb-4">{error.message}</p>
           <Button onClick={onBack}>Back</Button>
         </div>
       </div>
@@ -209,7 +313,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
             <CardTitle>Sales Plans Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            {salesPlansData.length === 0 ? (
+            {processedData.length === 0 ? (
               <div className="text-center py-8">
                 <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
@@ -231,7 +335,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {salesPlansData.map((plan) => (
+                    {processedData.map((plan) => (
                       <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
                         <td className="py-4 px-4 font-medium">
                           {plan.product_name}

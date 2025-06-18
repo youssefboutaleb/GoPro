@@ -150,6 +150,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_sales_sales_plan"
+            columns: ["sales_plan_id"]
+            isOneToOne: false
+            referencedRelation: "sales_plans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_sales_plan_id_fkey"
             columns: ["sales_plan_id"]
             isOneToOne: false
@@ -178,6 +185,27 @@ export type Database = {
           product_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_sales_plans_brick"
+            columns: ["brick_id"]
+            isOneToOne: false
+            referencedRelation: "bricks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_sales_plans_delegate"
+            columns: ["delegate_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_sales_plans_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_plans_brick_id_fkey"
             columns: ["brick_id"]
@@ -237,6 +265,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_visit_plans_delegate"
+            columns: ["delegate_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_visit_plans_doctor"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "visit_frequencies_doctor_id_fkey"
             columns: ["doctor_id"]
             isOneToOne: false
@@ -269,6 +311,13 @@ export type Database = {
           visit_plan_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_visits_visit_plan"
+            columns: ["visit_plan_id"]
+            isOneToOne: false
+            referencedRelation: "visit_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "visits_visit_plan_id_fkey"
             columns: ["visit_plan_id"]
