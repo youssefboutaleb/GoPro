@@ -104,6 +104,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     console.log('AuthProvider initializing...');
     
+    // Reset signOutLoading on initialization to handle stuck state
+    setSignOutLoading(false);
+    
     // Set up auth state listener
     const {
       data: { subscription },
@@ -115,6 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (event === 'SIGNED_OUT') {
         console.log('SIGNED_OUT event detected');
         clearAllSessionData();
+        // Reset loading states immediately
         setSignOutLoading(false);
         setIsSigningOut(false);
         
@@ -304,6 +308,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Clearing session data before API call');
       clearAllSessionData();
       
+      // Reset loading states immediately after clearing data
+      console.log('Resetting loading states immediately');
+      setSignOutLoading(false);
+      setIsSigningOut(false);
+      
       console.log('Calling supabase.auth.signOut()...');
       const { error } = await supabase.auth.signOut();
       
@@ -320,10 +329,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Force redirect regardless of API response
       setTimeout(() => {
         console.log('Forcing redirect to /auth');
-        setSignOutLoading(false);
-        setIsSigningOut(false);
         window.location.href = '/auth';
-      }, 500);
+      }, 100);
       
       return { error: null };
     } catch (error) {
