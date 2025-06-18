@@ -13,13 +13,13 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Visit = Database['public']['Tables']['visits']['Row'] & {
-  visit_plans?: {
-    doctors?: { last_name: string; first_name: string };
+  visit_plan?: {
+    doctor?: { last_name: string; first_name: string };
   };
 };
 type Doctor = Database['public']['Tables']['doctors']['Row'];
 type VisitPlan = Database['public']['Tables']['visit_plans']['Row'] & {
-  doctors?: { last_name: string; first_name: string };
+  doctor?: { last_name: string; first_name: string };
 };
 
 interface VisitsManagerProps {
@@ -44,15 +44,10 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
   const fetchData = async () => {
     try {
-      // Fetch visits with related data using the new structure
+      // Fetch visits first
       const { data: visitsData, error: visitsError } = await supabase
         .from('visits')
-        .select(`
-          *,
-          visit_plans:visit_plan_id(
-            doctors:doctor_id(last_name, first_name)
-          )
-        `)
+        .select('*')
         .order('visit_date', { ascending: false });
 
       if (visitsError) throw visitsError;
@@ -65,20 +60,58 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (doctorsError) throw doctorsError;
 
-      // Fetch visit_plans with related doctor data
+      // Fetch visit_plans
       const { data: visitPlansData, error: visitPlansError } = await supabase
         .from('visit_plans')
-        .select(`
-          *,
-          doctors:doctor_id(last_name, first_name)
-        `)
+        .select('*')
         .order('id', { ascending: true });
 
       if (visitPlansError) throw visitPlansError;
 
-      setVisits(visitsData || []);
+      // Now fetch doctor details for each visit plan
+      const visitPlansWithDoctors = await Promise.all(
+        (visitPlansData || []).map(async (plan) => {
+          if (plan.doctor_id) {
+            const { data: doctorData } = await supabase
+              .from('doctors')
+              .select('last_name, first_name')
+              .eq('id', plan.doctor_id)
+              .maybeSingle();
+            
+            return {
+              ...plan,
+              doctor: doctorData
+            };
+          }
+          return {
+            ...plan,
+            doctor: null
+          };
+        })
+      );
+
+      // Fetch doctor details for each visit
+      const visitsWithDoctors = await Promise.all(
+        (visitsData || []).map(async (visit) => {
+          if (visit.visit_plan_id) {
+            const visitPlan = visitPlansWithDoctors.find(vp => vp.id === visit.visit_plan_id);
+            return {
+              ...visit,
+              visit_plan: visitPlan ? {
+                doctor: visitPlan.doctor
+              } : null
+            };
+          }
+          return {
+            ...visit,
+            visit_plan: null
+          };
+        })
+      );
+
+      setVisits(visitsWithDoctors);
       setDoctors(doctorsData || []);
-      setVisitPlans(visitPlansData || []);
+      setVisitPlans(visitPlansWithDoctors);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -262,7 +295,10 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                         <SelectContent>
                           {visitPlans.map((plan) => (
                             <SelectItem key={plan.id} value={plan.id}>
-                              Dr. {plan.doctors?.first_name} {plan.doctors?.last_name} - Fréquence: {plan.visit_frequency}
+                              {plan.doctor ? 
+                                `Dr. ${plan.doctor.first_name} ${plan.doctor.last_name} - Fréquence: ${plan.visit_frequency}` :
+                                `Plan ${plan.id} - Fréquence: ${plan.visit_frequency}`
+                              }
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -303,8 +339,8 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {visit.visit_plans?.doctors ? 
-                          `Dr. ${visit.visit_plans.doctors.first_name} ${visit.visit_plans.doctors.last_name}` : 'N/A'}
+                        {visit.visit_plan?.doctor ? 
+                          `Dr. ${visit.visit_plan.doctor.first_name} ${visit.visit_plan.doctor.last_name}` : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">

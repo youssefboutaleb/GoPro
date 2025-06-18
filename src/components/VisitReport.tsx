@@ -59,7 +59,7 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
         console.log('Fetching user profile for user:', user.id);
 
-        // First, get the current user's profile - removed role column reference
+        // First, get the current user's profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id')
@@ -80,19 +80,14 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
         console.log('Profile found:', profileData);
 
-        // Get all doctors with their visit_plans using the new table structure
+        // Get all visit_plans for the current user
         const { data: visitPlans, error: vpError } = await supabase
           .from('visit_plans')
           .select(`
             doctor_id,
-            visit_frequency,
-            doctors (
-              id,
-              last_name,
-              first_name,
-              specialty
-            )
-          `);
+            visit_frequency
+          `)
+          .eq('delegate_id', user.id);
 
         if (vpError) {
           console.error('Error fetching visit_plans:', vpError);
@@ -102,33 +97,71 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
         console.log('Visit plans found:', visitPlans);
 
-        // Get all visits for the current year using the new table structure
+        if (!visitPlans || visitPlans.length === 0) {
+          console.log('No visit plans found for user');
+          setReportData([]);
+          return;
+        }
+
+        // Get all doctors referenced in visit plans
+        const doctorIds = visitPlans.map(vp => vp.doctor_id).filter(Boolean);
+        
+        let doctorsData = [];
+        if (doctorIds.length > 0) {
+          const { data: doctors, error: doctorsError } = await supabase
+            .from('doctors')
+            .select(`
+              id,
+              last_name,
+              first_name,
+              specialty
+            `)
+            .in('id', doctorIds);
+
+          if (doctorsError) {
+            console.error('Error fetching doctors:', doctorsError);
+            setError('Error retrieving doctor information');
+            return;
+          }
+
+          doctorsData = doctors || [];
+        }
+
+        console.log('Doctors found:', doctorsData);
+
+        // Get all visits for the current year for these visit plans
         const currentYear = new Date().getFullYear();
         const startOfYear = `${currentYear}-01-01`;
         const endOfYear = `${currentYear}-12-31`;
 
-        const { data: visitsData, error: visitsError } = await supabase
-          .from('visits')
-          .select(`
-            visit_date,
-            visit_plans!inner (
-              doctor_id
-            )
-          `)
-          .gte('visit_date', startOfYear)
-          .lte('visit_date', endOfYear);
+        const visitPlanIds = visitPlans.map(vp => vp.id).filter(Boolean);
+        
+        let visitsData = [];
+        if (visitPlanIds.length > 0) {
+          const { data: visits, error: visitsError } = await supabase
+            .from('visits')
+            .select(`
+              visit_date,
+              visit_plan_id
+            `)
+            .in('visit_plan_id', visitPlanIds)
+            .gte('visit_date', startOfYear)
+            .lte('visit_date', endOfYear);
 
-        if (visitsError) {
-          console.error('Error fetching visits:', visitsError);
-          setError('Error retrieving visits');
-          return;
+          if (visitsError) {
+            console.error('Error fetching visits:', visitsError);
+            setError('Error retrieving visits');
+            return;
+          }
+
+          visitsData = visits || [];
         }
 
         console.log('Visits found:', visitsData);
 
         // Process the data
-        const processedData: DoctorVisitData[] = visitPlans?.map(vp => {
-          const doctor = vp.doctors;
+        const processedData: DoctorVisitData[] = visitPlans.map(vp => {
+          const doctor = doctorsData.find(d => d.id === vp.doctor_id);
           if (!doctor) return null;
 
           // Count visits per month for this doctor
@@ -139,9 +172,9 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
             visitsPerMonth[month.value] = 0;
           });
 
-          // Count visits
-          visitsData?.forEach(visit => {
-            if (visit.visit_plans?.doctor_id === vp.doctor_id) {
+          // Count visits for this visit plan
+          visitsData.forEach(visit => {
+            if (visit.visit_plan_id === vp.id) {
               const visitDate = new Date(visit.visit_date);
               const visitMonth = visitDate.getMonth() + 1;
               const monthKey = months.find(m => m.num === visitMonth)?.value;
