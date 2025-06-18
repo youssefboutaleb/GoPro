@@ -41,13 +41,19 @@ export const useAuthState = () => {
         
         if (session?.user) {
           console.log('👤 Fetching profile for authenticated user...');
-          const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
-          
-          if (userProfile) {
-            console.log('🎉 Profile set successfully! Welcome:', userProfile.first_name, userProfile.last_name);
-          } else {
-            console.log('⚠️ Profile could not be loaded, but user is authenticated');
+          try {
+            const userProfile = await fetchProfile(session.user.id);
+            console.log('📦 Profile fetch result:', userProfile ? 'Success' : 'Failed/No profile found');
+            setProfile(userProfile);
+            
+            if (userProfile) {
+              console.log('🎉 Profile set successfully! Welcome:', userProfile.first_name, userProfile.last_name);
+            } else {
+              console.log('⚠️ Profile could not be loaded, but user is authenticated');
+            }
+          } catch (error) {
+            console.error('💥 Error during profile fetch:', error);
+            setProfile(null);
           }
         } else {
           setProfile(null);
@@ -62,11 +68,17 @@ export const useAuthState = () => {
           
           if (session?.user) {
             console.log('👤 Fetching initial profile...');
-            const userProfile = await fetchProfile(session.user.id);
-            setProfile(userProfile);
-            
-            if (userProfile) {
-              console.log('🎉 Initial profile loaded! Welcome:', userProfile.first_name, userProfile.last_name);
+            try {
+              const userProfile = await fetchProfile(session.user.id);
+              console.log('📦 Initial profile fetch result:', userProfile ? 'Success' : 'Failed/No profile found');
+              setProfile(userProfile);
+              
+              if (userProfile) {
+                console.log('🎉 Initial profile loaded! Welcome:', userProfile.first_name, userProfile.last_name);
+              }
+            } catch (error) {
+              console.error('💥 Error during initial profile fetch:', error);
+              setProfile(null);
             }
           }
         } else {

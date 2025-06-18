@@ -27,6 +27,12 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
         details: error.details,
         hint: error.hint,
         code: error.code
+      } : null,
+      userData: data ? {
+        id: data.id,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        role: data.role
       } : null
     });
 
@@ -37,11 +43,48 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
         hint: error.hint,
         code: error.code
       });
+      
+      // Let's also check if it's an RLS issue by trying to query without filters
+      console.log('🔍 Checking RLS permissions by attempting to query profiles table...');
+      const { data: testData, error: testError } = await supabase
+        .from('profiles')
+        .select('count(*)')
+        .limit(1);
+      
+      console.log('🧪 Test query result:', {
+        testData,
+        testError: testError ? {
+          message: testError.message,
+          details: testError.details,
+          hint: testError.hint,
+          code: testError.code
+        } : null
+      });
+      
       return null;
     }
 
     if (!data) {
       console.log('⚠️ No profile found for user:', userId, 'This might be normal for new users');
+      
+      // Let's check if there are any profiles in the table at all
+      console.log('🔍 Checking if profiles table is accessible...');
+      const { data: allProfiles, error: allError } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(5);
+      
+      console.log('📋 Profiles table check:', {
+        profileCount: allProfiles?.length || 0,
+        hasError: !!allError,
+        errorDetails: allError ? {
+          message: allError.message,
+          details: allError.details,
+          hint: allError.hint,
+          code: allError.code
+        } : null
+      });
+      
       return null;
     }
 
