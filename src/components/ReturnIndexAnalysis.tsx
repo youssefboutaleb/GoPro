@@ -623,7 +623,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                             <span className="text-white font-medium ml-2">Record Visit</span>
                           </div>
                         )}
-
+                        {(plan.has_visit_today || plan.is_frequency_met) && (
                         <TableCell className="w-12 relative z-10">
                           <div className="flex items-center space-x-1">
                             {/* Green checkmark for visit today */}
@@ -638,6 +638,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                             )}
                           </div>
                         </TableCell>
+                         )}
                         <TableCell className="font-medium relative z-10">
                           {plan.doctor_name}
                         </TableCell>
