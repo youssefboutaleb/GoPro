@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Product = Database['public']['Tables']['products']['Row'];
+type TherapeuticClass = Database['public']['Enums']['therapeutic_class'];
 
 interface ProductsManagerProps {
   onBack: () => void;
@@ -25,7 +25,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    therapeutic_class: '',
+    therapeutic_class: '' as TherapeuticClass | '',
     active: true,
   });
 
@@ -71,7 +71,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
     try {
       const submitData = {
         name: formData.name.trim(),
-        therapeutic_class: formData.therapeutic_class.trim() || null,
+        therapeutic_class: formData.therapeutic_class || null,
         active: formData.active,
       };
 
@@ -216,12 +216,17 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="therapeutic_class">Classe thérapeutique</Label>
-                      <Input
+                      <select
                         id="therapeutic_class"
                         value={formData.therapeutic_class}
-                        onChange={(e) => setFormData({ ...formData, therapeutic_class: e.target.value })}
-                        placeholder="Ex: Antalgique"
-                      />
+                        onChange={(e) => setFormData({ ...formData, therapeutic_class: e.target.value as TherapeuticClass | '' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Sélectionner une classe</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Fever">Fever</option>
+                        <option value="Pain Killer">Pain Killer</option>
+                      </select>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Switch

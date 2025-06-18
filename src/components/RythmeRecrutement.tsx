@@ -13,7 +13,7 @@ interface RythmeRecrutementProps {
 
 interface UserInfo {
   id: string;
-  user_type: string;
+  role: string;
   created_at: string | null;
 }
 
@@ -35,7 +35,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_type, created_at')
+        .select('id, role, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -286,7 +286,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                           </div>
                         </td>
                         <td className="py-4 px-4 text-gray-600">
-                          {user.user_type}
+                          {user.role}
                         </td>
                         <td className="py-4 px-4 text-center text-gray-600">
                           {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}

@@ -14,15 +14,15 @@ interface ReportsManagerProps {
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
-  // Fetch delegates for the dropdown (profiles with user_type 'Delegate')
+  // Fetch delegates for the dropdown (profiles with role 'Delegate')
   const { data: delegates = [] } = useQuery({
     queryKey: ['delegates_for_reports'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_type')
-        .eq('user_type', 'Delegate')
-        .order('id');
+        .select('id, role, first_name, last_name')
+        .eq('role', 'Delegate')
+        .order('first_name');
 
       if (error) throw error;
       return data;
@@ -181,7 +181,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
                     <SelectItem value="all">Tous les délégués</SelectItem>
                     {delegates.map((delegate) => (
                       <SelectItem key={delegate.id} value={delegate.id}>
-                        Délégué {delegate.id}
+                        {delegate.first_name} {delegate.last_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
