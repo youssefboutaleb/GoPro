@@ -45,11 +45,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data: sessionData } = await supabase.auth.getSession();
       console.log('📋 Current session status:', !!sessionData.session, 'User:', sessionData.session?.user?.id);
       
+      // Add more detailed logging for the actual query
+      console.log('🔎 About to execute profiles query with userId:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
+      console.log('📊 Profile query completed:', {
+        hasData: !!data,
+        hasError: !!error,
+        errorDetails: error ? {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        } : null
+      });
 
       if (error) {
         console.error('❌ Profile fetch error:', {
