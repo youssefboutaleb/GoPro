@@ -46,11 +46,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .maybeSingle();
 
       if (error) {
+        console.error('Error fetching profile:', error);
         return null;
       }
 
       return data;
     } catch (error) {
+      console.error('Profile fetch failed:', error);
       return null;
     }
   };
@@ -69,7 +71,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error || !mounted) {
+        if (error) {
+          console.error('Error getting session:', error);
           if (mounted) setLoading(false);
           return;
         }
@@ -86,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               setProfile(userProfile);
             }
           } catch (error) {
-            // Silent fail for profile fetch
+            console.error('Error fetching profile during init:', error);
           }
         }
         
@@ -94,6 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setLoading(false);
         }
       } catch (error) {
+        console.error('Auth initialization error:', error);
         if (mounted) {
           setLoading(false);
         }
@@ -107,48 +111,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
+      
       if (!mounted) return;
       
-      // Handle sign out explicitly
-      if (event === 'SIGNED_OUT') {
-        clearAuthState();
-        setLoading(false);
-        return;
-      }
-      
-      // Handle token refresh without fetching profile again
-      if (event === 'TOKEN_REFRESHED') {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        return;
-      }
-      
-      // Handle sign in
-      if (event === 'SIGNED_IN' && session) {
-        setSession(session);
-        setUser(session.user);
-        
-        try {
-          const userProfile = await fetchProfile(session.user.id);
-          if (mounted) {
-            setProfile(userProfile);
-          }
-        } catch (error) {
-          // Silent fail for profile fetch
+      try {
+        // Handle sign out explicitly
+        if (event === 'SIGNED_OUT') {
+          clearAuthState();
+          setLoading(false);
+          return;
         }
         
+        // Handle token refresh without fetching profile again
+        if (event === 'TOKEN_REFRESHED') {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+          return;
+        }
+        
+        // Handle sign in
+        if (event === 'SIGNED_IN' && session) {
+          setSession(session);
+          setUser(session.user);
+          
+          try {
+            const userProfile = await fetchProfile(session.user.id);
+            if (mounted) {
+              setProfile(userProfile);
+            }
+          } catch (error) {
+            console.error('Error fetching profile on sign in:', error);
+          }
+          
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Handle any other session state
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // If no session exists, clear everything
+        if (!session) {
+          clearAuthState();
+        }
+        
+        // Always set loading to false at the end
+        setLoading(false);
+        
+      } catch (error) {
+        console.error('Error in auth state change handler:', error);
         if (mounted) {
           setLoading(false);
         }
-        return;
-      }
-      
-      // If no session exists, clear everything
-      if (!session) {
-        clearAuthState();
-        setLoading(false);
-        return;
       }
     });
 
@@ -159,28 +178,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    return { error };
+      return { error };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+          emailRedirectTo: `${window.location.origin}/`,
         },
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
+      });
 
-    return { error };
+      return { error };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { error };
+    }
   };
 
   const signOut = async () => {
@@ -191,14 +220,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       clearAuthState();
       
       // Try to sign out from Supabase in the background
-      supabase.auth.signOut({
+      await supabase.auth.signOut({
         scope: 'global'
-      }).catch(() => {
-        // Silent fail
       });
       
     } catch (error) {
-      // Silent fail
+      console.error('Sign out error:', error);
     } finally {
       setLoading(false);
     }
