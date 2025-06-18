@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -179,6 +180,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         planVisits.forEach(visit => {
           const visitDate = new Date(visit.visit_date);
           const visitMonth = visitDate.getMonth();
+          console.log(`Visit for ${doctor.first_name} ${doctor.last_name}: ${visit.visit_date}, month: ${visitMonth}`);
+          
           if (visitMonth < currentMonth) {
             monthlyVisits[visitMonth]++;
           }
@@ -189,6 +192,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           }
         });
 
+        console.log(`Monthly visits for ${doctor.first_name} ${doctor.last_name}:`, monthlyVisits);
+
         const totalVisits = planVisits.length;
         const visitFrequency = parseInt(visitPlan.visit_frequency) || 1;
         const expectedVisits = visitFrequency * monthsElapsed;
@@ -196,6 +201,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
         // Calculate remaining visits this month and frequency met status
         const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
+        console.log(`Current month visits for ${doctor.first_name} ${doctor.last_name}: ${currentMonthVisits}, frequency: ${visitFrequency}`);
+        
         const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
         const isFrequencyMet = currentMonthVisits >= visitFrequency;
 
@@ -207,6 +214,12 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const visitedCurrentMonth = currentMonthIndex >= 0 ? monthlyVisits[currentMonthIndex] > 0 : false;
         const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
         const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
+
+        console.log(`Row color logic for ${doctor.first_name} ${doctor.last_name}:`, {
+          visitedCurrentMonth,
+          visitedLastMonth,
+          visitedMonthBeforeLast
+        });
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
         if (visitedCurrentMonth || visitedLastMonth) {
@@ -330,9 +343,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
   // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent, planId: string) => {
+    // Allow swipe unless both conditions are met (has visit today AND frequency is met)
     const plan = processedData.find(p => p.id === planId);
-    if (plan && (plan.has_visit_today || plan.is_frequency_met)) {
-      return; // Don't allow swipe for disabled rows
+    if (plan && plan.has_visit_today && plan.is_frequency_met) {
+      return; // Don't allow swipe only when both conditions are true
     }
     
     const touch = e.touches[0];
@@ -411,7 +425,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   };
 
   const getDisabledRowClass = (plan: VisitPlanData) => {
-    if (plan.has_visit_today || plan.is_frequency_met) {
+    // Only disable when both visit is recorded today AND frequency is met
+    if (plan.has_visit_today && plan.is_frequency_met) {
       return 'opacity-50 bg-gray-100 cursor-not-allowed';
     }
     return 'cursor-pointer';
@@ -529,7 +544,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-8"></TableHead>
+                      <TableHead className="w-12"></TableHead>
                       <TableHead>Doctor Name</TableHead>
                       <TableHead>Visit Frequency</TableHead>
                       <TableHead>Remaining This Month</TableHead>
@@ -554,8 +569,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                       >
-                        {/* Swipe action background - positioned absolutely behind the row */}
-                        {!plan.has_visit_today && !plan.is_frequency_met && (
+                        {/* Swipe action background */}
+                        {!(plan.has_visit_today && plan.is_frequency_met) && (
                           <div 
                             className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
                             style={{ 
@@ -569,15 +584,19 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                           </div>
                         )}
 
-                        <TableCell className="w-8 relative z-10">
-                          {plan.has_visit_today && (
-                            <Check className="h-4 w-4 text-green-600" />
-                          )}
-                          {plan.is_frequency_met && !plan.has_visit_today && (
-                            <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">✓</span>
-                            </div>
-                          )}
+                        <TableCell className="w-12 relative z-10">
+                          <div className="flex items-center space-x-1">
+                            {/* Green checkmark for visit today */}
+                            {plan.has_visit_today && (
+                              <Check className="h-4 w-4 text-green-600" />
+                            )}
+                            {/* Blue checkmark for frequency met */}
+                            {plan.is_frequency_met && (
+                              <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">✓</span>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="font-medium relative z-10">
                           {plan.doctor_name}
@@ -649,7 +668,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                <span>Disabled (cannot record more visits)</span>
+                <span>Disabled (both visit recorded today AND frequency met)</span>
               </div>
             </div>
           </CardContent>
