@@ -6,6 +6,11 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
   try {
     console.log('🔍 Starting profile fetch for user:', userId);
     
+    // Add a timeout promise to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Profile fetch timeout')), 10000); // 10 second timeout
+    });
+    
     // First, let's check what session we have
     const { data: sessionData } = await supabase.auth.getSession();
     console.log('📋 Current session status:', !!sessionData.session, 'User:', sessionData.session?.user?.id);
@@ -13,11 +18,14 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
     // Add more detailed logging for the actual query
     console.log('🔎 About to execute profiles query with userId:', userId);
     
-    const { data, error } = await supabase
+    const queryPromise = supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
+
+    // Race between the query and timeout
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
     console.log('📊 Profile query completed:', {
       hasData: !!data,
@@ -46,20 +54,24 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
       
       // Let's also check if it's an RLS issue by trying to query without filters
       console.log('🔍 Checking RLS permissions by attempting to query profiles table...');
-      const { data: testData, error: testError } = await supabase
-        .from('profiles')
-        .select('count(*)')
-        .limit(1);
-      
-      console.log('🧪 Test query result:', {
-        testData,
-        testError: testError ? {
-          message: testError.message,
-          details: testError.details,
-          hint: testError.hint,
-          code: testError.code
-        } : null
-      });
+      try {
+        const { data: testData, error: testError } = await Promise.race([
+          supabase.from('profiles').select('count(*)').limit(1),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Test query timeout')), 5000))
+        ]);
+        
+        console.log('🧪 Test query result:', {
+          testData,
+          testError: testError ? {
+            message: testError.message,
+            details: testError.details,
+            hint: testError.hint,
+            code: testError.code
+          } : null
+        });
+      } catch (testError) {
+        console.error('🧪 Test query failed:', testError);
+      }
       
       return null;
     }
@@ -69,21 +81,25 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
       
       // Let's check if there are any profiles in the table at all
       console.log('🔍 Checking if profiles table is accessible...');
-      const { data: allProfiles, error: allError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(5);
-      
-      console.log('📋 Profiles table check:', {
-        profileCount: allProfiles?.length || 0,
-        hasError: !!allError,
-        errorDetails: allError ? {
-          message: allError.message,
-          details: allError.details,
-          hint: allError.hint,
-          code: allError.code
-        } : null
-      });
+      try {
+        const { data: allProfiles, error: allError } = await Promise.race([
+          supabase.from('profiles').select('id').limit(5),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('All profiles query timeout')), 5000))
+        ]);
+        
+        console.log('📋 Profiles table check:', {
+          profileCount: allProfiles?.length || 0,
+          hasError: !!allError,
+          errorDetails: allError ? {
+            message: allError.message,
+            details: allError.details,
+            hint: allError.hint,
+            code: allError.code
+          } : null
+        });
+      } catch (allError) {
+        console.error('📋 All profiles query failed:', allError);
+      }
       
       return null;
     }
@@ -98,6 +114,9 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
     return data;
   } catch (error) {
     console.error('💥 Profile fetch exception:', error);
+    if (error instanceof Error && error.message.includes('timeout')) {
+      console.error('⏰ Profile fetch timed out - this indicates a database connection issue');
+    }
     return null;
   }
 };

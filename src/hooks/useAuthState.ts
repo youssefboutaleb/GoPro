@@ -42,7 +42,16 @@ export const useAuthState = () => {
         if (session?.user) {
           console.log('👤 Fetching profile for authenticated user...');
           try {
-            const userProfile = await fetchProfile(session.user.id);
+            // Add timeout to profile fetch to prevent hanging
+            const timeoutPromise = new Promise<Profile | null>((_, reject) => {
+              setTimeout(() => reject(new Error('Profile fetch timeout in auth state change')), 15000);
+            });
+            
+            const userProfile = await Promise.race([
+              fetchProfile(session.user.id),
+              timeoutPromise
+            ]);
+            
             console.log('📦 Profile fetch result:', userProfile ? 'Success' : 'Failed/No profile found');
             setProfile(userProfile);
             
@@ -70,7 +79,16 @@ export const useAuthState = () => {
           if (session?.user) {
             console.log('👤 Fetching initial profile...');
             try {
-              const userProfile = await fetchProfile(session.user.id);
+              // Add timeout for initial profile fetch as well
+              const timeoutPromise = new Promise<Profile | null>((_, reject) => {
+                setTimeout(() => reject(new Error('Initial profile fetch timeout')), 15000);
+              });
+              
+              const userProfile = await Promise.race([
+                fetchProfile(session.user.id),
+                timeoutPromise
+              ]);
+              
               console.log('📦 Initial profile fetch result:', userProfile ? 'Success' : 'Failed/No profile found');
               setProfile(userProfile);
               
@@ -114,7 +132,17 @@ export const useAuthState = () => {
           
           try {
             console.log('👤 Manually fetching profile for user:', session.user.id);
-            const userProfile = await fetchProfile(session.user.id);
+            
+            // Add timeout for manual profile fetch
+            const timeoutPromise = new Promise<Profile | null>((_, reject) => {
+              setTimeout(() => reject(new Error('Manual profile fetch timeout')), 15000);
+            });
+            
+            const userProfile = await Promise.race([
+              fetchProfile(session.user.id),
+              timeoutPromise
+            ]);
+            
             console.log('📦 Manual profile fetch result:', userProfile ? 'Success' : 'Failed/No profile found');
             setProfile(userProfile);
             
@@ -138,10 +166,11 @@ export const useAuthState = () => {
       }
     };
 
+    // Reduce timeout to be more responsive
     const timeoutId = setTimeout(() => {
       console.log('⏰ Auth initialization timeout reached');
       setLoading(false);
-    }, 5000);
+    }, 3000); // Reduced from 5000 to 3000
 
     initializeAuth();
 
