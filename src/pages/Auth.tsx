@@ -126,6 +126,12 @@ const Auth = () => {
                     {loading ? 'Connexion...' : 'Se connecter'}
                   </Button>
                 </form>
+                <div class="flex items-center space-x-2">
+                  <p class="text-sm text-blue-700">
+                    <strong>Admin Ahmed Guargouri:</strong> admin@admin.com / adminadmin <br>
+                    <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali
+                  </p>
+                </div>
               </TabsContent>
               
               <TabsContent value="signup">
