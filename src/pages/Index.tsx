@@ -11,17 +11,22 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Index page - Auth state:', { user: user?.id, loading });
+    
     if (!loading && !user) {
+      console.log('No user found, redirecting to auth');
       navigate('/auth');
     }
   }, [user, loading, navigate]);
 
   const handleSignOut = async () => {
+    console.log('Signing out from Index page');
     await signOut();
     navigate('/auth');
   };
 
   if (loading) {
+    console.log('Index page showing loading state');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-lg">Loading...</div>
@@ -30,8 +35,11 @@ const Index = () => {
   }
 
   if (!user) {
+    console.log('Index page - no user, should redirect');
     return null;
   }
+
+  console.log('Index page rendering main content for user:', user.id);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">

@@ -19,7 +19,9 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Auth page - user state:', user?.id);
     if (user) {
+      console.log('User found on Auth page, redirecting to index');
       navigate('/');
     }
   }, [user, navigate]);
@@ -27,12 +29,15 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log('Attempting sign in from Auth page');
 
     const { error } = await signIn(email, password);
     
     if (error) {
+      console.error('Sign in failed:', error);
       toast.error(error.message);
     } else {
+      console.log('Sign in successful from Auth page');
       toast.success("Connexion réussie!");
     }
     setLoading(false);
@@ -41,12 +46,15 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log('Attempting sign up from Auth page');
 
     const { error } = await signUp(email, password, firstName, lastName);
     
     if (error) {
+      console.error('Sign up failed:', error);
       toast.error(error.message);
     } else {
+      console.log('Sign up successful from Auth page');
       toast.success("Inscription réussie!");
     }
     setLoading(false);
