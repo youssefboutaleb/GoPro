@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, TrendingUp, Users, Target, Plus } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, Target, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -24,16 +24,28 @@ interface VisitPlanData {
   row_color: 'red' | 'yellow' | 'green';
 }
 
+interface SwipeState {
+  isActive: boolean;
+  startX: number;
+  currentX: number;
+  planId: string | null;
+}
+
 const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [swipeState, setSwipeState] = useState<SwipeState>({
+    isActive: false,
+    startX: 0,
+    currentX: 0,
+    planId: null
+  });
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1; // 1-based
+  const currentMonth = new Date().getMonth() + 1;
   const monthsElapsed = currentMonth;
 
-  // Generate month names for table headers
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
@@ -156,14 +168,12 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           continue;
         }
 
-        // Filter visits for this visit plan
         const planVisits = visits.filter(visit => visit.visit_plan_id === visitPlan.id);
 
-        // Calculate monthly visits
         const monthlyVisits = new Array(currentMonth).fill(0);
         planVisits.forEach(visit => {
           const visitDate = new Date(visit.visit_date);
-          const visitMonth = visitDate.getMonth(); // 0-based
+          const visitMonth = visitDate.getMonth();
           if (visitMonth < currentMonth) {
             monthlyVisits[visitMonth]++;
           }
@@ -174,14 +184,12 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const expectedVisits = visitFrequency * monthsElapsed;
         const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
 
-        // Calculate remaining visits for this month (current month)
         const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
         const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
 
-        // Determine row color based on last month and month before last
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        const lastMonth = currentMonth - 1; // Current month - 1 (1-based to 0-based)
-        const monthBeforeLast = currentMonth - 2; // Current month - 2 (1-based to 0-based)
+        const lastMonth = currentMonth - 1;
+        const monthBeforeLast = currentMonth - 2;
 
         const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
         const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
@@ -212,10 +220,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     staleTime: 5 * 60 * 1000,
   });
 
-  // Add mutation for recording a visit with better error handling
+  // Record visit mutation
   const recordVisitMutation = useMutation({
     mutationFn: async (visitPlanId: string) => {
-      const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
       
       console.log('Recording visit for plan:', visitPlanId, 'on date:', today);
       
@@ -223,8 +231,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         .from('visits')
         .insert({
           visit_plan_id: visitPlanId,
-          visit_date: today,
-          delegate_id: user?.id // Include delegate_id to satisfy RLS policy
+          visit_date: today
         })
         .select();
 
@@ -237,7 +244,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       return data;
     },
     onSuccess: () => {
-      // Invalidate and refetch the visits data to update the table
       queryClient.invalidateQueries({ queryKey: ['visits-data'] });
       queryClient.invalidateQueries({ queryKey: ['processed-visit-data'] });
       
@@ -256,19 +262,64 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     },
   });
 
-  const handleRecordVisit = (visitPlanId: string) => {
-    recordVisitMutation.mutate(visitPlanId);
+  // Swipe handlers
+  const handleTouchStart = (e: React.TouchEvent, planId: string) => {
+    const touch = e.touches[0];
+    setSwipeState({
+      isActive: true,
+      startX: touch.clientX,
+      currentX: touch.clientX,
+      planId
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swipeState.isActive) return;
+    
+    const touch = e.touches[0];
+    setSwipeState(prev => ({
+      ...prev,
+      currentX: touch.clientX
+    }));
+  };
+
+  const handleTouchEnd = () => {
+    if (!swipeState.isActive || !swipeState.planId) return;
+
+    const swipeDistance = swipeState.currentX - swipeState.startX;
+    const threshold = 100; // pixels
+
+    if (swipeDistance > threshold) {
+      // Swiped right - record visit
+      recordVisitMutation.mutate(swipeState.planId);
+    }
+
+    setSwipeState({
+      isActive: false,
+      startX: 0,
+      currentX: 0,
+      planId: null
+    });
+  };
+
+  const getSwipeOffset = (planId: string) => {
+    if (swipeState.planId !== planId || !swipeState.isActive) return 0;
+    const offset = Math.max(0, swipeState.currentX - swipeState.startX);
+    return Math.min(offset, 120); // Max offset
+  };
+
+  const getSwipeOpacity = (planId: string) => {
+    const offset = getSwipeOffset(planId);
+    return Math.min(offset / 100, 1);
   };
 
   const isLoading = visitPlansLoading || doctorsLoading || visitsLoading || isProcessing;
   const error = visitPlansError;
 
-  // Calculate average return index
   const averageReturnIndex = processedData.length > 0 
     ? Math.round(processedData.reduce((sum, plan) => sum + plan.return_index, 0) / processedData.length)
     : 0;
 
-  // Helper functions for row styling
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
     switch (color) {
       case 'green':
@@ -384,7 +435,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle>Visit Plans Analysis</CardTitle>
-            <p className="text-sm text-gray-600">Click the "+" button to record a visit for today</p>
+            <p className="text-sm text-gray-600">Swipe right on any row to record a visit for today</p>
           </CardHeader>
           <CardContent>
             {processedData.length === 0 ? (
@@ -400,7 +451,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-16">Action</TableHead>
                       <TableHead>Doctor Name</TableHead>
                       <TableHead>Visit Frequency</TableHead>
                       <TableHead>Remaining This Month</TableHead>
@@ -416,19 +466,27 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                     {processedData.map((plan) => (
                       <TableRow
                         key={plan.id}
-                        className={getRowColorClass(plan.row_color)}
+                        className={`${getRowColorClass(plan.row_color)} cursor-pointer touch-pan-y relative overflow-hidden select-none`}
+                        style={{ 
+                          transform: `translateX(${getSwipeOffset(plan.id)}px)`,
+                          transition: swipeState.planId === plan.id && swipeState.isActive ? 'none' : 'transform 0.2s ease-out'
+                        }}
+                        onTouchStart={(e) => handleTouchStart(e, plan.id)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
                       >
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRecordVisit(plan.id)}
-                            disabled={recordVisitMutation.isPending}
-                            className="h-8 w-8 p-0 hover:bg-green-50"
-                          >
-                            <Plus className="h-4 w-4 text-green-600" />
-                          </Button>
-                        </TableCell>
+                        {/* Swipe action background */}
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
+                          style={{ 
+                            width: `${getSwipeOffset(plan.id)}px`,
+                            opacity: getSwipeOpacity(plan.id)
+                          }}
+                        >
+                          <Check className="h-6 w-6 text-white" />
+                          <span className="text-white font-medium ml-2">Record Visit</span>
+                        </div>
+
                         <TableCell className="font-medium">
                           {plan.doctor_name}
                         </TableCell>
@@ -464,9 +522,14 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         {/* Legend */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
           <CardHeader>
-            <CardTitle className="text-sm">Color Legend</CardTitle>
+            <CardTitle className="text-sm">Instructions & Legend</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>How to record a visit:</strong> Swipe right on any row in the table to record a visit for today. The table will update automatically.
+              </p>
+            </div>
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
@@ -480,11 +543,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
                 <span>Red: Not visited in last two months</span>
               </div>
-            </div>
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Tip:</strong> Click the "+" button in any row to record a visit for today. The table will update automatically.
-              </p>
             </div>
           </CardContent>
         </Card>
