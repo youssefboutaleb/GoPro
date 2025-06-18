@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -249,6 +250,14 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
     return 'text-red-600 bg-red-100';
   };
 
+  const getMonthHighlightClass = (monthIndex: number) => {
+    // Highlight selected month and all preceding months
+    if (monthIndex < selectedMonth) {
+      return 'bg-blue-50 border-2 border-blue-200';
+    }
+    return '';
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
@@ -336,8 +345,13 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Product Name</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
-                      {displayMonths.map(month => (
-                        <th key={month} className="text-center py-3 px-4 font-medium text-gray-700 min-w-[80px]">{month}</th>
+                      {displayMonths.map((month, index) => (
+                        <th 
+                          key={month} 
+                          className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
+                        >
+                          {month}
+                        </th>
                       ))}
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Recruitment Rhythm</th>
                     </tr>
@@ -352,7 +366,10 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                           {plan.brick_name}
                         </td>
                         {displayMonths.map((_, index) => (
-                          <td key={index} className="py-4 px-4 text-center">
+                          <td 
+                            key={index} 
+                            className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
+                          >
                             <div className="text-sm">
                               <div className="font-medium">{plan.achievements[index] || 0}</div>
                               <div className="text-gray-500">/ {plan.targets[index] || 0}</div>
