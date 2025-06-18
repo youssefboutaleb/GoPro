@@ -220,7 +220,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     staleTime: 5 * 60 * 1000,
   });
 
-  // Record visit mutation
+  // Record visit mutation with improved error handling and query invalidation
   const recordVisitMutation = useMutation({
     mutationFn: async (visitPlanId: string) => {
       const today = new Date().toISOString().split('T')[0];
@@ -229,6 +229,23 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       
       if (!user?.id) {
         throw new Error('User not authenticated');
+      }
+
+      // Check if a visit already exists for today for this plan
+      const { data: existingVisit, error: checkError } = await supabase
+        .from('visits')
+        .select('id')
+        .eq('visit_plan_id', visitPlanId)
+        .eq('visit_date', today)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking existing visit:', checkError);
+        throw checkError;
+      }
+
+      if (existingVisit) {
+        throw new Error('A visit has already been recorded for today for this doctor');
       }
 
       const { data, error } = await supabase
@@ -249,8 +266,13 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       return data;
     },
     onSuccess: () => {
+      // Invalidate all related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['visits-data'] });
       queryClient.invalidateQueries({ queryKey: ['processed-visit-data'] });
+      
+      // Also refetch the queries immediately
+      queryClient.refetchQueries({ queryKey: ['visits-data'] });
+      queryClient.refetchQueries({ queryKey: ['processed-visit-data'] });
       
       toast({
         title: "Visit recorded",
