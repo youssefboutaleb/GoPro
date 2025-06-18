@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,6 +41,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('🔍 Starting profile fetch for user:', userId);
       
+      // First, let's check what session we have
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('📋 Current session status:', !!sessionData.session, 'User:', sessionData.session?.user?.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -49,12 +52,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .maybeSingle();
 
       if (error) {
-        console.error('❌ Profile fetch error:', error);
+        console.error('❌ Profile fetch error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return null;
       }
 
       if (!data) {
-        console.log('⚠️ No profile found for user:', userId);
+        console.log('⚠️ No profile found for user:', userId, 'This might be normal for new users');
         return null;
       }
 
