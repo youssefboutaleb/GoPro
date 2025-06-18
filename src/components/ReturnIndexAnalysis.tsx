@@ -13,13 +13,11 @@ interface ReturnIndexAnalysisProps {
   onBack: () => void;
 }
 
-interface DoctorData {
+interface VisitPlanData {
   id: string;
-  first_name: string;
-  last_name: string;
-  specialty: string | null;
-  brick_name: string | null;
-  visit_frequency: string;
+  doctor_name: string;
+  visit_frequency: number;
+  remaining_visits_this_month: number;
   monthly_visits: number[];
   total_visits: number;
   expected_visits: number;
@@ -40,16 +38,14 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Clean query without any role column references
-  const { data: doctorsData = [], isLoading } = useQuery({
-    queryKey: ['return-index-analysis-clean', user?.id],
+  const { data: visitPlansData = [], isLoading } = useQuery({
+    queryKey: ['visit-plans-analysis', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      console.log('🔍 Fetching return index data for delegate:', user.id);
+      console.log('🔍 Fetching visit plans for delegate:', user.id);
 
       try {
-        // Query visit_plans with only existing columns
         const { data: visitPlansData, error: visitPlansError } = await supabase
           .from('visit_plans')
           .select(`
@@ -85,8 +81,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           return [];
         }
 
-        // Process data for each visit plan
-        const processedData: DoctorData[] = [];
+        const processedData: VisitPlanData[] = [];
 
         for (const visitPlan of visitPlansData) {
           if (!visitPlan.doctors) {
@@ -96,8 +91,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
           const doctor = visitPlan.doctors;
           const visits = visitPlan.visits || [];
-
-          console.log(`📊 Processing doctor ${doctor.first_name} ${doctor.last_name} with ${visits.length} visits`);
 
           // Filter visits for current year
           const currentYearVisits = visits.filter(visit => {
@@ -116,9 +109,13 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           });
 
           const totalVisits = currentYearVisits.length;
-          const frequencyPerMonth = parseInt(visitPlan.visit_frequency) || 1;
-          const expectedVisits = frequencyPerMonth * monthsElapsed;
+          const visitFrequency = parseInt(visitPlan.visit_frequency) || 1;
+          const expectedVisits = visitFrequency * monthsElapsed;
           const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+
+          // Calculate remaining visits for this month (current month)
+          const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
+          const remainingVisitsThisMonth = Math.abs(visitFrequency - currentMonthVisits);
 
           // Determine row color based on last month and month before last
           let rowColor: 'red' | 'yellow' | 'green' = 'red';
@@ -135,12 +132,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           }
 
           processedData.push({
-            id: doctor.id,
-            first_name: doctor.first_name,
-            last_name: doctor.last_name,
-            specialty: doctor.specialty,
-            brick_name: doctor.bricks?.name || null,
-            visit_frequency: visitPlan.visit_frequency,
+            id: visitPlan.id,
+            doctor_name: `${doctor.first_name} ${doctor.last_name}`,
+            visit_frequency: visitFrequency,
+            remaining_visits_this_month: remainingVisitsThisMonth,
             monthly_visits: monthlyVisits,
             total_visits: totalVisits,
             expected_visits: expectedVisits,
@@ -149,31 +144,30 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           });
         }
 
-        console.log('✅ Processing complete. Total doctors:', processedData.length);
+        console.log('✅ Processing complete. Total visit plans:', processedData.length);
         return processedData;
 
       } catch (error) {
-        console.error('💥 Error in return index query:', error);
+        console.error('💥 Error in visit plans query:', error);
         throw error;
       }
     },
     enabled: !!user?.id
   });
 
-  // Filter doctors based on specialty and brick
-  const filteredDoctors = doctorsData.filter(doctor => {
-    const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
-    const matchesBrick = selectedBrick === 'all' || doctor.brick_name === selectedBrick;
-    return matchesSpecialty && matchesBrick;
-  });
-
   // Get unique specialties and bricks for filters
-  const specialties = [...new Set(doctorsData.map(d => d.specialty).filter(Boolean))];
-  const bricks = [...new Set(doctorsData.map(d => d.brick_name).filter(Boolean))];
+  const specialties = [...new Set(visitPlansData.map(d => {
+    // Extract specialty from doctor data if available
+    return 'N/A'; // We'll need to get this from the doctor relationship
+  }))];
+  const bricks = [...new Set(visitPlansData.map(d => {
+    // Extract brick from doctor data if available  
+    return 'N/A'; // We'll need to get this from the doctor relationship
+  }))];
 
   // Calculate average return index
-  const averageReturnIndex = filteredDoctors.length > 0 
-    ? Math.round(filteredDoctors.reduce((sum, doctor) => sum + doctor.return_index, 0) / filteredDoctors.length)
+  const averageReturnIndex = visitPlansData.length > 0 
+    ? Math.round(visitPlansData.reduce((sum, plan) => sum + plan.return_index, 0) / visitPlansData.length)
     : 0;
 
   // Helper functions for row styling
@@ -221,9 +215,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Return Index Analysis</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                 <p className="text-sm text-gray-600">
-                  Tracking {filteredDoctors.length} targeted doctors
+                  Tracking {visitPlansData.length} visit plans
                 </p>
               </div>
             </div>
@@ -232,56 +226,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Filters */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Specialty</label>
-                <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Specialties" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Specialties</SelectItem>
-                    {specialties.map(specialty => (
-                      <SelectItem key={specialty} value={specialty!}>{specialty}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Brick</label>
-                <Select value={selectedBrick} onValueChange={setSelectedBrick}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Bricks" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Bricks</SelectItem>
-                    {bricks.map(brick => (
-                      <SelectItem key={brick} value={brick!}>{brick}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Doctors</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Visit Plans</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{filteredDoctors.length}</div>
-              <p className="text-xs text-muted-foreground">Targeted doctors</p>
+              <div className="text-2xl font-bold text-blue-600">{visitPlansData.length}</div>
+              <p className="text-xs text-muted-foreground">Active plans</p>
             </CardContent>
           </Card>
 
@@ -292,7 +246,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {filteredDoctors.reduce((sum, doctor) => sum + doctor.total_visits, 0)}
+                {visitPlansData.reduce((sum, plan) => sum + plan.total_visits, 0)}
               </div>
               <p className="text-xs text-muted-foreground">This year</p>
             </CardContent>
@@ -312,21 +266,18 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           </Card>
         </div>
 
-        {/* Doctors Table */}
+        {/* Visit Plans Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle>Doctor Visit Analysis</CardTitle>
+            <CardTitle>Visit Plans Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredDoctors.length === 0 ? (
+            {visitPlansData.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Doctors Found</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Visit Plans Found</h3>
                 <p className="text-gray-600">
-                  {doctorsData.length === 0 
-                    ? "No visit plans found for your profile. Please contact your administrator."
-                    : "No targeted doctors match the selected criteria."
-                  }
+                  No visit plans found for your profile. Please contact your administrator.
                 </p>
               </div>
             ) : (
@@ -334,10 +285,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Doctor</TableHead>
-                      <TableHead>Specialty</TableHead>
-                      <TableHead>Brick</TableHead>
-                      <TableHead>Frequency</TableHead>
+                      <TableHead>Doctor Name</TableHead>
+                      <TableHead>Visit Frequency</TableHead>
+                      <TableHead>Remaining This Month</TableHead>
                       {displayMonths.map(month => (
                         <TableHead key={month} className="text-center min-w-[60px]">{month}</TableHead>
                       ))}
@@ -347,28 +297,29 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDoctors.map((doctor) => (
-                      <TableRow key={doctor.id} className={getRowColorClass(doctor.row_color)}>
+                    {visitPlansData.map((plan) => (
+                      <TableRow key={plan.id} className={getRowColorClass(plan.row_color)}>
                         <TableCell className="font-medium">
-                          {doctor.first_name} {doctor.last_name}
+                          {plan.doctor_name}
                         </TableCell>
-                        <TableCell>{doctor.specialty || 'N/A'}</TableCell>
-                        <TableCell>{doctor.brick_name || 'N/A'}</TableCell>
                         <TableCell>
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                            {doctor.visit_frequency}x/month
+                            {plan.visit_frequency}x/month
                           </span>
                         </TableCell>
-                        {doctor.monthly_visits.map((visits, index) => (
+                        <TableCell className="text-center font-medium">
+                          {plan.remaining_visits_this_month}
+                        </TableCell>
+                        {plan.monthly_visits.map((visits, index) => (
                           <TableCell key={index} className="text-center">
                             {visits}
                           </TableCell>
                         ))}
-                        <TableCell className="text-center font-medium">{doctor.total_visits}</TableCell>
-                        <TableCell className="text-center">{doctor.expected_visits}</TableCell>
+                        <TableCell className="text-center font-medium">{plan.total_visits}</TableCell>
+                        <TableCell className="text-center">{plan.expected_visits}</TableCell>
                         <TableCell className="text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReturnIndexColor(doctor.return_index)}`}>
-                            {doctor.return_index}%
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReturnIndexColor(plan.return_index)}`}>
+                            {plan.return_index}%
                           </span>
                         </TableCell>
                       </TableRow>

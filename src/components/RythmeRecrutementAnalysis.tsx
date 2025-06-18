@@ -18,8 +18,12 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
   const monthsElapsed = parseInt(selectedMonth);
   const { data: salesPlansData = [], isLoading } = useRecruitmentData(selectedMonth);
 
-  const totalTargets = salesPlansData.reduce((sum, plan) => sum + plan.year_to_date_targets, 0);
-  const totalAchievements = salesPlansData.reduce((sum, plan) => sum + plan.year_to_date_achievements, 0);
+  const totalTargets = salesPlansData.reduce((sum, plan) => 
+    sum + plan.monthly_targets.reduce((monthSum, target) => monthSum + (target || 0), 0), 0
+  );
+  const totalAchievements = salesPlansData.reduce((sum, plan) => 
+    sum + plan.monthly_achievements.reduce((monthSum, achievement) => monthSum + (achievement || 0), 0), 0
+  );
   const averageRecruitmentRhythm = salesPlansData.length > 0 
     ? Math.round(salesPlansData.reduce((sum, plan) => sum + plan.recruitment_rhythm, 0) / salesPlansData.length)
     : 0;

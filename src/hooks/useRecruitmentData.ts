@@ -7,12 +7,9 @@ interface SalesPlanData {
   id: string;
   product_name: string;
   brick_name: string | null;
-  targets: number[];
-  achievements: number[];
-  monthly_performance: number[];
+  monthly_achievements: number[];
+  monthly_targets: number[];
   recruitment_rhythm: number;
-  year_to_date_targets: number;
-  year_to_date_achievements: number;
   row_color: 'red' | 'yellow' | 'green';
 }
 
@@ -81,17 +78,18 @@ export const useRecruitmentData = (selectedMonth: string) => {
           const targets = currentYearSales[0]?.targets || new Array(12).fill(0);
           const achievements = currentYearSales[0]?.achievements || new Array(12).fill(0);
 
-          const yearToDateTargets = targets.slice(0, monthsElapsed).reduce((sum: number, val: number) => sum + (val || 0), 0);
-          const yearToDateAchievements = achievements.slice(0, monthsElapsed).reduce((sum: number, val: number) => sum + (val || 0), 0);
+          // Get data only up to selected month
+          const monthlyTargets = targets.slice(0, monthsElapsed);
+          const monthlyAchievements = achievements.slice(0, monthsElapsed);
 
-          const monthlyPerformance = targets.slice(0, monthsElapsed).map((target: number, index: number) => {
-            const achievement = achievements[index] || 0;
-            return target > 0 ? Math.round((achievement / target) * 100) : 0;
-          });
-
-          const remainingMonths = 12 - monthsElapsed;
-          const denominator = remainingMonths * (remainingMonths + 1) / 2;
-          const numerator = yearToDateTargets - yearToDateAchievements;
+          // Calculate recruitment rhythm according to your formula
+          const sumOfTargets = monthlyTargets.reduce((sum: number, val: number) => sum + (val || 0), 0);
+          const achievementsYTD = monthlyAchievements.reduce((sum: number, val: number) => sum + (val || 0), 0);
+          
+          const n = 12 - monthsElapsed; // remaining months
+          const denominator = n * (n + 1) / 2;
+          const numerator = sumOfTargets - achievementsYTD;
+          
           const recruitmentRhythm = denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
 
           let rowColor: 'red' | 'yellow' | 'green' = 'red';
@@ -105,12 +103,9 @@ export const useRecruitmentData = (selectedMonth: string) => {
             id: salesPlan.id,
             product_name: product.name,
             brick_name: salesPlan.bricks?.name || null,
-            targets: targets.slice(0, monthsElapsed),
-            achievements: achievements.slice(0, monthsElapsed),
-            monthly_performance: monthlyPerformance,
+            monthly_achievements: monthlyAchievements,
+            monthly_targets: monthlyTargets,
             recruitment_rhythm: recruitmentRhythm,
-            year_to_date_targets: yearToDateTargets,
-            year_to_date_achievements: yearToDateAchievements,
             row_color: rowColor
           });
         }
