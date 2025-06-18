@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -343,10 +342,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
   // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent, planId: string) => {
-    // Allow swipe unless both conditions are met (has visit today AND frequency is met)
+    // Disable swipe if either condition is true (has visit today OR frequency is met)
     const plan = processedData.find(p => p.id === planId);
-    if (plan && plan.has_visit_today && plan.is_frequency_met) {
-      return; // Don't allow swipe only when both conditions are true
+    if (plan && (plan.has_visit_today || plan.is_frequency_met)) {
+      return; // Don't allow swipe when either condition is true
     }
     
     const touch = e.touches[0];
@@ -425,8 +424,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   };
 
   const getDisabledRowClass = (plan: VisitPlanData) => {
-    // Only disable when both visit is recorded today AND frequency is met
-    if (plan.has_visit_today && plan.is_frequency_met) {
+    // Disable when either visit is recorded today OR frequency is met
+    if (plan.has_visit_today || plan.is_frequency_met) {
       return 'opacity-50 bg-gray-100 cursor-not-allowed';
     }
     return 'cursor-pointer';
@@ -570,7 +569,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         onTouchEnd={handleTouchEnd}
                       >
                         {/* Swipe action background */}
-                        {!(plan.has_visit_today && plan.is_frequency_met) && (
+                        {!(plan.has_visit_today || plan.is_frequency_met) && (
                           <div 
                             className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
                             style={{ 
@@ -668,7 +667,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                <span>Disabled (both visit recorded today AND frequency met)</span>
+                <span>Disabled (visit recorded today OR frequency met)</span>
               </div>
             </div>
           </CardContent>
