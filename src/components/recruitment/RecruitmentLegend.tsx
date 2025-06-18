@@ -20,7 +20,7 @@ const RecruitmentLegend: React.FC = () => {
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-            <span>Red: Recruitment Rhythm < 50%</span>
+            <span>Red: Recruitment Rhythm &lt; 50%</span>
           </div>
         </div>
       </CardContent>
