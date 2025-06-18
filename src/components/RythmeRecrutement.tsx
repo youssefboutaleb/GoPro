@@ -232,7 +232,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                   </thead>
                   <tbody>
                     {salesPlansData.map((plan) => (
-                      <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
+                      <tr key={plan.id} className={`${plan.row_color === 'green' ? 'bg-green-50 border-l-4 border-l-green-500' : plan.row_color === 'yellow' ? 'bg-yellow-50 border-l-4 border-l-yellow-500' : 'bg-red-50 border-l-4 border-l-red-500'}`}>
                         <td className="py-4 px-4 font-medium">
                           {plan.product_name}
                         </td>
@@ -248,7 +248,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                           </td>
                         ))}
                         <td className="py-4 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(plan.recruitment_rhythm)}`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${plan.recruitment_rhythm >= 80 ? 'text-green-600 bg-green-100' : plan.recruitment_rhythm >= 50 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100'}`}>
                             {plan.recruitment_rhythm}%
                           </span>
                         </td>
