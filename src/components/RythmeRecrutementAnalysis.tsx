@@ -31,10 +31,9 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
   const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1; // 1-based
+  const currentMonth = new Date().getMonth() + 1;
   const monthsElapsed = parseInt(selectedMonth);
 
-  // Generate month names for table headers
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
@@ -46,7 +45,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
       console.log('🔍 Fetching recruitment rhythm data for delegate:', user.id);
 
       try {
-        // Query sales_plans with related data
         const { data: salesPlansData, error: salesPlansError } = await supabase
           .from('sales_plans')
           .select(`
@@ -82,7 +80,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
           return [];
         }
 
-        // Process data for each sales plan
         const processedData: SalesPlanData[] = [];
 
         for (const salesPlan of salesPlansData) {
@@ -97,29 +94,22 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
 
           console.log(`📊 Processing product ${product.name} with ${currentYearSales.length} sales records`);
 
-          // Get targets and achievements arrays (default to 12 zeros if not found)
           const targets = currentYearSales[0]?.targets || new Array(12).fill(0);
           const achievements = currentYearSales[0]?.achievements || new Array(12).fill(0);
 
-          // Calculate YTD values up to selected month
           const yearToDateTargets = targets.slice(0, monthsElapsed).reduce((sum, val) => sum + (val || 0), 0);
           const yearToDateAchievements = achievements.slice(0, monthsElapsed).reduce((sum, val) => sum + (val || 0), 0);
 
-          // Calculate monthly performance percentages
           const monthlyPerformance = targets.slice(0, monthsElapsed).map((target, index) => {
             const achievement = achievements[index] || 0;
             return target > 0 ? Math.round((achievement / target) * 100) : 0;
           });
 
-          // Calculate recruitment rhythm
-          // Formula: (sum of targets - Sum of achievementsYTD) / (n*(n+1)/2)
-          // where n = (12-m) and m is the selected month number
           const remainingMonths = 12 - monthsElapsed;
           const denominator = remainingMonths * (remainingMonths + 1) / 2;
           const numerator = yearToDateTargets - yearToDateAchievements;
           const recruitmentRhythm = denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
 
-          // Determine row color based on recruitment rhythm
           let rowColor: 'red' | 'yellow' | 'green' = 'red';
           if (recruitmentRhythm >= 80) {
             rowColor = 'green';
@@ -152,7 +142,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
     enabled: !!user?.id
   });
 
-  // Helper functions for row styling
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
     switch (color) {
       case 'green':
@@ -178,7 +167,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
     return 'text-red-600 bg-red-100';
   };
 
-  // Calculate summary statistics
   const totalTargets = salesPlansData.reduce((sum, plan) => sum + plan.year_to_date_targets, 0);
   const totalAchievements = salesPlansData.reduce((sum, plan) => sum + plan.year_to_date_achievements, 0);
   const averageRecruitmentRhythm = salesPlansData.length > 0 
@@ -198,7 +186,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Header */}
       <div className="bg-white shadow-lg border-b border-blue-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -240,7 +227,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -282,7 +268,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
           </Card>
         </div>
 
-        {/* Sales Plans Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle>Sales Plans Analysis</CardTitle>
@@ -349,7 +334,6 @@ const RythmeRecrutementAnalysis: React.FC<RythmeRecrutementAnalysisProps> = ({ o
           </CardContent>
         </Card>
 
-        {/* Legend */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
           <CardHeader>
             <CardTitle className="text-sm">Color Legend</CardTitle>
