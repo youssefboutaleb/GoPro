@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserRole = Database['public']['Enums']['user_type'];
+type UserRole = Database['public']['Enums']['role_type'];
 
 interface UsersManagerProps {
   onBack: () => void;
@@ -51,7 +50,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ user_type: newRole })
+        .update({ role: newRole })
         .eq('id', userId);
 
       if (error) throw error;
@@ -131,7 +130,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>Nom</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Date de création</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -141,12 +140,12 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                   {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
-                        {user.id}
+                        {user.first_name} {user.last_name}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`flex items-center space-x-1 ${getRoleColor(user.user_type || 'Delegate')}`}>
-                          {getRoleIcon(user.user_type || 'Delegate')}
-                          <span>{user.user_type || 'Delegate'}</span>
+                        <Badge className={`flex items-center space-x-1 ${getRoleColor(user.role || 'Delegate')}`}>
+                          {getRoleIcon(user.role || 'Delegate')}
+                          <span>{user.role || 'Delegate'}</span>
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -154,7 +153,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                       </TableCell>
                       <TableCell className="text-right">
                         <Select
-                          value={user.user_type || 'Delegate'}
+                          value={user.role || 'Delegate'}
                           onValueChange={(newRole: UserRole) => updateUserRole(user.id, newRole)}
                         >
                           <SelectTrigger className="w-48">

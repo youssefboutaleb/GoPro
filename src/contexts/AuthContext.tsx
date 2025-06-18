@@ -244,7 +244,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const isAdmin = profile?.user_type === 'Admin';
+  const isAdmin = profile?.role === 'Admin';
 
   const value: AuthContextType = {
     user,

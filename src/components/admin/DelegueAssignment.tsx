@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch profiles with user_type 'Delegate' assigned to this supervisor
+  // Fetch profiles with role 'Delegate' assigned to this supervisor
   const { data: assignedDelegues, isLoading: loadingAssigned } = useQuery({
     queryKey: ['assigned-delegues', equipe.id],
     queryFn: async () => {
@@ -31,24 +32,24 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
         .from('profiles')
         .select('*')
         .eq('supervisor_id', equipe.id)
-        .eq('user_type', 'Delegate')
-        .order('id');
+        .eq('role', 'Delegate')
+        .order('first_name');
       
       if (error) throw error;
       return data as Profile[];
     },
   });
 
-  // Fetch unassigned delegates (profiles with user_type 'Delegate' and no supervisor)
+  // Fetch unassigned delegates (profiles with role 'Delegate' and no supervisor)
   const { data: unassignedDelegues, isLoading: loadingUnassigned } = useQuery({
     queryKey: ['unassigned-delegues'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_type', 'Delegate')
+        .eq('role', 'Delegate')
         .is('supervisor_id', null)
-        .order('id');
+        .order('first_name');
       
       if (error) throw error;
       return data as Profile[];
@@ -117,8 +118,8 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
     }
   };
 
-  const handleUnassign = (delegueId: string, delegueId2: string) => {
-    if (confirm(`Êtes-vous sûr de vouloir retirer ce délégué de cette équipe ?`)) {
+  const handleUnassign = (delegueId: string, delegueName: string) => {
+    if (confirm(`Êtes-vous sûr de vouloir retirer ${delegueName} de cette équipe ?`)) {
       unassignDelegue.mutate(delegueId);
     }
   };
@@ -139,7 +140,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Délégués - Superviseur {equipe.id}
+                Délégués - {equipe.first_name} {equipe.last_name}
               </h1>
               <p className="text-sm text-gray-600">
                 Gérer les délégués de ce superviseur
@@ -186,7 +187,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                           <SelectContent>
                             {unassignedDelegues?.map((delegue) => (
                               <SelectItem key={delegue.id} value={delegue.id}>
-                                Délégué {delegue.id}
+                                {delegue.first_name} {delegue.last_name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -213,7 +214,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>Nom</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -228,13 +229,13 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                   ) : (
                     assignedDelegues?.map((delegue) => (
                       <TableRow key={delegue.id}>
-                        <TableCell>{delegue.id}</TableCell>
-                        <TableCell className="font-medium">{delegue.user_type}</TableCell>
+                        <TableCell>{delegue.first_name} {delegue.last_name}</TableCell>
+                        <TableCell className="font-medium">{delegue.role}</TableCell>
                         <TableCell>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleUnassign(delegue.id, delegue.id)}
+                            onClick={() => handleUnassign(delegue.id, `${delegue.first_name} ${delegue.last_name}`)}
                             className="flex items-center space-x-1"
                           >
                             <UserMinus className="h-4 w-4" />

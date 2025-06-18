@@ -120,40 +120,52 @@ export type Database = {
           active: boolean | null
           id: string
           name: string
-          therapeutic_class: string | null
+          therapeutic_class:
+            | Database["public"]["Enums"]["therapeutic_class"]
+            | null
         }
         Insert: {
           active?: boolean | null
           id?: string
           name: string
-          therapeutic_class?: string | null
+          therapeutic_class?:
+            | Database["public"]["Enums"]["therapeutic_class"]
+            | null
         }
         Update: {
           active?: boolean | null
           id?: string
           name?: string
-          therapeutic_class?: string | null
+          therapeutic_class?:
+            | Database["public"]["Enums"]["therapeutic_class"]
+            | null
         }
         Relationships: []
       }
       profiles: {
         Row: {
           created_at: string | null
+          first_name: string
           id: string
+          last_name: string
+          role: Database["public"]["Enums"]["role_type"]
           supervisor_id: string | null
-          user_type: Database["public"]["Enums"]["user_type"]
         }
         Insert: {
           created_at?: string | null
+          first_name: string
           id: string
+          last_name: string
+          role: Database["public"]["Enums"]["role_type"]
           supervisor_id?: string | null
-          user_type: Database["public"]["Enums"]["user_type"]
         }
         Update: {
           created_at?: string | null
+          first_name?: string
           id?: string
+          last_name?: string
+          role?: Database["public"]["Enums"]["role_type"]
           supervisor_id?: string | null
-          user_type?: Database["public"]["Enums"]["user_type"]
         }
         Relationships: [
           {
@@ -337,12 +349,13 @@ export type Database = {
         | "generaliste"
         | "interniste"
         | "pneumologue"
-      user_type:
+      role_type:
         | "Admin"
         | "Sales Director"
         | "Marketing Manager"
         | "Supervisor"
         | "Delegate"
+      therapeutic_class: "Cardiology" | "Fever" | "Pain Killer"
       visit_frequency: "1" | "2"
     }
     CompositeTypes: {
@@ -465,13 +478,14 @@ export const Constants = {
         "interniste",
         "pneumologue",
       ],
-      user_type: [
+      role_type: [
         "Admin",
         "Sales Director",
         "Marketing Manager",
         "Supervisor",
         "Delegate",
       ],
+      therapeutic_class: ["Cardiology", "Fever", "Pain Killer"],
       visit_frequency: ["1", "2"],
     },
   },

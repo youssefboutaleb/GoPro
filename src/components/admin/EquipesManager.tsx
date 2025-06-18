@@ -26,15 +26,15 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch supervisors (profiles with user_type 'Supervisor')
+  // Fetch supervisors (profiles with role 'Supervisor')
   const { data: superviseurs, isLoading } = useQuery({
     queryKey: ['supervisors'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_type', 'Supervisor')
-        .order('id');
+        .eq('role', 'Supervisor')
+        .order('first_name');
       
       if (error) throw error;
       return data as Profile[];
@@ -51,8 +51,8 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
         .from('profiles')
         .select('*')
         .eq('supervisor_id', selectedSuperviseur.id)
-        .eq('user_type', 'Delegate')
-        .order('id');
+        .eq('role', 'Delegate')
+        .order('first_name');
       
       if (error) throw error;
       return data as Profile[];
@@ -116,7 +116,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>Nom</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -124,8 +124,10 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {superviseurs?.map((superviseur) => (
                     <TableRow key={superviseur.id}>
-                      <TableCell className="font-medium">{superviseur.id}</TableCell>
-                      <TableCell>{superviseur.user_type}</TableCell>
+                      <TableCell className="font-medium">
+                        {superviseur.first_name} {superviseur.last_name}
+                      </TableCell>
+                      <TableCell>{superviseur.role}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button
