@@ -122,9 +122,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
       
-      // Handle sign in events
+      // Handle sign in events with better state updates
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (!isSigningOut) {
+          console.log('Setting session and user state after successful auth');
           setSession(session);
           setUser(session?.user ?? null);
           
@@ -146,6 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle initial state
       if (event === 'INITIAL_SESSION') {
         if (session && !isSigningOut) {
+          console.log('Setting initial session state');
           setSession(session);
           setUser(session?.user ?? null);
           
@@ -217,7 +219,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) {
         console.error('Sign in error:', error);
       } else {
-        console.log('Sign in successful');
+        console.log('Sign in API call successful');
       }
 
       return { error };
@@ -245,7 +247,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) {
         console.error('Sign up error:', error);
       } else {
-        console.log('Sign up successful');
+        console.log('Sign up API call successful');
       }
 
       return { error };

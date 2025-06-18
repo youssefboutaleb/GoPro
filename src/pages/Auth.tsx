@@ -15,16 +15,21 @@ const Auth = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('Auth page - user state:', user?.id);
-    if (user) {
-      console.log('User found on Auth page, redirecting to index');
-      navigate('/');
+    console.log('Auth page - user state changed:', { 
+      userId: user?.id, 
+      sessionExists: !!session,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (user && session) {
+      console.log('User authenticated, redirecting to index from Auth page');
+      navigate('/', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, session, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +44,12 @@ const Auth = () => {
     } else {
       console.log('Sign in successful from Auth page');
       toast.success("Connexion réussie!");
+      
+      // Fallback redirect - give AuthContext time to update, then force redirect
+      setTimeout(() => {
+        console.log('Fallback redirect after successful sign in');
+        navigate('/', { replace: true });
+      }, 1000);
     }
     setLoading(false);
   };
@@ -56,9 +67,21 @@ const Auth = () => {
     } else {
       console.log('Sign up successful from Auth page');
       toast.success("Inscription réussie!");
+      
+      // Fallback redirect for sign up as well
+      setTimeout(() => {
+        console.log('Fallback redirect after successful sign up');
+        navigate('/', { replace: true });
+      }, 1000);
     }
     setLoading(false);
   };
+
+  // Don't render the auth form if user is already authenticated
+  if (user && session) {
+    console.log('Auth page - user already authenticated, should redirect');
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
