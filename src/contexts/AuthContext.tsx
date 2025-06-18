@@ -37,6 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [signOutLoading, setSignOutLoading] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -60,26 +61,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const clearSessionAndRedirect = () => {
-    console.log('Clearing session and redirecting manually');
+  const clearAllSessionData = () => {
+    console.log('Clearing all session data');
+    
+    // Clear React state immediately
     setUser(null);
     setSession(null);
     setProfile(null);
-    setSignOutLoading(false);
     
-    // Clear any local storage items related to Supabase
+    // Clear all possible Supabase-related localStorage items
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
-      if (key.startsWith('supabase.auth.token') || key.startsWith('sb-')) {
+      if (key.startsWith('supabase.auth.token') || 
+          key.startsWith('sb-') || 
+          key.includes('supabase') ||
+          key.includes('auth')) {
         localStorage.removeItem(key);
-        console.log('Removed local storage key:', key);
+        console.log('Removed localStorage key:', key);
       }
     });
     
-    // Force redirect
-    setTimeout(() => {
-      window.location.href = '/auth';
-    }, 100);
+    // Also clear sessionStorage
+    const sessionKeys = Object.keys(sessionStorage);
+    sessionKeys.forEach(key => {
+      if (key.startsWith('supabase') || key.includes('auth')) {
+        sessionStorage.removeItem(key);
+        console.log('Removed sessionStorage key:', key);
+      }
+    });
   };
 
   useEffect(() => {
@@ -90,32 +99,69 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id);
+      console.log('Is signing out flag:', isSigningOut);
       
-      setSession(session);
-      setUser(session?.user ?? null);
+      // If we're in the middle of signing out, ignore SIGNED_IN events
+      if (isSigningOut && event === 'SIGNED_IN') {
+        console.log('Ignoring SIGNED_IN event during sign out process');
+        return;
+      }
       
-      // Handle profile fetching
-      if (session?.user) {
-        try {
-          const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
-        } catch (error) {
-          console.error('Error fetching profile after auth change:', error);
-          setProfile(null);
-        }
-      } else {
-        setProfile(null);
+      // Handle sign out event
+      if (event === 'SIGNED_OUT') {
+        console.log('SIGNED_OUT event detected');
+        clearAllSessionData();
+        setSignOutLoading(false);
+        setIsSigningOut(false);
         
-        // Handle successful sign out
-        if (event === 'SIGNED_OUT') {
-          console.log('SIGNED_OUT event detected - user signed out successfully');
-          setSignOutLoading(false);
+        // Navigate to auth page after sign out
+        setTimeout(() => {
+          console.log('Redirecting to /auth after SIGNED_OUT event');
+          window.location.href = '/auth';
+        }, 100);
+        return;
+      }
+      
+      // Handle sign in events
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (!isSigningOut) {
+          setSession(session);
+          setUser(session?.user ?? null);
           
-          // Navigate to auth page after sign out
-          setTimeout(() => {
-            console.log('Redirecting to /auth after SIGNED_OUT event');
-            window.location.href = '/auth';
-          }, 100);
+          // Handle profile fetching
+          if (session?.user) {
+            try {
+              const userProfile = await fetchProfile(session.user.id);
+              setProfile(userProfile);
+            } catch (error) {
+              console.error('Error fetching profile after auth change:', error);
+              setProfile(null);
+            }
+          } else {
+            setProfile(null);
+          }
+        }
+      }
+      
+      // Handle initial state
+      if (event === 'INITIAL_SESSION') {
+        if (session && !isSigningOut) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            try {
+              const userProfile = await fetchProfile(session.user.id);
+              setProfile(userProfile);
+            } catch (error) {
+              console.error('Error fetching profile on initial session:', error);
+              setProfile(null);
+            }
+          }
+        } else {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
         }
       }
       
@@ -158,7 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isSigningOut]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -217,12 +263,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       setSignOutLoading(true);
+      setIsSigningOut(true);
+      
       console.log('Starting sign out process...');
       console.log('Current session exists:', !!session);
       console.log('Current user exists:', !!user);
       
-      // Check Supabase client status - removed the protected properties
-      console.log('Supabase client is properly configured');
+      // Clear session data BEFORE calling the API
+      console.log('Clearing session data before API call');
+      clearAllSessionData();
       
       console.log('Calling supabase.auth.signOut()...');
       const { error } = await supabase.auth.signOut();
@@ -233,46 +282,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           message: error.message,
           status: error.status,
         });
-        
-        // If API call failed, force manual sign out
-        console.log('API sign out failed, attempting manual session clearing');
-        clearSessionAndRedirect();
-        return { error };
+      } else {
+        console.log('Supabase signOut API call successful');
       }
       
-      console.log('Supabase signOut API call successful');
-      console.log('Waiting for onAuthStateChange to fire SIGNED_OUT event...');
-      
-      // Set up a fallback mechanism in case onAuthStateChange doesn't fire
-      const fallbackTimeout = setTimeout(() => {
-        console.log('Fallback: onAuthStateChange SIGNED_OUT event did not fire within 5 seconds');
-        console.log('Current auth state:', { user: !!user, session: !!session, signOutLoading });
-        
-        // Check if we're still authenticated - if so, force manual sign out
-        if (user || session) {
-          console.log('User still authenticated after 5 seconds, forcing manual sign out');
-          clearSessionAndRedirect();
-        } else {
-          console.log('User appears to be signed out, just redirecting');
-          setSignOutLoading(false);
-          window.location.href = '/auth';
-        }
-      }, 5000);
-      
-      // Clear the fallback if successful sign out happens
-      const clearFallback = () => {
-        console.log('Clearing fallback timeout');
-        clearTimeout(fallbackTimeout);
-      };
-      
-      // Store the clear function for potential cleanup
-      (window as any).__clearSignOutFallback = clearFallback;
+      // Force redirect regardless of API response
+      setTimeout(() => {
+        console.log('Forcing redirect to /auth');
+        setSignOutLoading(false);
+        setIsSigningOut(false);
+        window.location.href = '/auth';
+      }, 500);
       
       return { error: null };
     } catch (error) {
       console.error('Sign out exception:', error);
-      console.log('Exception during sign out, attempting manual session clearing');
-      clearSessionAndRedirect();
+      clearAllSessionData();
+      setSignOutLoading(false);
+      setIsSigningOut(false);
+      
+      setTimeout(() => {
+        window.location.href = '/auth';
+      }, 100);
+      
       return { error };
     }
   };
