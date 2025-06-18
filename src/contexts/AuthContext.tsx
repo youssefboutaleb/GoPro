@@ -57,44 +57,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const clearAuthState = () => {
-    setSession(null);
-    setUser(null);
-    setProfile(null);
-  };
-
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...');
+        
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) setLoading(false);
-          return;
         }
+        
+        console.log('Initial session:', session?.user?.id || 'No session');
         
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
-        }
-        
-        if (session?.user && mounted) {
-          try {
-            const userProfile = await fetchProfile(session.user.id);
-            if (mounted) {
-              setProfile(userProfile);
+          
+          // Fetch profile if user exists
+          if (session?.user) {
+            try {
+              const userProfile = await fetchProfile(session.user.id);
+              if (mounted) {
+                setProfile(userProfile);
+              }
+            } catch (error) {
+              console.error('Error fetching profile during init:', error);
             }
-          } catch (error) {
-            console.error('Error fetching profile during init:', error);
+          } else {
+            setProfile(null);
           }
-        }
-        
-        if (mounted) {
+          
+          // Always set loading to false after initialization
           setLoading(false);
+          console.log('Auth initialization complete');
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -104,70 +103,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
-    // Initialize auth
+    // Initialize auth first
     initializeAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id);
+      console.log('Auth state change:', event, session?.user?.id || 'No session');
       
       if (!mounted) return;
       
-      try {
-        // Handle sign out explicitly
-        if (event === 'SIGNED_OUT') {
-          clearAuthState();
-          setLoading(false);
-          return;
-        }
-        
-        // Handle token refresh without fetching profile again
-        if (event === 'TOKEN_REFRESHED') {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-          return;
-        }
-        
-        // Handle sign in
-        if (event === 'SIGNED_IN' && session) {
-          setSession(session);
-          setUser(session.user);
-          
-          try {
-            const userProfile = await fetchProfile(session.user.id);
-            if (mounted) {
-              setProfile(userProfile);
-            }
-          } catch (error) {
-            console.error('Error fetching profile on sign in:', error);
-          }
-          
+      // Always update session and user first
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      // Handle profile fetching for signed in users
+      if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        try {
+          const userProfile = await fetchProfile(session.user.id);
           if (mounted) {
-            setLoading(false);
+            setProfile(userProfile);
           }
-          return;
+        } catch (error) {
+          console.error('Error fetching profile on auth change:', error);
         }
-        
-        // Handle any other session state
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // If no session exists, clear everything
-        if (!session) {
-          clearAuthState();
-        }
-        
-        // Always set loading to false at the end
+      } else if (!session?.user) {
+        // Clear profile if no user
+        setProfile(null);
+      }
+      
+      // Always ensure loading is false after handling auth changes
+      if (mounted) {
         setLoading(false);
-        
-      } catch (error) {
-        console.error('Error in auth state change handler:', error);
-        if (mounted) {
-          setLoading(false);
-        }
       }
     });
 
@@ -216,10 +184,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // Clear local state immediately
-      clearAuthState();
+      // Clear local state
+      setSession(null);
+      setUser(null);
+      setProfile(null);
       
-      // Try to sign out from Supabase in the background
+      // Sign out from Supabase
       await supabase.auth.signOut({
         scope: 'global'
       });
