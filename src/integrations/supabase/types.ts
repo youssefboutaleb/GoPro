@@ -9,66 +9,18 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      action_plans: {
-        Row: {
-          brick_id: string | null
-          budget: number
-          description: string | null
-          execution_date: string
-          id: string
-          manager_id: string | null
-          product_id: string | null
-        }
-        Insert: {
-          brick_id?: string | null
-          budget: number
-          description?: string | null
-          execution_date: string
-          id?: string
-          manager_id?: string | null
-          product_id?: string | null
-        }
-        Update: {
-          brick_id?: string | null
-          budget?: number
-          description?: string | null
-          execution_date?: string
-          id?: string
-          manager_id?: string | null
-          product_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "action_plans_brick_id_fkey"
-            columns: ["brick_id"]
-            isOneToOne: false
-            referencedRelation: "bricks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "action_plans_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       bricks: {
         Row: {
-          description: string | null
           id: string
           name: string
           sector_id: string | null
         }
         Insert: {
-          description?: string | null
           id?: string
           name: string
           sector_id?: string | null
         }
         Update: {
-          description?: string | null
           id?: string
           name?: string
           sector_id?: string | null
@@ -117,7 +69,6 @@ export type Database = {
       }
       products: {
         Row: {
-          active: boolean | null
           id: string
           name: string
           therapeutic_class:
@@ -125,7 +76,6 @@ export type Database = {
             | null
         }
         Insert: {
-          active?: boolean | null
           id?: string
           name: string
           therapeutic_class?:
@@ -133,7 +83,6 @@ export type Database = {
             | null
         }
         Update: {
-          active?: boolean | null
           id?: string
           name?: string
           therapeutic_class?:
