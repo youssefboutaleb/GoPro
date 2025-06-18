@@ -48,6 +48,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   const currentMonth = new Date().getMonth() + 1;
   const monthsElapsed = currentMonth;
 
+  console.log('=== DATE DEBUG ===');
+  console.log('Current Year:', currentYear);
+  console.log('Current Month (1-12):', currentMonth);
+  console.log('Current Month Index (0-11):', currentMonth - 1);
+
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
@@ -172,6 +177,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         }
 
         const planVisits = visits.filter(visit => visit.visit_plan_id === visitPlan.id);
+        
+        console.log(`=== PROCESSING ${doctor.first_name} ${doctor.last_name} ===`);
+        console.log('Plan visits:', planVisits);
 
         const monthlyVisits = new Array(currentMonth).fill(0);
         let hasVisitToday = false;
@@ -179,11 +187,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         planVisits.forEach(visit => {
           const visitDate = new Date(visit.visit_date);
           const visitMonth = visitDate.getMonth();
-          console.log(`Visit for ${doctor.first_name} ${doctor.last_name}: ${visit.visit_date}, month: ${visitMonth}`);
+          const visitYear = visitDate.getFullYear();
           
-          // Include visits up to and including the current month
-          if (visitMonth < currentMonth) {
+          console.log(`Visit for ${doctor.first_name} ${doctor.last_name}: ${visit.visit_date}`);
+          console.log(`Visit month (0-11): ${visitMonth}, Visit year: ${visitYear}`);
+          console.log(`Current month (0-11): ${currentMonth - 1}, Current year: ${currentYear}`);
+          
+          // FIXED: Include visits up to and including the current month for display
+          if (visitMonth <= (currentMonth - 1) && visitYear === currentYear) {
             monthlyVisits[visitMonth]++;
+            console.log(`Added visit to month ${visitMonth}, new count: ${monthlyVisits[visitMonth]}`);
           }
           
           // Check if there's a visit today
@@ -192,7 +205,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           }
         });
 
-        console.log(`Monthly visits for ${doctor.first_name} ${doctor.last_name}:`, monthlyVisits);
+        console.log(`Monthly visits array for ${doctor.first_name} ${doctor.last_name}:`, monthlyVisits);
 
         const totalVisits = planVisits.length;
         const visitFrequency = parseInt(visitPlan.visit_frequency) || 1;
@@ -231,20 +244,23 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const visitedLastMonth = lastMonthVisitsCount > 0;
         const visitedMonthBeforeLast = monthBeforeLastVisitsCount > 0;
 
-        console.log(`Row color logic for ${doctor.first_name} ${doctor.last_name}:`, {
-          visitedCurrentMonth,
-          visitedLastMonth,
-          visitedMonthBeforeLast,
-          currentMonthVisitsCount,
-          lastMonthVisitsCount,
-          monthBeforeLastVisitsCount
-        });
+        console.log(`=== ROW COLOR DEBUG for ${doctor.first_name} ${doctor.last_name} ===`);
+        console.log('Current month visits count:', currentMonthVisitsCount);
+        console.log('Last month visits count:', lastMonthVisitsCount);
+        console.log('Month before last visits count:', monthBeforeLastVisitsCount);
+        console.log('Visited current month:', visitedCurrentMonth);
+        console.log('Visited last month:', visitedLastMonth);
+        console.log('Visited month before last:', visitedMonthBeforeLast);
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
         if (visitedCurrentMonth || visitedLastMonth) {
           rowColor = 'green';
+          console.log(`Setting row color to GREEN for ${doctor.first_name} ${doctor.last_name}`);
         } else if (visitedMonthBeforeLast) {
           rowColor = 'yellow';
+          console.log(`Setting row color to YELLOW for ${doctor.first_name} ${doctor.last_name}`);
+        } else {
+          console.log(`Setting row color to RED for ${doctor.first_name} ${doctor.last_name}`);
         }
 
         processed.push({
@@ -260,6 +276,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           has_visit_today: hasVisitToday,
           is_frequency_met: isFrequencyMet
         });
+
+        console.log(`=== FINAL DATA for ${doctor.first_name} ${doctor.last_name} ===`);
+        console.log('Row color:', rowColor);
+        console.log('Monthly visits:', monthlyVisits);
+        console.log('==========================================');
       }
 
       console.log('Processed visit data:', processed.length, 'items');
