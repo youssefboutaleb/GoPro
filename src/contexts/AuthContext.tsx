@@ -210,38 +210,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Starting sign out process...');
       setLoading(true);
       
-      // Create a timeout promise to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Sign out timeout')), 5000);
-      });
+      // Clear local state immediately
+      clearAuthState();
       
-      // Race between signOut and timeout
-      const signOutPromise = supabase.auth.signOut({
+      // Try to sign out from Supabase in the background
+      // Don't wait for it to complete as it might hang
+      supabase.auth.signOut({
         scope: 'global'
-      });
-      
-      try {
-        const { error } = await Promise.race([signOutPromise, timeoutPromise]);
+      }).then(({ error }) => {
         if (error) {
           console.error('Error signing out from Supabase:', error);
         } else {
           console.log('Successfully signed out from Supabase');
         }
-      } catch (timeoutError) {
-        console.warn('Sign out timed out, proceeding with local cleanup:', timeoutError);
-      }
+      }).catch((error) => {
+        console.warn('Sign out from Supabase failed:', error);
+      });
       
     } catch (error) {
       console.error('Error in signOut:', error);
     } finally {
-      // Always clear local state regardless of server response
-      console.log('Clearing local auth state...');
-      clearAuthState();
       setLoading(false);
-      
-      // Force redirect to auth page
-      console.log('Redirecting to auth page...');
-      window.location.href = '/auth';
+      console.log('Sign out process completed');
     }
   };
 
