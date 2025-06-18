@@ -194,6 +194,12 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const expectedVisits = visitFrequency * monthsElapsed;
         const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
 
+        // Calculate remaining visits this month and frequency met status
+        const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
+        const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
+        const isFrequencyMet = currentMonthVisits >= visitFrequency;
+
+        // Determine row color based on visit history
         const currentMonthIndex = currentMonth - 1;
         const lastMonth = currentMonth - 2;
         const monthBeforeLast = currentMonth - 3;
