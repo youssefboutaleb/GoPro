@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,10 +59,10 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
         console.log('Fetching user profile for user:', user.id);
 
-        // First, get the current user's profile
+        // First, get the current user's profile - removed role column reference
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id, role')
+          .select('id')
           .eq('id', user.id)
           .maybeSingle();
 
