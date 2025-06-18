@@ -91,6 +91,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
   };
 
+  // Add timeout to auto-reset isSigningOut flag
+  const resetSigningOutFlag = () => {
+    setTimeout(() => {
+      if (isSigningOut) {
+        console.log('Auto-resetting isSigningOut flag after timeout');
+        setIsSigningOut(false);
+      }
+    }, 5000); // Reset after 5 seconds if still stuck
+  };
+
   useEffect(() => {
     console.log('AuthProvider initializing...');
     
@@ -100,12 +110,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id);
       console.log('Is signing out flag:', isSigningOut);
-      
-      // If we're in the middle of signing out, ignore SIGNED_IN events
-      if (isSigningOut && event === 'SIGNED_IN') {
-        console.log('Ignoring SIGNED_IN event during sign out process');
-        return;
-      }
       
       // Handle sign out event
       if (event === 'SIGNED_OUT') {
@@ -122,25 +126,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
       
-      // Handle sign in events with better state updates
+      // Handle sign in events - IMPROVED LOGIC
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (!isSigningOut) {
-          console.log('Setting session and user state after successful auth');
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          // Handle profile fetching
-          if (session?.user) {
-            try {
-              const userProfile = await fetchProfile(session.user.id);
-              setProfile(userProfile);
-            } catch (error) {
-              console.error('Error fetching profile after auth change:', error);
-              setProfile(null);
-            }
-          } else {
+        // Reset the isSigningOut flag when we get a successful sign in
+        if (isSigningOut) {
+          console.log('Resetting isSigningOut flag due to successful sign in');
+          setIsSigningOut(false);
+        }
+        
+        console.log('Setting session and user state after successful auth');
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Handle profile fetching
+        if (session?.user) {
+          try {
+            const userProfile = await fetchProfile(session.user.id);
+            setProfile(userProfile);
+          } catch (error) {
+            console.error('Error fetching profile after auth change:', error);
             setProfile(null);
           }
+        } else {
+          setProfile(null);
         }
       }
       
@@ -211,6 +219,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Attempting sign in for:', email);
+      
+      // Clear the isSigningOut flag before attempting sign in
+      if (isSigningOut) {
+        console.log('Clearing isSigningOut flag before sign in attempt');
+        setIsSigningOut(false);
+      }
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -220,6 +235,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Sign in error:', error);
       } else {
         console.log('Sign in API call successful');
+        // Ensure the flag is clear for the auth state change to work
+        setIsSigningOut(false);
       }
 
       return { error };
@@ -232,6 +249,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
     try {
       console.log('Attempting sign up for:', email);
+      
+      // Clear the isSigningOut flag before attempting sign up
+      if (isSigningOut) {
+        console.log('Clearing isSigningOut flag before sign up attempt');
+        setIsSigningOut(false);
+      }
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -248,6 +272,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Sign up error:', error);
       } else {
         console.log('Sign up API call successful');
+        // Ensure the flag is clear for the auth state change to work
+        setIsSigningOut(false);
       }
 
       return { error };
@@ -270,6 +296,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Starting sign out process...');
       console.log('Current session exists:', !!session);
       console.log('Current user exists:', !!user);
+      
+      // Set up the auto-reset timeout
+      resetSigningOutFlag();
       
       // Clear session data BEFORE calling the API
       console.log('Clearing session data before API call');
