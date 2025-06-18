@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,8 @@ interface VisitPlanData {
   expected_visits: number;
   return_index: number;
   row_color: 'red' | 'yellow' | 'green';
+  has_visit_today: boolean;
+  is_frequency_met: boolean;
 }
 
 interface SwipeState {
@@ -159,6 +162,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       }
 
       const processed: VisitPlanData[] = [];
+      const today = new Date().toISOString().split('T')[0];
 
       for (const visitPlan of visitPlans) {
         const doctor = doctors.find(d => d.id === visitPlan.doctor_id);
@@ -171,11 +175,18 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const planVisits = visits.filter(visit => visit.visit_plan_id === visitPlan.id);
 
         const monthlyVisits = new Array(currentMonth).fill(0);
+        let hasVisitToday = false;
+        
         planVisits.forEach(visit => {
           const visitDate = new Date(visit.visit_date);
           const visitMonth = visitDate.getMonth();
           if (visitMonth < currentMonth) {
             monthlyVisits[visitMonth]++;
+          }
+          
+          // Check if there's a visit today
+          if (visit.visit_date === today) {
+            hasVisitToday = true;
           }
         });
 
@@ -186,6 +197,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
         const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
         const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
+        const isFrequencyMet = currentMonthVisits >= visitFrequency;
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
         const lastMonth = currentMonth - 1;
@@ -209,7 +221,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           total_visits: totalVisits,
           expected_visits: expectedVisits,
           return_index: returnIndex,
-          row_color: rowColor
+          row_color: rowColor,
+          has_visit_today: hasVisitToday,
+          is_frequency_met: isFrequencyMet
         });
       }
 
@@ -220,18 +234,22 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     staleTime: 5 * 60 * 1000,
   });
 
-  // Record visit mutation with improved error handling and query invalidation
+  // Record visit mutation with enhanced debugging
   const recordVisitMutation = useMutation({
     mutationFn: async (visitPlanId: string) => {
       const today = new Date().toISOString().split('T')[0];
       
-      console.log('Recording visit for plan:', visitPlanId, 'on date:', today, 'for user:', user?.id);
+      console.log('=== VISIT RECORDING DEBUG ===');
+      console.log('Visit plan ID:', visitPlanId);
+      console.log('Today:', today);
+      console.log('User ID:', user?.id);
       
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
 
       // Check if a visit already exists for today for this plan
+      console.log('Checking for existing visit...');
       const { data: existingVisit, error: checkError } = await supabase
         .from('visits')
         .select('id')
@@ -245,27 +263,37 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       }
 
       if (existingVisit) {
+        console.log('Visit already exists:', existingVisit);
         throw new Error('A visit has already been recorded for today for this doctor');
       }
 
+      console.log('No existing visit found, inserting new visit...');
+      
+      // Insert the new visit
+      const insertData = {
+        visit_plan_id: visitPlanId,
+        visit_date: today
+      };
+      
+      console.log('Insert data:', insertData);
+
       const { data, error } = await supabase
         .from('visits')
-        .insert({
-          visit_plan_id: visitPlanId,
-          visit_date: today,
-          delegate_id: user.id
-        })
+        .insert([insertData])
         .select();
 
       if (error) {
         console.error('Error inserting visit:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         throw error;
       }
 
       console.log('Visit recorded successfully:', data);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Visit mutation success:', data);
+      
       // Invalidate all related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['visits-data'] });
       queryClient.invalidateQueries({ queryKey: ['processed-visit-data'] });
@@ -280,7 +308,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       });
     },
     onError: (error: any) => {
-      console.error('Error recording visit:', error);
+      console.error('Visit mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to record visit",
@@ -291,6 +319,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
 
   // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent, planId: string) => {
+    const plan = processedData.find(p => p.id === planId);
+    if (plan && (plan.has_visit_today || plan.is_frequency_met)) {
+      return; // Don't allow swipe for disabled rows
+    }
+    
     const touch = e.touches[0];
     setSwipeState({
       isActive: true,
@@ -364,6 +397,13 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     if (returnIndex >= 80) return 'text-green-600 bg-green-100';
     if (returnIndex >= 50) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
+  };
+
+  const getDisabledRowClass = (plan: VisitPlanData) => {
+    if (plan.has_visit_today || plan.is_frequency_met) {
+      return 'opacity-50 bg-gray-100 cursor-not-allowed';
+    }
+    return 'cursor-pointer';
   };
 
   if (isLoading) {
@@ -479,7 +519,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-8"></TableHead>
-                      <TableHead className="w-8"></TableHead>
                       <TableHead>Doctor Name</TableHead>
                       <TableHead>Visit Frequency</TableHead>
                       <TableHead>Remaining This Month</TableHead>
@@ -495,7 +534,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                     {processedData.map((plan) => (
                       <TableRow
                         key={plan.id}
-                        className={`${getRowColorClass(plan.row_color)} cursor-pointer touch-pan-y relative overflow-hidden select-none`}
+                        className={`${getRowColorClass(plan.row_color)} ${getDisabledRowClass(plan)} touch-pan-y relative overflow-hidden select-none`}
                         style={{ 
                           transform: `translateX(${getSwipeOffset(plan.id)}px)`,
                           transition: swipeState.planId === plan.id && swipeState.isActive ? 'none' : 'transform 0.2s ease-out'
@@ -505,18 +544,29 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                         onTouchEnd={handleTouchEnd}
                       >
                         {/* Swipe action background */}
-                        <TableCell 
-                          className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
-                          style={{ 
-                            width: `${getSwipeOffset(plan.id)}px`,
-                            opacity: getSwipeOpacity(plan.id)
-                          }}
-                        >
-                          <Check className="h-6 w-6 text-white" />
-                          <span className="text-white font-medium ml-2">Record Visit</span>
-                        </TableCell>
+                        {!plan.has_visit_today && !plan.is_frequency_met && (
+                          <TableCell 
+                            className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
+                            style={{ 
+                              width: `${getSwipeOffset(plan.id)}px`,
+                              opacity: getSwipeOpacity(plan.id)
+                            }}
+                          >
+                            <Check className="h-6 w-6 text-white" />
+                            <span className="text-white font-medium ml-2">Record Visit</span>
+                          </TableCell>
+                        )}
 
-                        <TableCell className="w-8"></TableCell>
+                        <TableCell className="w-8">
+                          {plan.has_visit_today && (
+                            <Check className="h-4 w-4 text-green-600" />
+                          )}
+                          {plan.is_frequency_met && !plan.has_visit_today && (
+                            <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">✓</span>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">
                           {plan.doctor_name}
                         </TableCell>
@@ -560,7 +610,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <strong>How to record a visit:</strong> Swipe right on any row in the table to record a visit for today. The table will update automatically.
               </p>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex flex-wrap gap-4 text-sm mb-4">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
                 <span>Green: Visited last month</span>
@@ -572,6 +622,22 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
                 <span>Red: Not visited in last two months</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-600" />
+                <span>Visit recorded today</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">✓</span>
+                </div>
+                <span>Monthly frequency met</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                <span>Disabled (cannot record more visits)</span>
               </div>
             </div>
           </CardContent>
