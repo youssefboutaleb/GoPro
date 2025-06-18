@@ -80,10 +80,11 @@ const VisitReport = ({ onBack }: VisitReportProps) => {
 
         console.log('Profile found:', profileData);
 
-        // Get all visit_plans for the current user
+        // Get all visit_plans for the current user - INCLUDE ID FIELD
         const { data: visitPlans, error: vpError } = await supabase
           .from('visit_plans')
           .select(`
+            id,
             doctor_id,
             visit_frequency
           `)
