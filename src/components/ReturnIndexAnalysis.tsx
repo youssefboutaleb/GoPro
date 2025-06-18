@@ -243,6 +243,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       console.log('Visit plan ID:', visitPlanId);
       console.log('Today:', today);
       console.log('User ID:', user?.id);
+      console.log('Supabase client:', !!supabase);
       
       if (!user?.id) {
         throw new Error('User not authenticated');
@@ -276,16 +277,20 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
       };
       
       console.log('Insert data:', insertData);
+      console.log('Inserting into visits table...');
 
       const { data, error } = await supabase
         .from('visits')
         .insert([insertData])
-        .select();
+        .select('*');
 
       if (error) {
         console.error('Error inserting visit:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        throw error;
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        throw new Error(`Failed to record visit: ${error.message}`);
       }
 
       console.log('Visit recorded successfully:', data);
@@ -294,24 +299,27 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     onSuccess: (data) => {
       console.log('Visit mutation success:', data);
       
-      // Invalidate all related queries to refresh the data
+      // Invalidate and refetch all related queries
       queryClient.invalidateQueries({ queryKey: ['visits-data'] });
       queryClient.invalidateQueries({ queryKey: ['processed-visit-data'] });
       
-      // Also refetch the queries immediately
-      queryClient.refetchQueries({ queryKey: ['visits-data'] });
-      queryClient.refetchQueries({ queryKey: ['processed-visit-data'] });
+      // Force immediate refetch
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['visits-data'] });
+        queryClient.refetchQueries({ queryKey: ['processed-visit-data'] });
+      }, 100);
       
       toast({
         title: "Visit recorded",
-        description: "A visit has been recorded for today",
+        description: "Visit has been successfully recorded for today",
       });
     },
     onError: (error: any) => {
       console.error('Visit mutation error:', error);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
       toast({
-        title: "Error",
-        description: error.message || "Failed to record visit",
+        title: "Error recording visit",
+        description: error.message || "Failed to record visit. Please try again.",
         variant: "destructive",
       });
     },
@@ -518,7 +526,6 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-8"></TableHead>
                       <TableHead>Doctor Name</TableHead>
                       <TableHead>Visit Frequency</TableHead>
                       <TableHead>Remaining This Month</TableHead>
@@ -557,18 +564,18 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
                           </TableCell>
                         )}
 
-                        <TableCell className="w-8">
-                          {plan.has_visit_today && (
-                            <Check className="h-4 w-4 text-green-600" />
-                          )}
-                          {plan.is_frequency_met && !plan.has_visit_today && (
-                            <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">✓</span>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {plan.doctor_name}
+                        <TableCell className="font-medium relative">
+                          <div className="flex items-center space-x-2">
+                            <span>{plan.doctor_name}</span>
+                            {plan.has_visit_today && (
+                              <Check className="h-4 w-4 text-green-600" />
+                            )}
+                            {plan.is_frequency_met && !plan.has_visit_today && (
+                              <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">✓</span>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
