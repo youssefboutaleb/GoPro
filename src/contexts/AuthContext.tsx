@@ -12,8 +12,9 @@ interface AuthContextType {
   session: Session | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<{ error?: any }>;
   loading: boolean;
+  signOutLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signOutLoading, setSignOutLoading] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -100,21 +102,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         console.log('Initial session:', session?.user?.id);
         
-        // Only set state if we haven't already processed this session
-        if (session) {
-          setSession(session);
-          setUser(session.user);
-          
-          try {
-            const userProfile = await fetchProfile(session.user.id);
-            setProfile(userProfile);
-          } catch (error) {
-            console.error('Error fetching profile on init:', error);
-            setProfile(null);
-          }
+        // The onAuthStateChange will handle the state update
+        if (!session) {
+          setLoading(false);
         }
-        
-        setLoading(false);
       } catch (error) {
         console.error('Failed to initialize auth:', error);
         setLoading(false);
@@ -185,15 +176,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signOut = async () => {
+    if (signOutLoading) {
+      console.log('Sign out already in progress');
+      return { error: null };
+    }
+
     try {
+      setSignOutLoading(true);
       console.log('Signing out...');
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setProfile(null);
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Sign out error:', error);
+        return { error };
+      }
+      
       console.log('Sign out successful');
+      // Don't manually set state here - let onAuthStateChange handle it
+      return { error: null };
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Sign out exception:', error);
+      return { error };
+    } finally {
+      setSignOutLoading(false);
     }
   };
 
@@ -205,6 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     loading,
+    signOutLoading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

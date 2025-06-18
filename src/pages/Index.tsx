@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { BarChart3, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const Index = () => {
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut, loading, signOutLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,9 +21,17 @@ const Index = () => {
   }, [user, loading, navigate]);
 
   const handleSignOut = async () => {
-    console.log('Signing out from Index page');
-    await signOut();
-    navigate('/auth');
+    console.log('Sign out button clicked');
+    
+    const { error } = await signOut();
+    
+    if (error) {
+      console.error('Sign out failed:', error);
+      toast.error('Erreur lors de la déconnexion');
+    } else {
+      console.log('Sign out successful, onAuthStateChange will handle redirect');
+      toast.success('Déconnexion réussie');
+    }
   };
 
   if (loading) {
@@ -48,8 +57,12 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <Button variant="outline" onClick={handleSignOut}>
-              Déconnexion
+            <Button 
+              variant="outline" 
+              onClick={handleSignOut}
+              disabled={signOutLoading}
+            >
+              {signOutLoading ? 'Déconnexion...' : 'Déconnexion'}
             </Button>
           </div>
         </div>
