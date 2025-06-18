@@ -210,15 +210,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Starting sign out process...');
       setLoading(true);
       
-      // Clear local state immediately
-      clearAuthState();
-      
-      // Clear any stored auth tokens from localStorage
-      localStorage.removeItem('sb-wlmmxnnbabvfbxlxcgol-auth-token');
-      
-      // Sign out from Supabase
+      // Sign out from Supabase first
       const { error } = await supabase.auth.signOut({
-        scope: 'global' // This ensures sign out from all devices
+        scope: 'global'
       });
       
       if (error) {
@@ -227,20 +221,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Successfully signed out from Supabase');
       }
       
-      // Force a complete session check to ensure cleanup
-      await supabase.auth.getSession();
-      
+      // Clear local state
+      clearAuthState();
       setLoading(false);
-      
-      // Redirect to home page
-      window.location.href = '/';
       
     } catch (error) {
       console.error('Error in signOut:', error);
-      // Always clear local state and redirect on any error
+      // Always clear local state on any error
       clearAuthState();
       setLoading(false);
-      window.location.href = '/';
     }
   };
 
