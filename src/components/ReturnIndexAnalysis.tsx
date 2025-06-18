@@ -194,18 +194,16 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const expectedVisits = visitFrequency * monthsElapsed;
         const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
 
-        const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
-        const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
-        const isFrequencyMet = currentMonthVisits >= visitFrequency;
+        const currentMonthIndex = currentMonth - 1;
+        const lastMonth = currentMonth - 2;
+        const monthBeforeLast = currentMonth - 3;
 
-        let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        const lastMonth = currentMonth - 1;
-        const monthBeforeLast = currentMonth - 2;
-
+        const visitedCurrentMonth = currentMonthIndex >= 0 ? monthlyVisits[currentMonthIndex] > 0 : false;
         const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
         const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
 
-        if (visitedLastMonth) {
+        let rowColor: 'red' | 'yellow' | 'green' = 'red';
+        if (visitedCurrentMonth || visitedLastMonth) {
           rowColor = 'green';
         } else if (visitedMonthBeforeLast) {
           rowColor = 'yellow';
@@ -621,15 +619,15 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
             <div className="flex flex-wrap gap-4 text-sm mb-4">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
-                <span>Green: Visited last month</span>
+                <span>Green: Visited current or last month</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                <span>Yellow: Visited month before last, but not last month</span>
+                <span>Yellow: Visited month before last, but not current/last month</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                <span>Red: Not visited in last two months</span>
+                <span>Red: Not visited in last three months</span>
               </div>
             </div>
             <div className="flex flex-wrap gap-4 text-sm">
