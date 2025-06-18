@@ -181,6 +181,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
           const visitMonth = visitDate.getMonth();
           console.log(`Visit for ${doctor.first_name} ${doctor.last_name}: ${visit.visit_date}, month: ${visitMonth}`);
           
+          // Include visits up to and including the current month
           if (visitMonth < currentMonth) {
             monthlyVisits[visitMonth]++;
           }
@@ -205,19 +206,38 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
         const isFrequencyMet = currentMonthVisits >= visitFrequency;
 
-        // Determine row color based on visit history
-        const currentMonthIndex = currentMonth - 1;
-        const lastMonth = currentMonth - 2;
-        const monthBeforeLast = currentMonth - 3;
+        // Determine row color based on visit history - CHECK ACTUAL VISITS THIS YEAR
+        // Check if there are any visits in the current month (this month)
+        const currentMonthVisitsCount = planVisits.filter(visit => {
+          const visitDate = new Date(visit.visit_date);
+          return visitDate.getMonth() === (currentMonth - 1) && visitDate.getFullYear() === currentYear;
+        }).length;
 
-        const visitedCurrentMonth = currentMonthIndex >= 0 ? monthlyVisits[currentMonthIndex] > 0 : false;
-        const visitedLastMonth = lastMonth >= 0 ? monthlyVisits[lastMonth] > 0 : false;
-        const visitedMonthBeforeLast = monthBeforeLast >= 0 ? monthlyVisits[monthBeforeLast] > 0 : false;
+        // Check if there are any visits in the last month
+        const lastMonthVisitsCount = planVisits.filter(visit => {
+          const visitDate = new Date(visit.visit_date);
+          const lastMonth = currentMonth - 2; // Previous month index
+          return visitDate.getMonth() === lastMonth && visitDate.getFullYear() === currentYear;
+        }).length;
+
+        // Check if there are any visits in the month before last
+        const monthBeforeLastVisitsCount = planVisits.filter(visit => {
+          const visitDate = new Date(visit.visit_date);
+          const monthBeforeLast = currentMonth - 3; // Two months ago index
+          return visitDate.getMonth() === monthBeforeLast && visitDate.getFullYear() === currentYear;
+        }).length;
+
+        const visitedCurrentMonth = currentMonthVisitsCount > 0;
+        const visitedLastMonth = lastMonthVisitsCount > 0;
+        const visitedMonthBeforeLast = monthBeforeLastVisitsCount > 0;
 
         console.log(`Row color logic for ${doctor.first_name} ${doctor.last_name}:`, {
           visitedCurrentMonth,
           visitedLastMonth,
-          visitedMonthBeforeLast
+          visitedMonthBeforeLast,
+          currentMonthVisitsCount,
+          lastMonthVisitsCount,
+          monthBeforeLastVisitsCount
         });
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
