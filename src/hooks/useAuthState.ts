@@ -61,6 +61,7 @@ export const useAuthState = () => {
       }
       
       if (event === 'INITIAL_SESSION') {
+        console.log('🔧 INITIAL_SESSION event detected - session exists:', !!session);
         if (session) {
           console.log('🔧 Setting initial session state');
           setSession(session);
@@ -104,6 +105,29 @@ export const useAuthState = () => {
         }
 
         console.log('📊 Initial session status:', session ? 'Found' : 'Not found', session?.user?.id);
+        
+        // Manually trigger profile fetch if session exists but auth events haven't fired
+        if (session?.user) {
+          console.log('🔧 Manual session setup - setting user and fetching profile');
+          setSession(session);
+          setUser(session.user);
+          
+          try {
+            console.log('👤 Manually fetching profile for user:', session.user.id);
+            const userProfile = await fetchProfile(session.user.id);
+            console.log('📦 Manual profile fetch result:', userProfile ? 'Success' : 'Failed/No profile found');
+            setProfile(userProfile);
+            
+            if (userProfile) {
+              console.log('🎉 Manual profile loaded! Welcome:', userProfile.first_name, userProfile.last_name);
+            } else {
+              console.log('⚠️ Manual profile fetch - no profile found for user');
+            }
+          } catch (error) {
+            console.error('💥 Error during manual profile fetch:', error);
+            setProfile(null);
+          }
+        }
         
         if (!session) {
           setLoading(false);
