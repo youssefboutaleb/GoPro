@@ -119,7 +119,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000
   });
 
   // Helper functions for row styling
