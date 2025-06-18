@@ -95,7 +95,7 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                     ))}
                     <TableCell className="text-center">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(plan.recruitment_rhythm)}`}>
-                        {plan.recruitment_rhythm}%
+                        {plan.recruitment_rhythm}
                       </span>
                     </TableCell>
                   </TableRow>

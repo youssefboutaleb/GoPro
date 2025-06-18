@@ -184,18 +184,27 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         const targets = sales?.targets || [];
         const achievements = sales?.achievements || [];
 
-        // Calculate recruitment rhythm
+        // Calculate sum of targets
         const sumTargets = targets.reduce((sum, target) => sum + (target || 0), 0);
+        
+        // Calculate sum of achievements YTD (up to selected month)
         const achievementsYTD = achievements.slice(0, selectedMonth).reduce((sum, achievement) => sum + (achievement || 0), 0);
+        
+        // Calculate n = 12 - m (where m is selected month)
         const n = 12 - selectedMonth;
-        const expectedGrowth = n > 0 ? (n * (n + 1)) / 2 : 1;
-        const recruitmentRhythm = expectedGrowth > 0 ? Math.round(((sumTargets - achievementsYTD) / expectedGrowth) * 100) : 0;
+        
+        // Calculate recruitment rhythm: (sum of targets - Sum of achievementsYTD) / (n*(n+1)/2)
+        const denominator = n > 0 ? (n * (n + 1)) / 2 : 1;
+        const recruitmentRhythm = denominator > 0 ? Math.ceil((sumTargets - achievementsYTD) / denominator) : 0;
 
-        // Determine row color based on recruitment rhythm
+        // Calculate sales percentage for color coding: (Sum of achievementsYTD)/(sum of targets) *100
+        const salesPercentage = sumTargets > 0 ? (achievementsYTD / sumTargets) * 100 : 0;
+
+        // Determine row color based on sales percentage
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        if (recruitmentRhythm >= 80) {
+        if (salesPercentage >= 80) {
           rowColor = 'green';
-        } else if (recruitmentRhythm >= 50) {
+        } else if (salesPercentage >= 50) {
           rowColor = 'yellow';
         }
 
@@ -352,7 +361,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                         ))}
                         <td className="py-4 px-4 text-center">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(plan.recruitment_rhythm)}`}>
-                            {plan.recruitment_rhythm}%
+                            {plan.recruitment_rhythm}
                           </span>
                         </td>
                       </tr>
@@ -373,15 +382,15 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
-                <span>Green: Recruitment Rhythm ≥ 80%</span>
+                <span>Green: Sales Percentage ≥ 80%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                <span>Yellow: 50% ≤ Recruitment Rhythm ≤ 79%</span>
+                <span>Yellow: 50% ≤ Sales Percentage &lt; 80%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                <span>Red: Recruitment Rhythm &lt; 50%</span>
+                <span>Red: Sales Percentage &lt; 50%</span>
               </div>
             </div>
           </CardContent>
