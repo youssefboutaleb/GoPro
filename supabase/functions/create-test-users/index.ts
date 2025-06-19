@@ -28,6 +28,36 @@ serve(async (req) => {
 
     console.log('Starting bulk user creation...');
 
+    // First, let's fix the trigger function that's causing the email column error
+    console.log('Fixing the handle_new_user trigger function...');
+    const { error: functionError } = await supabaseAdmin.rpc('exec_sql', {
+      sql: `
+        CREATE OR REPLACE FUNCTION public.handle_new_user()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        SECURITY DEFINER SET search_path = ''
+        AS $$
+        BEGIN
+          INSERT INTO public.profiles (id, first_name, last_name, role)
+          VALUES (
+            NEW.id,
+            NEW.raw_user_meta_data ->> 'first_name',
+            NEW.raw_user_meta_data ->> 'last_name',
+            'Delegate'
+          );
+          RETURN NEW;
+        END;
+        $$;
+      `
+    });
+
+    if (functionError) {
+      console.error('Error updating trigger function:', functionError);
+      // Continue anyway, we'll update profiles manually
+    } else {
+      console.log('Trigger function updated successfully');
+    }
+
     // Define all users with their roles and sample names
     const usersToCreate = [
       // Sales Directors
@@ -50,7 +80,7 @@ serve(async (req) => {
       { email: 'delegate7@dlg.com', password: '123456', role: 'Delegate', firstName: 'Christopher', lastName: 'Harris' },
       { email: 'delegate8@dlg.com', password: '123456', role: 'Delegate', firstName: 'Amanda', lastName: 'Martin' },
       { email: 'delegate9@dlg.com', password: '123456', role: 'Delegate', firstName: 'Matthew', lastName: 'Thompson' },
-      { email: 'delegate10@dlg.com', password: '123456', role: 'Delegate', firstName: 'Stephanie', lastName: 'Garcia' },
+      { email: 'delegate10@dlg.com', password: '123456', role: 'Delegate', firstName: 'Stephanie', lastName: 'Rodriguez' },
     ];
 
     const createdUsers: any[] = [];
@@ -85,28 +115,43 @@ serve(async (req) => {
     }
 
     // Wait for triggers to process
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Update profiles with correct roles
+    // Update profiles with correct roles (since trigger might not work properly)
     console.log('Updating profile roles...');
     for (const user of createdUsers) {
       try {
-        const { error: profileError } = await supabaseAdmin
+        // First, try to insert the profile if it doesn't exist
+        const { error: insertError } = await supabaseAdmin
           .from('profiles')
-          .update({ 
-            role: user.role,
+          .insert({ 
+            id: user.id,
             first_name: user.firstName,
-            last_name: user.lastName
-          })
-          .eq('id', user.id);
+            last_name: user.lastName,
+            role: user.role
+          });
 
-        if (profileError) {
-          console.error(`Error updating profile for ${user.email}:`, profileError);
+        if (insertError) {
+          // If insert fails, try to update
+          const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update({ 
+              role: user.role,
+              first_name: user.firstName,
+              last_name: user.lastName
+            })
+            .eq('id', user.id);
+
+          if (updateError) {
+            console.error(`Error updating profile for ${user.email}:`, updateError);
+          } else {
+            console.log(`Updated profile for ${user.email}: ${user.role}`);
+          }
         } else {
-          console.log(`Updated profile role for ${user.email}: ${user.role}`);
+          console.log(`Inserted profile for ${user.email}: ${user.role}`);
         }
       } catch (error) {
-        console.error(`Exception updating profile for ${user.email}:`, error);
+        console.error(`Exception handling profile for ${user.email}:`, error);
       }
     }
 
