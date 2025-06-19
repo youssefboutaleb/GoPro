@@ -28,34 +28,34 @@ serve(async (req) => {
 
     console.log('Starting bulk user creation...');
 
-    // Define all users with their roles
+    // Define all users with their roles and sample names
     const usersToCreate = [
       // Sales Directors
-      { email: 'director1@sales.com', password: '123456', role: 'Sales Director', firstName: 'Director', lastName: 'One' },
-      { email: 'director2@sales.com', password: '123456', role: 'Sales Director', firstName: 'Director', lastName: 'Two' },
+      { email: 'director1@sales.com', password: '123456', role: 'Sales Director', firstName: 'John', lastName: 'Smith' },
+      { email: 'director2@sales.com', password: '123456', role: 'Sales Director', firstName: 'Sarah', lastName: 'Johnson' },
       
       // Supervisors
-      { email: 'supervisor1@sup.com', password: '123456', role: 'Supervisor', firstName: 'Supervisor', lastName: 'One' },
-      { email: 'supervisor2@sup.com', password: '123456', role: 'Supervisor', firstName: 'Supervisor', lastName: 'Two' },
-      { email: 'supervisor3@sup.com', password: '123456', role: 'Supervisor', firstName: 'Supervisor', lastName: 'Three' },
-      { email: 'supervisor4@sup.com', password: '123456', role: 'Supervisor', firstName: 'Supervisor', lastName: 'Four' },
+      { email: 'supervisor1@sup.com', password: '123456', role: 'Supervisor', firstName: 'Michael', lastName: 'Brown' },
+      { email: 'supervisor2@sup.com', password: '123456', role: 'Supervisor', firstName: 'Emily', lastName: 'Davis' },
+      { email: 'supervisor3@sup.com', password: '123456', role: 'Supervisor', firstName: 'David', lastName: 'Wilson' },
+      { email: 'supervisor4@sup.com', password: '123456', role: 'Supervisor', firstName: 'Lisa', lastName: 'Garcia' },
       
       // Delegates
-      { email: 'delegate1@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'One' },
-      { email: 'delegate2@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Two' },
-      { email: 'delegate3@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Three' },
-      { email: 'delegate4@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Four' },
-      { email: 'delegate5@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Five' },
-      { email: 'delegate6@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Six' },
-      { email: 'delegate7@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Seven' },
-      { email: 'delegate8@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Eight' },
-      { email: 'delegate9@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Nine' },
-      { email: 'delegate10@dlg.com', password: '123456', role: 'Delegate', firstName: 'Delegate', lastName: 'Ten' },
+      { email: 'delegate1@dlg.com', password: '123456', role: 'Delegate', firstName: 'James', lastName: 'Martinez' },
+      { email: 'delegate2@dlg.com', password: '123456', role: 'Delegate', firstName: 'Jennifer', lastName: 'Anderson' },
+      { email: 'delegate3@dlg.com', password: '123456', role: 'Delegate', firstName: 'Robert', lastName: 'Taylor' },
+      { email: 'delegate4@dlg.com', password: '123456', role: 'Delegate', firstName: 'Jessica', lastName: 'Thomas' },
+      { email: 'delegate5@dlg.com', password: '123456', role: 'Delegate', firstName: 'William', lastName: 'Jackson' },
+      { email: 'delegate6@dlg.com', password: '123456', role: 'Delegate', firstName: 'Ashley', lastName: 'White' },
+      { email: 'delegate7@dlg.com', password: '123456', role: 'Delegate', firstName: 'Christopher', lastName: 'Harris' },
+      { email: 'delegate8@dlg.com', password: '123456', role: 'Delegate', firstName: 'Amanda', lastName: 'Martin' },
+      { email: 'delegate9@dlg.com', password: '123456', role: 'Delegate', firstName: 'Matthew', lastName: 'Thompson' },
+      { email: 'delegate10@dlg.com', password: '123456', role: 'Delegate', firstName: 'Stephanie', lastName: 'Garcia' },
     ];
 
     const createdUsers: any[] = [];
 
-    // Step 1: Create all auth users
+    // Create all auth users
     console.log('Creating auth users...');
     for (const user of usersToCreate) {
       try {
@@ -84,10 +84,10 @@ serve(async (req) => {
       }
     }
 
-    // Wait a bit for triggers to process
+    // Wait for triggers to process
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Step 2: Update profiles with correct roles
+    // Update profiles with correct roles
     console.log('Updating profile roles...');
     for (const user of createdUsers) {
       try {
@@ -110,10 +110,9 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Set up supervisor hierarchy
+    // Set up supervisor hierarchy
     console.log('Setting up supervisor hierarchy...');
     
-    // Find users by email for hierarchy setup
     const findUserByEmail = (email: string) => createdUsers.find(u => u.email === email);
     
     const hierarchyUpdates = [
@@ -158,7 +157,7 @@ serve(async (req) => {
       }
     }
 
-    // Step 4: Verify the setup
+    // Verify the setup
     console.log('Verifying setup...');
     const { data: profiles, error: verifyError } = await supabaseAdmin
       .from('profiles')
