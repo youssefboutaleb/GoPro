@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,23 +50,37 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const { data: salesPlans = [] } = useQuery({
     queryKey: ['sales-plans-with-details'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get sales plans
+      const { data: salesPlansData, error: salesPlansError } = await supabase
         .from('sales_plans')
-        .select(`
-          *,
-          profiles:delegate_id(first_name, last_name),
-          products:product_id(name),
-          bricks:brick_id(name)
-        `);
+        .select('*');
 
-      if (error) throw error;
-      
-      return data.map(plan => ({
-        ...plan,
-        delegate_name: plan.profiles ? `${plan.profiles.first_name} ${plan.profiles.last_name}` : '',
-        product_name: plan.products?.name || '',
-        brick_name: plan.bricks?.name || ''
-      })) as SalesPlan[];
+      if (salesPlansError) throw salesPlansError;
+
+      // Then get related data separately to avoid relationship issues
+      const [profilesResult, productsResult, bricksResult] = await Promise.all([
+        supabase.from('profiles').select('id, first_name, last_name'),
+        supabase.from('products').select('id, name'),
+        supabase.from('bricks').select('id, name')
+      ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+      if (productsResult.error) throw productsResult.error;
+      if (bricksResult.error) throw bricksResult.error;
+
+      // Map the data together
+      return salesPlansData.map(plan => {
+        const profile = profilesResult.data?.find(p => p.id === plan.delegate_id);
+        const product = productsResult.data?.find(p => p.id === plan.product_id);
+        const brick = bricksResult.data?.find(b => b.id === plan.brick_id);
+
+        return {
+          ...plan,
+          delegate_name: profile ? `${profile.first_name} ${profile.last_name}` : '',
+          product_name: product?.name || '',
+          brick_name: brick?.name || ''
+        };
+      }) as SalesPlan[];
     },
   });
 
