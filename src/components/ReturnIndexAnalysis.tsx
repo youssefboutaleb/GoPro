@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ReturnIndexAnalysisProps {
   onBack: () => void;
+  delegateIds?: string[];
+  supervisorName?: string;
 }
 
 interface VisitPlanData {
@@ -33,7 +35,11 @@ interface SwipeState {
   planId: string | null;
 }
 
-const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => {
+const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ 
+  onBack, 
+  delegateIds = [], 
+  supervisorName 
+}) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -44,6 +50,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
     planId: null
   });
 
+  // Use provided delegateIds or fallback to current user
+  const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
+
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const monthsElapsed = currentMonth;
@@ -52,18 +61,19 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
   console.log('Current Year:', currentYear);
   console.log('Current Month (1-12):', currentMonth);
   console.log('Current Month Index (0-11):', currentMonth - 1);
+  console.log('Effective Delegate IDs:', effectiveDelegateIds);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch visit plans first
+  // Fetch visit plans for multiple delegates
   const { data: visitPlans = [], isLoading: visitPlansLoading, error: visitPlansError } = useQuery({
-    queryKey: ['visit-plans', user?.id],
+    queryKey: ['visit-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
-      console.log('Fetching visit plans for user:', user?.id);
+      console.log('Fetching visit plans for delegates:', effectiveDelegateIds);
       
-      if (!user?.id) {
-        console.log('No user ID found');
+      if (effectiveDelegateIds.length === 0) {
+        console.log('No delegate IDs provided');
         return [];
       }
 
@@ -71,7 +81,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         const { data, error } = await supabase
           .from('visit_plans')
           .select('id, doctor_id, delegate_id, visit_frequency')
-          .eq('delegate_id', user.id);
+          .in('delegate_id', effectiveDelegateIds);
 
         if (error) {
           console.error('Visit plans query error:', error);
@@ -85,7 +95,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
         throw error;
       }
     },
-    enabled: !!user?.id,
+    enabled: effectiveDelegateIds.length > 0,
     retry: 2,
     staleTime: 5 * 60 * 1000,
   });
@@ -515,7 +525,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ onBack }) => 
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                 <p className="text-sm text-gray-600">
-                  Tracking {processedData.length} visit plans
+                  {supervisorName 
+                    ? `Tracking ${processedData.length} visit plans for ${supervisorName}'s team`
+                    : `Tracking ${processedData.length} visit plans`
+                  }
                 </p>
               </div>
             </div>

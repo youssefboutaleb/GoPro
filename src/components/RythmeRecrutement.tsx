@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface RythmeRecrutementProps {
   onBack: () => void;
+  delegateIds?: string[];
+  supervisorName?: string;
 }
 
 interface SalesPlanData {
@@ -23,9 +24,16 @@ interface SalesPlanData {
   row_color: 'red' | 'yellow' | 'green';
 }
 
-const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
+const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ 
+  onBack, 
+  delegateIds = [], 
+  supervisorName 
+}) => {
   const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+
+  // Use provided delegateIds or fallback to current user
+  const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -34,14 +42,14 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch sales plans first
+  // Fetch sales plans for multiple delegates
   const { data: salesPlans = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
-    queryKey: ['sales-plans', user?.id],
+    queryKey: ['sales-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
-      console.log('Fetching sales plans for user:', user?.id);
+      console.log('Fetching sales plans for delegates:', effectiveDelegateIds);
       
-      if (!user?.id) {
-        console.log('No user ID found');
+      if (effectiveDelegateIds.length === 0) {
+        console.log('No delegate IDs provided');
         return [];
       }
 
@@ -49,7 +57,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         const { data, error } = await supabase
           .from('sales_plans')
           .select('id, product_id, brick_id, delegate_id')
-          .eq('delegate_id', user.id);
+          .in('delegate_id', effectiveDelegateIds);
 
         if (error) {
           console.error('Sales plans query error:', error);
@@ -63,7 +71,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
         throw error;
       }
     },
-    enabled: !!user?.id,
+    enabled: effectiveDelegateIds.length > 0,
     retry: 2,
     staleTime: 5 * 60 * 1000,
   });
@@ -304,7 +312,12 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ onBack }) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement</h1>
-                  <p className="text-sm text-gray-600">Sales plans analysis and recruitment rhythm</p>
+                  <p className="text-sm text-gray-600">
+                    {supervisorName 
+                      ? `Sales plans analysis for ${supervisorName}'s team`
+                      : 'Sales plans analysis and recruitment rhythm'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
