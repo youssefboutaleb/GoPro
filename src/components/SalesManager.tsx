@@ -55,18 +55,18 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
         .from('sales_plans')
         .select(`
           *,
-          profiles!sales_plans_delegate_id_fkey(first_name, last_name),
-          products!sales_plans_product_id_fkey(name),
-          bricks!sales_plans_brick_id_fkey(name)
+          profiles:delegate_id(first_name, last_name),
+          products:product_id(name),
+          bricks:brick_id(name)
         `);
 
       if (error) throw error;
       
       return data.map(plan => ({
         ...plan,
-        delegate_name: `${plan.profiles?.first_name} ${plan.profiles?.last_name}`,
-        product_name: plan.products?.name,
-        brick_name: plan.bricks?.name
+        delegate_name: plan.profiles ? `${plan.profiles.first_name} ${plan.profiles.last_name}` : '',
+        product_name: plan.products?.name || '',
+        brick_name: plan.bricks?.name || ''
       })) as SalesPlan[];
     },
   });
