@@ -28,36 +28,6 @@ serve(async (req) => {
 
     console.log('Starting bulk user creation...');
 
-    // First, let's fix the trigger function that's causing the email column error
-    console.log('Fixing the handle_new_user trigger function...');
-    const { error: functionError } = await supabaseAdmin.rpc('exec_sql', {
-      sql: `
-        CREATE OR REPLACE FUNCTION public.handle_new_user()
-        RETURNS trigger
-        LANGUAGE plpgsql
-        SECURITY DEFINER SET search_path = ''
-        AS $$
-        BEGIN
-          INSERT INTO public.profiles (id, first_name, last_name, role)
-          VALUES (
-            NEW.id,
-            NEW.raw_user_meta_data ->> 'first_name',
-            NEW.raw_user_meta_data ->> 'last_name',
-            'Delegate'
-          );
-          RETURN NEW;
-        END;
-        $$;
-      `
-    });
-
-    if (functionError) {
-      console.error('Error updating trigger function:', functionError);
-      // Continue anyway, we'll update profiles manually
-    } else {
-      console.log('Trigger function updated successfully');
-    }
-
     // Define all users with their roles and sample names
     const usersToCreate = [
       // Sales Directors
@@ -114,25 +84,22 @@ serve(async (req) => {
       }
     }
 
-    // Wait for triggers to process
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait a moment for any triggers to process
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Update profiles with correct roles (since trigger might not work properly)
-    console.log('Updating profile roles...');
+    // Create or update profiles manually since the trigger might not be working properly
+    console.log('Creating/updating profiles...');
     for (const user of createdUsers) {
       try {
-        // First, try to insert the profile if it doesn't exist
-        const { error: insertError } = await supabaseAdmin
+        // First check if profile already exists
+        const { data: existingProfile } = await supabaseAdmin
           .from('profiles')
-          .insert({ 
-            id: user.id,
-            first_name: user.firstName,
-            last_name: user.lastName,
-            role: user.role
-          });
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
 
-        if (insertError) {
-          // If insert fails, try to update
+        if (existingProfile) {
+          // Update existing profile
           const { error: updateError } = await supabaseAdmin
             .from('profiles')
             .update({ 
@@ -148,7 +115,21 @@ serve(async (req) => {
             console.log(`Updated profile for ${user.email}: ${user.role}`);
           }
         } else {
-          console.log(`Inserted profile for ${user.email}: ${user.role}`);
+          // Create new profile
+          const { error: insertError } = await supabaseAdmin
+            .from('profiles')
+            .insert({ 
+              id: user.id,
+              first_name: user.firstName,
+              last_name: user.lastName,
+              role: user.role
+            });
+
+          if (insertError) {
+            console.error(`Error creating profile for ${user.email}:`, insertError);
+          } else {
+            console.log(`Created profile for ${user.email}: ${user.role}`);
+          }
         }
       } catch (error) {
         console.error(`Exception handling profile for ${user.email}:`, error);
