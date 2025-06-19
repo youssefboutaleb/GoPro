@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit, Trash2, Package } from 'lucide-react';
@@ -18,7 +19,7 @@ interface ProductsManagerProps {
 interface Product {
   id: string;
   name: string;
-  therapeutic_class: string | null;
+  therapeutic_class: 'Cardiology' | 'Fever' | 'Pain Killer' | null;
 }
 
 const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
@@ -26,7 +27,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    therapeutic_class: ''
+    therapeutic_class: '' as 'Cardiology' | 'Fever' | 'Pain Killer' | ''
   });
 
   const queryClient = useQueryClient();
@@ -47,13 +48,13 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
 
   // Create product mutation
   const createProductMutation = useMutation({
-    mutationFn: async (productData: { name: string; therapeutic_class?: string }) => {
+    mutationFn: async (productData: { name: string; therapeutic_class?: 'Cardiology' | 'Fever' | 'Pain Killer' }) => {
       const { data, error } = await supabase
         .from('products')
-        .insert([{
+        .insert({
           name: productData.name,
           therapeutic_class: productData.therapeutic_class || null
-        }])
+        })
         .select()
         .single();
 
@@ -73,7 +74,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
 
   // Update product mutation
   const updateProductMutation = useMutation({
-    mutationFn: async ({ id, ...productData }: { id: string; name: string; therapeutic_class?: string }) => {
+    mutationFn: async ({ id, ...productData }: { id: string; name: string; therapeutic_class?: 'Cardiology' | 'Fever' | 'Pain Killer' }) => {
       const { data, error } = await supabase
         .from('products')
         .update({
@@ -133,13 +134,19 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
       return;
     }
 
+    const therapeuticClass = formData.therapeutic_class || undefined;
+
     if (editingProduct) {
       updateProductMutation.mutate({
         id: editingProduct.id,
-        ...formData
+        name: formData.name,
+        therapeutic_class: therapeuticClass as 'Cardiology' | 'Fever' | 'Pain Killer' | undefined
       });
     } else {
-      createProductMutation.mutate(formData);
+      createProductMutation.mutate({
+        name: formData.name,
+        therapeutic_class: therapeuticClass as 'Cardiology' | 'Fever' | 'Pain Killer' | undefined
+      });
     }
   };
 
@@ -227,12 +234,17 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="therapeutic_class">Therapeutic Class</Label>
-                      <Input
-                        id="therapeutic_class"
-                        value={formData.therapeutic_class}
-                        onChange={(e) => setFormData({ ...formData, therapeutic_class: e.target.value })}
-                        placeholder="Enter therapeutic class (optional)"
-                      />
+                      <Select value={formData.therapeutic_class} onValueChange={(value) => setFormData({ ...formData, therapeutic_class: value as 'Cardiology' | 'Fever' | 'Pain Killer' | '' })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select therapeutic class (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="Cardiology">Cardiology</SelectItem>
+                          <SelectItem value="Fever">Fever</SelectItem>
+                          <SelectItem value="Pain Killer">Pain Killer</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex justify-end space-x-2">
                       <Button type="button" variant="outline" onClick={handleDialogClose}>
@@ -242,7 +254,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
                         type="submit" 
                         disabled={createProductMutation.isPending || updateProductMutation.isPending}
                       >
-                        {edit ? 'Update' : 'Create'}
+                        {editingProduct ? 'Update' : 'Create'}
                       </Button>
                     </div>
                   </form>

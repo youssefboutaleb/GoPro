@@ -56,8 +56,8 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
         .select(`
           *,
           profiles!sales_plans_delegate_id_fkey(first_name, last_name),
-          products(name),
-          bricks(name)
+          products!sales_plans_product_id_fkey(name),
+          bricks!sales_plans_brick_id_fkey(name)
         `);
 
       if (error) throw error;
