@@ -7,7 +7,7 @@ import { Profile } from '@/types/auth';
 import DoctorsManager from '@/components/admin/DoctorsManager';
 import UsersManager from '@/components/admin/UsersManager';
 import VisitsManager from '@/components/admin/VisitsManager';
-import EquipesManager from '@/components/admin/EquipesManager';
+import SectorsBricksManager from '@/components/admin/SectorsBricksManager';
 import ReportsManager from '@/components/admin/ReportsManager';
 import ProductsManager from '@/components/ProductsManager';
 import SalesManager from '@/components/SalesManager';
@@ -35,7 +35,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
   }
 
   if (currentSection === 'sectors-bricks') {
-    return <EquipesManager onBack={handleBackToDashboard} />;
+    return <SectorsBricksManager onBack={handleBackToDashboard} />;
   }
 
   if (currentSection === 'doctors') {
@@ -120,7 +120,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les équipes</p>
+              <p className="text-gray-600">Cliquez pour gérer les secteurs et briques</p>
             </CardContent>
           </Card>
 

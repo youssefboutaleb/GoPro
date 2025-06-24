@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,10 +34,14 @@ interface Sales {
   achievements: number[];
 }
 
+interface SalesWithPlan extends Sales {
+  sales_plan?: SalesPlan;
+}
+
 const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSales, setEditingSales] = useState<Sales | null>(null);
-  const [selectedSalesPlan, setSelectedSalesPlan] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [formData, setFormData] = useState({
     sales_plan_id: '',
     year: new Date().getFullYear(),
@@ -84,21 +89,32 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Fetch sales data
+  // Fetch sales data with plans
   const { data: salesData = [], isLoading } = useQuery({
-    queryKey: ['sales-data', selectedSalesPlan],
+    queryKey: ['sales-data-with-plans', selectedYear],
     queryFn: async () => {
       let query = supabase.from('sales').select('*');
       
-      if (selectedSalesPlan) {
-        query = query.eq('sales_plan_id', selectedSalesPlan);
+      if (selectedYear) {
+        query = query.eq('year', parseInt(selectedYear));
       }
 
       const { data, error } = await query.order('year', { ascending: false });
 
       if (error) throw error;
-      return data as Sales[];
+
+      // Enrich with sales plan information
+      const salesWithPlans = (data as Sales[]).map(sale => {
+        const salesPlan = salesPlans.find(sp => sp.id === sale.sales_plan_id);
+        return {
+          ...sale,
+          sales_plan: salesPlan
+        };
+      });
+
+      return salesWithPlans as SalesWithPlan[];
     },
+    enabled: salesPlans.length > 0,
   });
 
   // Create sales mutation
@@ -114,7 +130,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-data'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-data-with-plans'] });
       toast.success('Sales data created successfully');
       setIsDialogOpen(false);
       resetForm();
@@ -138,7 +154,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-data'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-data-with-plans'] });
       toast.success('Sales data updated successfully');
       setIsDialogOpen(false);
       resetForm();
@@ -159,7 +175,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-data'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-data-with-plans'] });
       toast.success('Sales data deleted successfully');
     },
     onError: (error: any) => {
@@ -230,11 +246,25 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   };
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-  const getSalesPlanInfo = (salesPlanId: string) => {
-    const plan = salesPlans.find(p => p.id === salesPlanId);
-    return plan ? `${plan.delegate_name} - ${plan.product_name} - ${plan.brick_name}` : salesPlanId;
+  const getVisibleMonths = (year: number) => {
+    if (year === currentYear) {
+      return currentMonth + 1; // Show up to current month
+    } else if (year < currentYear) {
+      return 12; // Show all months for past years
+    } else {
+      return 0; // Don't show future years
+    }
   };
+
+  const getSalesPlanInfo = (salesPlan?: SalesPlan) => {
+    if (!salesPlan) return 'N/A';
+    return `${salesPlan.delegate_name} - ${salesPlan.product_name} - ${salesPlan.brick_name}`;
+  };
+
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   if (isLoading) {
     return (
@@ -278,16 +308,15 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Sales Plan</Label>
-                <Select value={selectedSalesPlan} onValueChange={setSelectedSalesPlan}>
+                <Label>Year</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All sales plans" />
+                    <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All sales plans</SelectItem>
-                    {salesPlans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {getSalesPlanInfo(plan.id)}
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -301,7 +330,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Sales Data ({salesData.length})</CardTitle>
+              <CardTitle>Sales Plans ({salesData.length})</CardTitle>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => setIsDialogOpen(true)}>
@@ -326,7 +355,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
                           <SelectContent>
                             {salesPlans.map((plan) => (
                               <SelectItem key={plan.id} value={plan.id}>
-                                {getSalesPlanInfo(plan.id)}
+                                {getSalesPlanInfo(plan)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -408,37 +437,44 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Sales Plan</TableHead>
+                    <TableHead>Delegate</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Brick</TableHead>
                     <TableHead>Year</TableHead>
-                    <TableHead>Total Target</TableHead>
-                    <TableHead>Total Achievement</TableHead>
-                    <TableHead>Achievement %</TableHead>
+                    {monthNames.slice(0, getVisibleMonths(parseInt(selectedYear))).map((month) => (
+                      <TableHead key={month} className="text-center min-w-20">
+                        {month}
+                      </TableHead>
+                    ))}
                     <TableHead className="w-24">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {salesData.map((sales) => {
-                    const totalTarget = sales.targets.reduce((sum, target) => sum + target, 0);
-                    const totalAchievement = sales.achievements.reduce((sum, achievement) => sum + achievement, 0);
-                    const achievementPercentage = totalTarget > 0 ? Math.round((totalAchievement / totalTarget) * 100) : 0;
-
+                    const visibleMonths = getVisibleMonths(sales.year);
+                    
                     return (
                       <TableRow key={sales.id}>
                         <TableCell className="font-medium">
-                          {getSalesPlanInfo(sales.sales_plan_id)}
+                          {sales.sales_plan?.delegate_name || 'N/A'}
                         </TableCell>
+                        <TableCell>{sales.sales_plan?.product_name || 'N/A'}</TableCell>
+                        <TableCell>{sales.sales_plan?.brick_name || 'N/A'}</TableCell>
                         <TableCell>{sales.year}</TableCell>
-                        <TableCell>{totalTarget}</TableCell>
-                        <TableCell>{totalAchievement}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            achievementPercentage >= 100 ? 'bg-green-100 text-green-800' :
-                            achievementPercentage >= 80 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {achievementPercentage}%
-                          </span>
-                        </TableCell>
+                        {Array.from({ length: visibleMonths }, (_, i) => (
+                          <TableCell key={i} className="text-center">
+                            <div className="space-y-1">
+                              <div className="text-xs text-gray-500">T: {sales.targets[i] || 0}</div>
+                              <div className={`text-xs font-medium ${
+                                (sales.achievements[i] || 0) >= (sales.targets[i] || 0) 
+                                  ? 'text-green-600' 
+                                  : 'text-red-600'
+                              }`}>
+                                A: {sales.achievements[i] || 0}
+                              </div>
+                            </div>
+                          </TableCell>
+                        ))}
                         <TableCell>
                           <div className="flex space-x-2">
                             <Button

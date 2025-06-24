@@ -15,11 +15,14 @@ import { Database } from '@/integrations/supabase/types';
 type Visit = Database['public']['Tables']['visits']['Row'] & {
   visit_plan?: {
     doctor?: { last_name: string; first_name: string };
+    delegate?: { last_name: string; first_name: string };
   };
+  brick?: { name: string };
 };
 type Doctor = Database['public']['Tables']['doctors']['Row'];
 type VisitPlan = Database['public']['Tables']['visit_plans']['Row'] & {
   doctor?: { last_name: string; first_name: string };
+  delegate?: { last_name: string; first_name: string };
 };
 
 interface VisitsManagerProps {
@@ -68,50 +71,69 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (visitPlansError) throw visitPlansError;
 
-      // Now fetch doctor details for each visit plan
-      const visitPlansWithDoctors = await Promise.all(
+      // Fetch profiles for delegate information
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .eq('role', 'Delegate');
+
+      if (profilesError) throw profilesError;
+
+      // Fetch bricks information
+      const { data: bricksData, error: bricksError } = await supabase
+        .from('bricks')
+        .select('*');
+
+      if (bricksError) throw bricksError;
+
+      // Enrich visit plans with doctor and delegate information
+      const visitPlansWithDetails = await Promise.all(
         (visitPlansData || []).map(async (plan) => {
-          if (plan.doctor_id) {
-            const { data: doctorData } = await supabase
-              .from('doctors')
-              .select('last_name, first_name')
-              .eq('id', plan.doctor_id)
-              .maybeSingle();
-            
-            return {
-              ...plan,
-              doctor: doctorData
-            };
-          }
+          const doctor = doctorsData?.find(d => d.id === plan.doctor_id);
+          const delegate = profilesData?.find(p => p.id === plan.delegate_id);
+          
           return {
             ...plan,
-            doctor: null
+            doctor: doctor ? { 
+              last_name: doctor.last_name, 
+              first_name: doctor.first_name 
+            } : null,
+            delegate: delegate ? { 
+              last_name: delegate.last_name, 
+              first_name: delegate.first_name 
+            } : null
           };
         })
       );
 
-      // Fetch doctor details for each visit
-      const visitsWithDoctors = await Promise.all(
+      // Enrich visits with complete information including brick
+      const visitsWithDetails = await Promise.all(
         (visitsData || []).map(async (visit) => {
-          if (visit.visit_plan_id) {
-            const visitPlan = visitPlansWithDoctors.find(vp => vp.id === visit.visit_plan_id);
-            return {
-              ...visit,
-              visit_plan: visitPlan ? {
-                doctor: visitPlan.doctor
-              } : null
-            };
+          const visitPlan = visitPlansWithDetails.find(vp => vp.id === visit.visit_plan_id);
+          
+          // Get brick information from doctor
+          let brick = null;
+          if (visitPlan?.doctor_id) {
+            const doctor = doctorsData?.find(d => d.id === visitPlan.doctor_id);
+            if (doctor?.brick_id) {
+              brick = bricksData?.find(b => b.id === doctor.brick_id);
+            }
           }
+
           return {
             ...visit,
-            visit_plan: null
+            visit_plan: visitPlan ? {
+              doctor: visitPlan.doctor,
+              delegate: visitPlan.delegate
+            } : null,
+            brick: brick ? { name: brick.name } : null
           };
         })
       );
 
-      setVisits(visitsWithDoctors);
+      setVisits(visitsWithDetails);
       setDoctors(doctorsData || []);
-      setVisitPlans(visitPlansWithDoctors);
+      setVisitPlans(visitPlansWithDetails);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -254,7 +276,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Liste des Visites</CardTitle>
+                <CardTitle>Liste des Visites ({visits.length})</CardTitle>
                 <CardDescription>Planifier et suivre les visites médicales</CardDescription>
               </div>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -295,9 +317,9 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
                         <SelectContent>
                           {visitPlans.map((plan) => (
                             <SelectItem key={plan.id} value={plan.id}>
-                              {plan.doctor ? 
-                                `Dr. ${plan.doctor.first_name} ${plan.doctor.last_name} - Fréquence: ${plan.visit_frequency}` :
-                                `Plan ${plan.id} - Fréquence: ${plan.visit_frequency}`
+                              {plan.doctor && plan.delegate ? 
+                                `Dr. ${plan.doctor.first_name} ${plan.doctor.last_name} - ${plan.delegate.first_name} ${plan.delegate.last_name}` :
+                                `Plan ${plan.id}`
                               }
                             </SelectItem>
                           ))}
@@ -321,50 +343,61 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
             {loading ? (
               <div className="text-center py-8">Chargement...</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Médecin</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visits.map((visit) => (
-                    <TableRow key={visit.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-gray-500" />
-                          <span>{formatDate(visit.visit_date)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {visit.visit_plan?.doctor ? 
-                          `Dr. ${visit.visit_plan.doctor.first_name} ${visit.visit_plan.doctor.last_name}` : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(visit)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(visit)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Médecin</TableHead>
+                      <TableHead>Brique</TableHead>
+                      <TableHead>Délégué</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {visits.map((visit) => (
+                      <TableRow key={visit.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4 text-gray-500" />
+                            <span>{formatDate(visit.visit_date)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {visit.visit_plan?.doctor ? 
+                            `Dr. ${visit.visit_plan.doctor.first_name} ${visit.visit_plan.doctor.last_name}` : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {visit.brick?.name || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {visit.visit_plan?.delegate ? 
+                            `${visit.visit_plan.delegate.first_name} ${visit.visit_plan.delegate.last_name}` : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditDialog(visit)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(visit)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
