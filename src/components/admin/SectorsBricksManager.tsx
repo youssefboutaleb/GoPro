@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,24 +102,32 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
       if (dialogType === 'sector') {
         const submitData = { name: formData.name.trim() };
 
-        if (editingItem) {
+        if (editingItem && 'id' in editingItem) {
+          console.log('Updating sector with ID:', editingItem.id, 'Data:', submitData);
           const { error } = await supabase
             .from('sectors')
             .update(submitData)
-            .eq('id', (editingItem as Sector).id);
+            .eq('id', editingItem.id);
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error updating sector:', error);
+            throw error;
+          }
           
           toast({
             title: "Succès",
             description: "Secteur mis à jour avec succès",
           });
         } else {
+          console.log('Creating new sector:', submitData);
           const { error } = await supabase
             .from('sectors')
             .insert([submitData]);
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error creating sector:', error);
+            throw error;
+          }
           
           toast({
             title: "Succès",
@@ -140,24 +149,32 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
           sector_id: formData.sector_id
         };
 
-        if (editingItem) {
+        if (editingItem && 'id' in editingItem) {
+          console.log('Updating brick with ID:', editingItem.id, 'Data:', submitData);
           const { error } = await supabase
             .from('bricks')
             .update(submitData)
-            .eq('id', (editingItem as Brick).id);
+            .eq('id', editingItem.id);
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error updating brick:', error);
+            throw error;
+          }
           
           toast({
             title: "Succès",
             description: "Brique mise à jour avec succès",
           });
         } else {
+          console.log('Creating new brick:', submitData);
           const { error } = await supabase
             .from('bricks')
             .insert([submitData]);
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error creating brick:', error);
+            throw error;
+          }
           
           toast({
             title: "Succès",

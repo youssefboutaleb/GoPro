@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ type Visit = Database['public']['Tables']['visits']['Row'] & {
   };
   brick?: { name: string };
 };
+
 type Doctor = Database['public']['Tables']['doctors']['Row'];
 type VisitPlan = Database['public']['Tables']['visit_plans']['Row'] & {
   doctor?: { last_name: string; first_name: string };
@@ -73,8 +75,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
       // Fetch ALL profiles (admin sees all delegates)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
-        .eq('role', 'Delegate');
+        .select('id, first_name, last_name');
 
       if (profilesError) throw profilesError;
 
@@ -105,7 +106,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
         })
       );
 
-      // Enrich visits with complete information including brick and delegate
+      // Enrich visits with complete information including brick and delegate from visit_plan
       const visitsWithDetails = await Promise.all(
         (visitsData || []).map(async (visit) => {
           const visitPlan = visitPlansWithDetails.find(vp => vp.id === visit.visit_plan_id);
@@ -129,6 +130,8 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
           };
         })
       );
+
+      console.log('Enriched visits with details:', visitsWithDetails);
 
       setVisits(visitsWithDetails);
       setDoctors(doctorsData || []);

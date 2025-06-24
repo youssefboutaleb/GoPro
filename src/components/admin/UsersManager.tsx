@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,13 +32,15 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
 
   const fetchUsers = async () => {
     try {
-      // Fetch ALL profiles without filtering - admin should see all users
+      // Fetch ALL profiles without any user filtering - admin sees everyone
       const { data: profilesData, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      console.log('Fetched profiles data:', profilesData);
 
       // Calculate metrics for delegates
       const usersWithMetrics = await Promise.all(

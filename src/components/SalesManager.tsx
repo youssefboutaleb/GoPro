@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,12 +55,14 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const { data: salesPlans = [] } = useQuery({
     queryKey: ['sales-plans-with-details'],
     queryFn: async () => {
-      // First get sales plans
+      // First get sales plans - admin should see ALL plans
       const { data: salesPlansData, error: salesPlansError } = await supabase
         .from('sales_plans')
         .select('*');
 
       if (salesPlansError) throw salesPlansError;
+
+      console.log('Fetched sales plans:', salesPlansData);
 
       // Then get related data separately - fetch ALL profiles, not filtered by user
       const [profilesResult, productsResult, bricksResult] = await Promise.all([
@@ -72,8 +75,14 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       if (productsResult.error) throw productsResult.error;
       if (bricksResult.error) throw bricksResult.error;
 
+      console.log('Fetched related data:', { 
+        profiles: profilesResult.data, 
+        products: productsResult.data, 
+        bricks: bricksResult.data 
+      });
+
       // Map the data together
-      return salesPlansData.map(plan => {
+      const enrichedPlans = salesPlansData.map(plan => {
         const profile = profilesResult.data?.find(p => p.id === plan.delegate_id);
         const product = productsResult.data?.find(p => p.id === plan.product_id);
         const brick = bricksResult.data?.find(b => b.id === plan.brick_id);
@@ -85,6 +94,9 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
           brick_name: brick?.name || ''
         };
       }) as SalesPlan[];
+
+      console.log('Enriched sales plans:', enrichedPlans);
+      return enrichedPlans;
     },
   });
 
@@ -102,6 +114,8 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
       if (error) throw error;
 
+      console.log('Fetched sales data:', data);
+
       // Enrich with sales plan information
       const salesWithPlans = (data as Sales[]).map(sale => {
         const salesPlan = salesPlans.find(sp => sp.id === sale.sales_plan_id);
@@ -111,6 +125,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
         };
       });
 
+      console.log('Sales with plans:', salesWithPlans);
       return salesWithPlans as SalesWithPlan[];
     },
     enabled: salesPlans.length > 0,
