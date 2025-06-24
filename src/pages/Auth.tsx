@@ -132,7 +132,7 @@ const Auth = () => {
                     <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali <br />
                     <strong>2 Sales Directors:</strong>  director1@sales.com, director2@sales.com / 123456 <br />
                     <strong>4 Supervisors:</strong>  supervisor{i}@sup.com, i in {1,2,3,4} / 123456 <br />
-                    <strong>10 Delegates:</strong>  delegate{i}@dlg.com, i in {1,2,3,..,10} / 123456 <br />
+                    <strong>10 Delegates:</strong>  delegate{i}@dlg.com, i in {1,2,3,..,10} / 123456
                   </p>
                 </div>
               </TabsContent>
