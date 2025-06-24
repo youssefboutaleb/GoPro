@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,7 +86,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name) {
+    if (!formData.name.trim()) {
       toast({
         title: "Erreur",
         description: "Le nom est requis",
@@ -100,13 +99,13 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
 
     try {
       if (dialogType === 'sector') {
-        const submitData = { name: formData.name };
+        const submitData = { name: formData.name.trim() };
 
         if (editingItem) {
           const { error } = await supabase
             .from('sectors')
             .update(submitData)
-            .eq('id', editingItem.id);
+            .eq('id', (editingItem as Sector).id);
 
           if (error) throw error;
           
@@ -137,7 +136,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
         }
 
         const submitData = { 
-          name: formData.name,
+          name: formData.name.trim(),
           sector_id: formData.sector_id
         };
 
@@ -145,7 +144,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
           const { error } = await supabase
             .from('bricks')
             .update(submitData)
-            .eq('id', editingItem.id);
+            .eq('id', (editingItem as Brick).id);
 
           if (error) throw error;
           
@@ -171,6 +170,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
       setEditingItem(null);
       setFormData({ name: '', sector_id: '' });
       await fetchData();
+      
     } catch (error) {
       console.error('Error saving:', error);
       toast({

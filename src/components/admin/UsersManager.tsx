@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +31,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
 
   const fetchUsers = async () => {
     try {
+      // Fetch ALL profiles without filtering - admin should see all users
       const { data: profilesData, error } = await supabase
         .from('profiles')
         .select('*')

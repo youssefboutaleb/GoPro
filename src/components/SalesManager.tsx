@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +50,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const queryClient = useQueryClient();
 
-  // Fetch sales plans with related data
+  // Fetch ALL sales plans with related data (admin can see all)
   const { data: salesPlans = [] } = useQuery({
     queryKey: ['sales-plans-with-details'],
     queryFn: async () => {
@@ -62,7 +61,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
       if (salesPlansError) throw salesPlansError;
 
-      // Then get related data separately to avoid relationship issues
+      // Then get related data separately - fetch ALL profiles, not filtered by user
       const [profilesResult, productsResult, bricksResult] = await Promise.all([
         supabase.from('profiles').select('id, first_name, last_name'),
         supabase.from('products').select('id, name'),
@@ -89,7 +88,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Fetch sales data with plans
+  // Fetch ALL sales data with plans (admin can see all)
   const { data: salesData = [], isLoading } = useQuery({
     queryKey: ['sales-data-with-plans', selectedYear],
     queryFn: async () => {
