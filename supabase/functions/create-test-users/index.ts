@@ -65,7 +65,8 @@ serve(async (req) => {
           email_confirm: true,
           user_metadata: {
             first_name: user.firstName,
-            last_name: user.lastName
+            last_name: user.lastName,
+            role: user.role
           }
         });
 
@@ -84,57 +85,8 @@ serve(async (req) => {
       }
     }
 
-    // Wait a moment for any triggers to process
+    // Wait a moment for triggers to process
     await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Create or update profiles manually since the trigger might not be working properly
-    console.log('Creating/updating profiles...');
-    for (const user of createdUsers) {
-      try {
-        // First check if profile already exists
-        const { data: existingProfile } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (existingProfile) {
-          // Update existing profile
-          const { error: updateError } = await supabaseAdmin
-            .from('profiles')
-            .update({ 
-              role: user.role,
-              first_name: user.firstName,
-              last_name: user.lastName
-            })
-            .eq('id', user.id);
-
-          if (updateError) {
-            console.error(`Error updating profile for ${user.email}:`, updateError);
-          } else {
-            console.log(`Updated profile for ${user.email}: ${user.role}`);
-          }
-        } else {
-          // Create new profile
-          const { error: insertError } = await supabaseAdmin
-            .from('profiles')
-            .insert({ 
-              id: user.id,
-              first_name: user.firstName,
-              last_name: user.lastName,
-              role: user.role
-            });
-
-          if (insertError) {
-            console.error(`Error creating profile for ${user.email}:`, insertError);
-          } else {
-            console.log(`Created profile for ${user.email}: ${user.role}`);
-          }
-        }
-      } catch (error) {
-        console.error(`Exception handling profile for ${user.email}:`, error);
-      }
-    }
 
     // Set up supervisor hierarchy
     console.log('Setting up supervisor hierarchy...');
