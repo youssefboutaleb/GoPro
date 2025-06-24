@@ -131,8 +131,8 @@ const Auth = () => {
                     <strong>Admin :</strong> admin@admin.com / adminadmin <br />
                     <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali <br />
                     <strong>2 Sales Directors:</strong> director1@sales.com, director2@sales.com / 123456 <br />
-                    <strong>4 Supervisors:</strong> supervisor1@sup.com, supervisor2@sup.com, supervisor3@sup.com, supervisor4@sup.com / 123456 <br />
-                    <strong>10 Delegates:</strong> delegate1@dlg.com, delegate2@dlg.com, ..., delegate10@dlg.com / 123456
+                    <strong>4 Supervisors:</strong> supervisor1@sup.com, ... , supervisor4@sup.com / 123456 <br />
+                    <strong>10 Delegates:</strong> delegate1@dlg.com, ..., delegate10@dlg.com / 123456
                   </p>
                 </div>
               </TabsContent>
