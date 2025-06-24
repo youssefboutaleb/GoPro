@@ -128,8 +128,11 @@ const Auth = () => {
                 </form>
                 <div className="flex items-center space-x-2">
                   <p className="text-sm text-blue-700">
-                    <strong>Admin Ahmed Guargouri:</strong> admin@admin.com / adminadmin <br />
-                    <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali
+                    <strong>Admin :</strong> admin@admin.com / adminadmin <br />
+                    <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali <br />
+                    <strong>2 Sales Directors:</strong>  director1@sales.com, director2@sales.com / 123456 <br />
+                    <strong>4 Supervisors:</strong>  supervisor{i}@sup.com, i in {1,2,3,4} / 123456 <br />
+                    <strong>10 Delegates:</strong>  delegate{i}@dlg.com, i in {1,2,3,..,10} / 123456 <br />
                   </p>
                 </div>
               </TabsContent>
