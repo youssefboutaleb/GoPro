@@ -3,13 +3,17 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, TrendingUp, Users, Target, Calendar, BarChart3 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, Target, Calendar, BarChart3, Download, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import SupervisorSalesKPIs from './supervisor/SupervisorSalesKPIs';
 import SupervisorVisitKPIs from './supervisor/SupervisorVisitKPIs';
 import SupervisorTeamOverview from './supervisor/SupervisorTeamOverview';
+import BreadcrumbNavigation from './common/BreadcrumbNavigation';
+import SearchBar from './common/SearchBar';
+import FloatingActionButton from './common/FloatingActionButton';
+import SkeletonCard from './common/SkeletonCard';
 
 interface SupervisorKPIsDashboardProps {
   onBack: () => void;
@@ -18,6 +22,8 @@ interface SupervisorKPIsDashboardProps {
 const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBack }) => {
   const { profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -26,7 +32,7 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
   const displayMonths = monthNames.slice(0, currentMonth);
 
   // Fetch supervised delegates
-  const { data: supervisedDelegates = [], isLoading: delegatesLoading } = useQuery({
+  const { data: supervisedDelegates = [], isLoading: delegatesLoading, refetch } = useQuery({
     queryKey: ['supervised-delegates', profile?.id],
     queryFn: async () => {
       if (!profile?.id || profile.role !== 'Supervisor') {
@@ -51,12 +57,62 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
 
   const delegateIds = supervisedDelegates.map(d => d.id);
 
+  // Filter delegates based on search
+  const filteredDelegates = supervisedDelegates.filter(delegate =>
+    `${delegate.first_name} ${delegate.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  };
+
+  const handleExportData = () => {
+    console.log('Exporting team KPI data...');
+    // Mock export functionality
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const floatingActions = [
+    {
+      label: 'Refresh Data',
+      icon: RefreshCw,
+      onClick: handleRefresh,
+      color: 'bg-blue-600'
+    },
+    {
+      label: 'Export Report',
+      icon: Download,
+      onClick: handleExportData,
+      color: 'bg-green-600'
+    }
+  ];
+
+  const breadcrumbItems = [
+    { label: 'Team Management', onClick: onBack },
+    { label: 'Team KPIs' }
+  ];
+
   if (delegatesLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading team KPIs...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="bg-white shadow-lg border-b border-blue-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+            <BreadcrumbNavigation items={breadcrumbItems} onBack={onBack} />
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, index) => (
+              <SkeletonCard key={index} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -64,30 +120,35 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className="bg-white shadow-lg border-b border-blue-100">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-blue-50">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Team KPIs Dashboard</h1>
-                  <p className="text-sm text-gray-600">
-                    Performance overview for {supervisedDelegates.length} team members
-                  </p>
-                </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <BreadcrumbNavigation items={breadcrumbItems} onBack={onBack} />
+          
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Team KPIs Dashboard</h1>
+                <p className="text-sm text-gray-600">
+                  Performance overview for {supervisedDelegates.length} team members
+                </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <SearchBar
+                placeholder="Search team members..."
+                onSearch={handleSearch}
+                value={searchQuery}
+                className="flex-1 sm:w-64"
+              />
+              
               <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select month" />
+                <SelectTrigger className="w-28 sm:w-40">
+                  <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
                   {displayMonths.map((month, index) => (
@@ -102,7 +163,7 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {supervisedDelegates.length === 0 ? (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardContent className="text-center py-12">
@@ -119,7 +180,7 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
             <SupervisorTeamOverview 
               delegateIds={delegateIds}
               selectedMonth={selectedMonth}
-              supervisedDelegates={supervisedDelegates}
+              supervisedDelegates={filteredDelegates.length > 0 ? filteredDelegates : supervisedDelegates}
             />
 
             {/* Sales Performance KPIs */}
@@ -138,6 +199,9 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
           </>
         )}
       </div>
+
+      {/* Floating Action Button */}
+      <FloatingActionButton actions={floatingActions} />
     </div>
   );
 };
