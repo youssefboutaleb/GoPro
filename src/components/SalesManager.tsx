@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +37,18 @@ interface SalesWithPlan extends Sales {
   sales_plan?: SalesPlan;
 }
 
+// Delegate colors for grouping
+const delegateColors = [
+  'bg-blue-50 border-l-4 border-blue-400',
+  'bg-green-50 border-l-4 border-green-400', 
+  'bg-purple-50 border-l-4 border-purple-400',
+  'bg-orange-50 border-l-4 border-orange-400',
+  'bg-pink-50 border-l-4 border-pink-400',
+  'bg-indigo-50 border-l-4 border-indigo-400',
+  'bg-yellow-50 border-l-4 border-yellow-400',
+  'bg-red-50 border-l-4 border-red-400'
+];
+
 const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSales, setEditingSales] = useState<Sales | null>(null);
@@ -53,9 +64,11 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   // Fetch ALL sales plans with related data (admin can see all)
   const { data: salesPlans = [] } = useQuery({
-    queryKey: ['sales-plans-with-details'],
+    queryKey: ['admin-sales-plans-with-details'],
     queryFn: async () => {
-      // First get sales plans - admin should see ALL plans
+      console.log('Fetching ALL sales plans for admin...');
+      
+      // First get ALL sales plans - admin should see all
       const { data: salesPlansData, error: salesPlansError } = await supabase
         .from('sales_plans')
         .select('*');
@@ -64,7 +77,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
       console.log('Fetched sales plans:', salesPlansData);
 
-      // Then get related data separately - fetch ALL profiles, not filtered by user
+      // Then get ALL related data - admin should see all profiles
       const [profilesResult, productsResult, bricksResult] = await Promise.all([
         supabase.from('profiles').select('id, first_name, last_name'),
         supabase.from('products').select('id, name'),
@@ -82,7 +95,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       });
 
       // Map the data together
-      const enrichedPlans = salesPlansData.map(plan => {
+      const enrichedPlans = salesPlansData?.map(plan => {
         const profile = profilesResult.data?.find(p => p.id === plan.delegate_id);
         const product = productsResult.data?.find(p => p.id === plan.product_id);
         const brick = bricksResult.data?.find(b => b.id === plan.brick_id);
@@ -93,7 +106,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
           product_name: product?.name || '',
           brick_name: brick?.name || ''
         };
-      }) as SalesPlan[];
+      }) as SalesPlan[] || [];
 
       console.log('Enriched sales plans:', enrichedPlans);
       return enrichedPlans;
@@ -102,8 +115,10 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   // Fetch ALL sales data with plans (admin can see all)
   const { data: salesData = [], isLoading } = useQuery({
-    queryKey: ['sales-data-with-plans', selectedYear],
+    queryKey: ['admin-sales-data-with-plans', selectedYear],
     queryFn: async () => {
+      console.log('Fetching ALL sales data for admin...');
+      
       let query = supabase.from('sales').select('*');
       
       if (selectedYear) {
@@ -280,6 +295,26 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
+  const getSalesGroupedByDelegate = () => {
+    const grouped = salesData.reduce((acc, sale) => {
+      const delegateName = sale.sales_plan?.delegate_name || 'Non assigné';
+      
+      if (!acc[delegateName]) {
+        acc[delegateName] = [];
+      }
+      acc[delegateName].push(sale);
+      return acc;
+    }, {} as Record<string, SalesWithPlan[]>);
+
+    return grouped;
+  };
+
+  const getDelegateColor = (delegateName: string, delegateIndex: number) => {
+    return delegateColors[delegateIndex % delegateColors.length];
+  };
+
+  const delegateNames = Object.keys(getSalesGroupedByDelegate());
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
@@ -344,7 +379,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Sales Plans ({salesData.length})</CardTitle>
+              <CardTitle>Plans de Vente ({salesData.length}) - Groupés par délégué</CardTitle>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => setIsDialogOpen(true)}>
@@ -447,72 +482,75 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Delegate</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Brick</TableHead>
-                    <TableHead>Year</TableHead>
-                    {monthNames.slice(0, getVisibleMonths(parseInt(selectedYear))).map((month) => (
-                      <TableHead key={month} className="text-center min-w-20">
-                        {month}
-                      </TableHead>
-                    ))}
-                    <TableHead className="w-24">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {salesData.map((sales) => {
-                    const visibleMonths = getVisibleMonths(sales.year);
-                    
-                    return (
-                      <TableRow key={sales.id}>
-                        <TableCell className="font-medium">
-                          {sales.sales_plan?.delegate_name || 'N/A'}
-                        </TableCell>
-                        <TableCell>{sales.sales_plan?.product_name || 'N/A'}</TableCell>
-                        <TableCell>{sales.sales_plan?.brick_name || 'N/A'}</TableCell>
-                        <TableCell>{sales.year}</TableCell>
-                        {Array.from({ length: visibleMonths }, (_, i) => (
-                          <TableCell key={i} className="text-center">
-                            <div className="space-y-1">
-                              <div className="text-xs text-gray-500">T: {sales.targets[i] || 0}</div>
-                              <div className={`text-xs font-medium ${
-                                (sales.achievements[i] || 0) >= (sales.targets[i] || 0) 
-                                  ? 'text-green-600' 
-                                  : 'text-red-600'
-                              }`}>
-                                A: {sales.achievements[i] || 0}
-                              </div>
-                            </div>
-                          </TableCell>
+            <div className="overflow-x-auto space-y-6">
+              {delegateNames.map((delegateName, delegateIndex) => (
+                <div key={delegateName} className={`rounded-lg p-4 ${getDelegateColor(delegateName, delegateIndex)}`}>
+                  <h3 className="font-semibold text-lg mb-3 text-gray-800">
+                    {delegateName} ({getSalesGroupedByDelegate()[delegateName].length} plans)
+                  </h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>Brique</TableHead>
+                        <TableHead>Année</TableHead>
+                        {monthNames.slice(0, Math.max(...getSalesGroupedByDelegate()[delegateName].map(s => getVisibleMonths(s.year)))).map((month) => (
+                          <TableHead key={month} className="text-center min-w-20">
+                            {month}
+                          </TableHead>
                         ))}
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(sales)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(sales.id)}
-                              disabled={deleteSalesMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        <TableHead className="w-24">Actions</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {getSalesGroupedByDelegate()[delegateName].map((sales) => {
+                        const visibleMonths = getVisibleMonths(sales.year);
+                        
+                        return (
+                          <TableRow key={sales.id}>
+                            <TableCell>{sales.sales_plan?.product_name || 'N/A'}</TableCell>
+                            <TableCell>{sales.sales_plan?.brick_name || 'N/A'}</TableCell>
+                            <TableCell>{sales.year}</TableCell>
+                            {Array.from({ length: visibleMonths }, (_, i) => (
+                              <TableCell key={i} className="text-center">
+                                <div className="space-y-1">
+                                  <div className="text-xs text-gray-500">T: {sales.targets[i] || 0}</div>
+                                  <div className={`text-xs font-medium ${
+                                    (sales.achievements[i] || 0) >= (sales.targets[i] || 0) 
+                                      ? 'text-green-600' 
+                                      : 'text-red-600'
+                                  }`}>
+                                    A: {sales.achievements[i] || 0}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            ))}
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(sales)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(sales.id)}
+                                  disabled={deleteSalesMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

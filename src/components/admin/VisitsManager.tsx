@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,13 +41,27 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     visit_plan_id: '',
   });
 
+  // Delegate colors for grouping
+  const delegateColors = [
+    'bg-blue-50 border-l-4 border-blue-400',
+    'bg-green-50 border-l-4 border-green-400', 
+    'bg-purple-50 border-l-4 border-purple-400',
+    'bg-orange-50 border-l-4 border-orange-400',
+    'bg-pink-50 border-l-4 border-pink-400',
+    'bg-indigo-50 border-l-4 border-indigo-400',
+    'bg-yellow-50 border-l-4 border-yellow-400',
+    'bg-red-50 border-l-4 border-red-400'
+  ];
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      // Fetch visits first
+      console.log('Fetching ALL visits for admin...');
+      
+      // Fetch ALL visits - admin should see everyone's visits  
       const { data: visitsData, error: visitsError } = await supabase
         .from('visits')
         .select('*')
@@ -64,7 +77,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (doctorsError) throw doctorsError;
 
-      // Fetch visit_plans
+      // Fetch ALL visit_plans - admin should see all
       const { data: visitPlansData, error: visitPlansError } = await supabase
         .from('visit_plans')
         .select('*')
@@ -72,7 +85,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
 
       if (visitPlansError) throw visitPlansError;
 
-      // Fetch ALL profiles (admin sees all delegates)
+      // Fetch ALL profiles - admin should see all delegates
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name');
@@ -87,24 +100,22 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
       if (bricksError) throw bricksError;
 
       // Enrich visit plans with doctor and delegate information
-      const visitPlansWithDetails = await Promise.all(
-        (visitPlansData || []).map(async (plan) => {
-          const doctor = doctorsData?.find(d => d.id === plan.doctor_id);
-          const delegate = profilesData?.find(p => p.id === plan.delegate_id);
-          
-          return {
-            ...plan,
-            doctor: doctor ? { 
-              last_name: doctor.last_name, 
-              first_name: doctor.first_name 
-            } : null,
-            delegate: delegate ? { 
-              last_name: delegate.last_name, 
-              first_name: delegate.first_name 
-            } : null
-          };
-        })
-      );
+      const visitPlansWithDetails = visitPlansData?.map(plan => {
+        const doctor = doctorsData?.find(d => d.id === plan.doctor_id);
+        const delegate = profilesData?.find(p => p.id === plan.delegate_id);
+        
+        return {
+          ...plan,
+          doctor: doctor ? { 
+            last_name: doctor.last_name, 
+            first_name: doctor.first_name 
+          } : null,
+          delegate: delegate ? { 
+            last_name: delegate.last_name, 
+            first_name: delegate.first_name 
+          } : null
+        };
+      }) || [];
 
       // Enrich visits with complete information including brick and delegate from visit_plan
       const visitsWithDetails = await Promise.all(
@@ -254,6 +265,30 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
+  // Group visits by delegate for color coding
+  const getVisitsGroupedByDelegate = () => {
+    const grouped = visits.reduce((acc, visit) => {
+      const delegateName = visit.visit_plan?.delegate ? 
+        `${visit.visit_plan.delegate.first_name} ${visit.visit_plan.delegate.last_name}` : 
+        'Non assigné';
+      
+      if (!acc[delegateName]) {
+        acc[delegateName] = [];
+      }
+      acc[delegateName].push(visit);
+      return acc;
+    }, {} as Record<string, Visit[]>);
+
+    return grouped;
+  };
+
+  const getDelegateColor = (delegateName: string, delegateIndex: number) => {
+    return delegateColors[delegateIndex % delegateColors.length];
+  };
+
+  const groupedVisits = getVisitsGroupedByDelegate();
+  const delegateNames = Object.keys(groupedVisits);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="bg-white shadow-lg border-b border-blue-100">
@@ -279,7 +314,7 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Liste des Visites ({visits.length})</CardTitle>
-                <CardDescription>Planifier et suivre les visites médicales</CardDescription>
+                <CardDescription>Planifier et suivre les visites médicales - Groupées par délégué</CardDescription>
               </div>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
@@ -345,60 +380,62 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
             {loading ? (
               <div className="text-center py-8">Chargement...</div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Médecin</TableHead>
-                      <TableHead>Brique</TableHead>
-                      <TableHead>Délégué</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visits.map((visit) => (
-                      <TableRow key={visit.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                            <span>{formatDate(visit.visit_date)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {visit.visit_plan?.doctor ? 
-                            `Dr. ${visit.visit_plan.doctor.first_name} ${visit.visit_plan.doctor.last_name}` : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {visit.brick?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {visit.visit_plan?.delegate ? 
-                            `${visit.visit_plan.delegate.first_name} ${visit.visit_plan.delegate.last_name}` : 'N/A'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditDialog(visit)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(visit)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="overflow-x-auto space-y-6">
+                {delegateNames.map((delegateName, delegateIndex) => (
+                  <div key={delegateName} className={`rounded-lg p-4 ${getDelegateColor(delegateName, delegateIndex)}`}>
+                    <h3 className="font-semibold text-lg mb-3 text-gray-800">
+                      {delegateName} ({groupedVisits[delegateName].length} visites)
+                    </h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Médecin</TableHead>
+                          <TableHead>Brique</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {groupedVisits[delegateName].map((visit) => (
+                          <TableRow key={visit.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="h-4 w-4 text-gray-500" />
+                                <span>{formatDate(visit.visit_date)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {visit.visit_plan?.doctor ? 
+                                `Dr. ${visit.visit_plan.doctor.first_name} ${visit.visit_plan.doctor.last_name}` : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              {visit.brick?.name || 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditDialog(visit)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDelete(visit)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
