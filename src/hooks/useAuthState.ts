@@ -10,19 +10,19 @@ export const useAuthState = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
-  const [isProfileFetching, setIsProfileFetching] = useState(false);
 
-  const fetchUserProfile = async (userId: string) => {
-    if (isProfileFetching) {
+  const fetchUserProfile = async (userId: string, retryCount = 0) => {
+    if (profileLoading) {
       console.log('⏳ Profile fetch already in progress, skipping...');
       return;
     }
 
-    setIsProfileFetching(true);
+    setProfileLoading(true);
     try {
       const timeoutPromise = new Promise<Profile | null>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000); // Reduced from 5000ms
       });
       
       const userProfile = await Promise.race([
@@ -38,9 +38,20 @@ export const useAuthState = () => {
       }
     } catch (error) {
       console.error('💥 Error during profile fetch:', error);
-      setProfile(null);
+      
+      // Retry logic with exponential backoff
+      if (retryCount < 2) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`🔄 Retrying profile fetch in ${delay}ms (attempt ${retryCount + 1})`);
+        setTimeout(() => {
+          fetchUserProfile(userId, retryCount + 1);
+        }, delay);
+      } else {
+        console.error('❌ Max retries reached for profile fetch');
+        setProfile(null);
+      }
     } finally {
-      setIsProfileFetching(false);
+      setProfileLoading(false);
     }
   };
 
@@ -59,7 +70,7 @@ export const useAuthState = () => {
         setUser(null);
         setSession(null);
         setProfile(null);
-        setIsProfileFetching(false);
+        setProfileLoading(false);
         setSignOutLoading(false);
         setTimeout(() => {
           window.location.href = '/auth';
@@ -72,9 +83,12 @@ export const useAuthState = () => {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Non-blocking profile fetch
         if (session?.user) {
-          console.log('👤 Fetching profile for authenticated user...');
-          await fetchUserProfile(session.user.id);
+          console.log('👤 Starting background profile fetch...');
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -85,9 +99,12 @@ export const useAuthState = () => {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Non-blocking profile fetch for initial session
         if (session?.user) {
-          console.log('👤 Fetching initial profile...');
-          await fetchUserProfile(session.user.id);
+          console.log('👤 Starting initial profile fetch...');
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -96,6 +113,7 @@ export const useAuthState = () => {
       setLoading(false);
     });
 
+    // Simplified initialization - rely primarily on auth state change events
     const initializeAuth = async () => {
       try {
         console.log('🔍 Getting initial session...');
@@ -109,14 +127,7 @@ export const useAuthState = () => {
 
         console.log('📊 Initial session status:', session ? 'Found' : 'Not found');
         
-        // Only set up manually if auth events haven't fired yet
-        if (session?.user && !user) {
-          console.log('🔧 Manual session setup - setting user');
-          setSession(session);
-          setUser(session.user);
-          await fetchUserProfile(session.user.id);
-        }
-        
+        // Let auth state change events handle the session setup
         if (!session) {
           setLoading(false);
         }
@@ -129,7 +140,7 @@ export const useAuthState = () => {
     const timeoutId = setTimeout(() => {
       console.log('⏰ Auth initialization timeout reached');
       setLoading(false);
-    }, 3000);
+    }, 2000); // Reduced from 3000ms
 
     initializeAuth();
 
@@ -153,7 +164,7 @@ export const useAuthState = () => {
       setUser(null);
       setSession(null);
       setProfile(null);
-      setIsProfileFetching(false);
+      setProfileLoading(false);
       setSignOutLoading(false);
       
       const { error } = await supabase.auth.signOut();
@@ -175,7 +186,7 @@ export const useAuthState = () => {
       setUser(null);
       setSession(null);
       setProfile(null);
-      setIsProfileFetching(false);
+      setProfileLoading(false);
       setSignOutLoading(false);
       
       setTimeout(() => {
@@ -191,6 +202,7 @@ export const useAuthState = () => {
     profile,
     session,
     loading,
+    profileLoading,
     signOutLoading,
     signOut
   };

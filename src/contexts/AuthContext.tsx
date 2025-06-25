@@ -12,6 +12,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     profile,
     session,
     loading,
+    profileLoading,
     signOutLoading,
     signOut
   } = useAuthState();
@@ -24,6 +25,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     loading,
+    profileLoading,
     signOutLoading,
   };
 

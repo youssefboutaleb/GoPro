@@ -12,6 +12,7 @@ export interface AuthContextType {
   signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
   signOut: () => Promise<{ error?: any }>;
   loading: boolean;
+  profileLoading: boolean;
   signOutLoading: boolean;
 }
 
