@@ -417,8 +417,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                             className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
                           >
                             <div className="text-sm">
-                              <div className="font-medium">{plan.actual_visits[index] || 0}</div>
-                              <div className="text-gray-500">/ {plan.planned_visits[index] || 0}</div>
+                              <div className="font-medium">{plan.actual_visits[index] || 0} / {plan.planned_visits[index] || 0}</div>
                             </div>
                           </td>
                         ))}
