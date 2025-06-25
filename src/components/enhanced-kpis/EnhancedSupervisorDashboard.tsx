@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,19 +121,78 @@ const EnhancedSupervisorDashboard: React.FC<EnhancedSupervisorDashboardProps> = 
     { label: 'Enhanced KPIs' }
   ];
 
-  // Mock data for enhanced KPIs
-  const kpiData = {
-    totalSales: { current: 142500, target: 150000, previous: 135000 },
-    visits: { current: 248, target: 280, previous: 220 },
-    conversion: { current: 68, target: 75, previous: 62 },
-    teamEfficiency: { current: 85, target: 90, previous: 82 }
-  };
-
-  const trendData = [
-    { month: 'Jan', sales: 120000, visits: 210, conversion: 62 },
-    { month: 'Feb', sales: 135000, visits: 235, conversion: 65 },
-    { month: 'Mar', sales: 142500, visits: 248, conversion: 68 },
+  // Mock KPI data structured to match InteractiveKPICard interface
+  const kpiCards = [
+    {
+      data: {
+        title: 'Total Sales',
+        value: 142500,
+        target: 150000,
+        previousValue: 135000,
+        trend: 'up' as const,
+        status: 'online' as const,
+        category: 'sales' as const
+      },
+      onViewDetails: () => console.log('Sales KPI clicked'),
+      onExport: () => console.log('Export sales data')
+    },
+    {
+      data: {
+        title: 'Visits Completed',
+        value: 248,
+        target: 280,
+        previousValue: 220,
+        trend: 'up' as const,
+        status: 'online' as const,
+        category: 'visits' as const
+      },
+      onViewDetails: () => console.log('Visits KPI clicked'),
+      onExport: () => console.log('Export visits data')
+    },
+    {
+      data: {
+        title: 'Conversion Rate',
+        value: 68,
+        target: 75,
+        previousValue: 62,
+        trend: 'up' as const,
+        status: 'online' as const,
+        category: 'performance' as const
+      },
+      onViewDetails: () => console.log('Conversion KPI clicked'),
+      onExport: () => console.log('Export conversion data')
+    },
+    {
+      data: {
+        title: 'Team Efficiency',
+        value: 85,
+        target: 90,
+        previousValue: 82,
+        trend: 'up' as const,
+        status: 'online' as const,
+        category: 'team' as const
+      },
+      onViewDetails: () => console.log('Efficiency KPI clicked'),
+      onExport: () => console.log('Export efficiency data')
+    }
   ];
+
+  // Fix trend data structure to match ChartDataPoint interface
+  const trendData = [
+    { period: 'Jan', value: 120000, target: 140000 },
+    { period: 'Feb', value: 135000, target: 145000 },
+    { period: 'Mar', value: 142500, target: 150000 },
+  ];
+
+  // Transform team members data for PerformanceRanking
+  const performanceData = (filteredDelegates.length > 0 ? filteredDelegates : supervisedDelegates).map((delegate, index) => ({
+    id: delegate.id,
+    name: `${delegate.first_name} ${delegate.last_name}`,
+    value: Math.floor(Math.random() * 50000) + 20000, // Mock sales value
+    target: 40000,
+    rank: index + 1,
+    trend: Math.random() > 0.5 ? 'up' as const : 'down' as const
+  }));
 
   const teamPerformance = filteredDelegates.length > 0 ? filteredDelegates : supervisedDelegates;
 
@@ -174,9 +234,9 @@ const EnhancedSupervisorDashboard: React.FC<EnhancedSupervisorDashboardProps> = 
                     Advanced analytics for {supervisedDelegates.length} team members
                   </p>
                   <RealTimeIndicator 
-                    status="active"
-                    lastUpdate={new Date()}
-                    connectionCount={supervisedDelegates.length}
+                    status="online"
+                    label="System"
+                    size="sm"
                   />
                 </div>
               </div>
@@ -235,61 +295,25 @@ const EnhancedSupervisorDashboard: React.FC<EnhancedSupervisorDashboardProps> = 
           <>
             {/* Interactive KPI Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <InteractiveKPICard
-                title="Total Sales"
-                current={kpiData.totalSales.current}
-                target={kpiData.totalSales.target}
-                previous={kpiData.totalSales.previous}
-                format="currency"
-                trend="up"
-                onClick={() => console.log('Sales KPI clicked')}
-              />
-              <InteractiveKPICard
-                title="Visits Completed"
-                current={kpiData.visits.current}
-                target={kpiData.visits.target}
-                previous={kpiData.visits.previous}
-                format="number"
-                trend="up"
-                onClick={() => console.log('Visits KPI clicked')}
-              />
-              <InteractiveKPICard
-                title="Conversion Rate"
-                current={kpiData.conversion.current}
-                target={kpiData.conversion.target}
-                previous={kpiData.conversion.previous}
-                format="percentage"
-                trend="up"
-                onClick={() => console.log('Conversion KPI clicked')}
-              />
-              <InteractiveKPICard
-                title="Team Efficiency"
-                current={kpiData.teamEfficiency.current}
-                target={kpiData.teamEfficiency.target}
-                previous={kpiData.teamEfficiency.previous}
-                format="percentage"
-                trend="up"
-                onClick={() => console.log('Efficiency KPI clicked')}
-              />
+              {kpiCards.map((kpi, index) => (
+                <InteractiveKPICard
+                  key={index}
+                  data={kpi.data}
+                  onViewDetails={kpi.onViewDetails}
+                  onExport={kpi.onExport}
+                />
+              ))}
             </div>
 
             {/* Trend Analysis */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <TrendingUp className="h-5 w-5 text-blue-600" />
-                    <span>Performance Trends</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TrendChart 
-                    data={trendData}
-                    dataKeys={['sales', 'visits']}
-                    colors={['#3b82f6', '#10b981']}
-                  />
-                </CardContent>
-              </Card>
+              <TrendChart 
+                title="Performance Trends"
+                data={trendData}
+                type="line"
+                color="#3b82f6"
+                showTarget={true}
+              />
 
               <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
                 <CardHeader>
@@ -300,20 +324,20 @@ const EnhancedSupervisorDashboard: React.FC<EnhancedSupervisorDashboardProps> = 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <AnimatedProgressBar
-                    value={kpiData.totalSales.current}
-                    max={kpiData.totalSales.target}
+                    value={142500}
+                    max={150000}
                     label="Sales Target"
                     color="green"
                   />
                   <AnimatedProgressBar
-                    value={kpiData.visits.current}
-                    max={kpiData.visits.target}
+                    value={248}
+                    max={280}
                     label="Visit Target"
                     color="blue"
                   />
                   <AnimatedProgressBar
-                    value={kpiData.conversion.current}
-                    max={kpiData.conversion.target}
+                    value={68}
+                    max={75}
                     label="Conversion Target"
                     color="yellow"
                   />
@@ -323,8 +347,10 @@ const EnhancedSupervisorDashboard: React.FC<EnhancedSupervisorDashboardProps> = 
 
             {/* Team Performance Ranking */}
             <PerformanceRanking 
-              teamMembers={teamPerformance}
-              selectedMonth={selectedMonth}
+              title="Team Performance"
+              data={performanceData}
+              metric="sales"
+              showTop={5}
             />
           </>
         )}
