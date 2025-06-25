@@ -6,6 +6,7 @@ import { CheckCircle, Circle, Calendar, Target, TrendingUp, User } from 'lucide-
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface VisitPlanData {
   id: string;
@@ -32,6 +33,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [swipingRowId, setSwipingRowId] = useState<string | null>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [recordingVisit, setRecordingVisit] = useState<string | null>(null);
@@ -46,11 +48,18 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   // Month names for headers
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+  // Helper function to get the last day of a month
+  const getLastDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+
   // Fetch visit plans with doctors and bricks data
   const { data: visitPlansData = [], isLoading } = useQuery({
     queryKey: ['interactive-visit-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
       if (effectiveDelegateIds.length === 0) return [];
+
+      console.log('Fetching visit plans for interactive table...');
 
       // Fetch visit plans
       const { data: visitPlans, error: visitPlansError } = await supabase
@@ -58,7 +67,10 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         .select('id, delegate_id, visit_frequency, doctor_id')
         .in('delegate_id', effectiveDelegateIds);
 
-      if (visitPlansError) throw visitPlansError;
+      if (visitPlansError) {
+        console.error('Visit plans error:', visitPlansError);
+        throw visitPlansError;
+      }
 
       // Fetch doctors
       const doctorIds = visitPlans?.map(p => p.doctor_id).filter(Boolean) || [];
@@ -67,7 +79,10 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         .select('id, first_name, last_name, brick_id')
         .in('id', doctorIds);
 
-      if (doctorsError) throw doctorsError;
+      if (doctorsError) {
+        console.error('Doctors error:', doctorsError);
+        throw doctorsError;
+      }
 
       // Fetch bricks
       const brickIds = doctors?.map(d => d.brick_id).filter(Boolean) || [];
@@ -76,7 +91,10 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         .select('id, name')
         .in('id', brickIds);
 
-      if (bricksError) throw bricksError;
+      if (bricksError) {
+        console.error('Bricks error:', bricksError);
+        throw bricksError;
+      }
 
       // Fetch visits for this year
       const visitPlanIds = visitPlans?.map(p => p.id) || [];
@@ -87,7 +105,10 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         .gte('visit_date', `${currentYear}-01-01`)
         .lte('visit_date', `${currentYear}-12-31`);
 
-      if (visitsError) throw visitsError;
+      if (visitsError) {
+        console.error('Visits error:', visitsError);
+        throw visitsError;
+      }
 
       // Process the data
       const processed: VisitPlanData[] = [];
@@ -156,6 +177,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         });
       }
 
+      console.log('Processed visit plans:', processed.length);
       return processed;
     },
     enabled: effectiveDelegateIds.length > 0,
@@ -165,6 +187,8 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   // Mutation to record a visit
   const recordVisitMutation = useMutation({
     mutationFn: async (visitPlanId: string) => {
+      console.log('Recording visit for plan:', visitPlanId);
+      
       const { data, error } = await supabase
         .from('visits')
         .insert({
@@ -174,13 +198,39 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error recording visit:', error);
+        throw error;
+      }
+      
+      console.log('Visit recorded successfully:', data);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, visitPlanId) => {
+      // Find the doctor name for the toast
+      const visitPlan = visitPlansData.find(plan => plan.id === visitPlanId);
+      const doctorName = visitPlan?.doctor_name || 'Doctor';
+      
+      toast({
+        title: "Visit Recorded!",
+        description: `Successfully recorded visit for ${doctorName}`,
+      });
+      
       // Refresh the data
       queryClient.invalidateQueries({ queryKey: ['interactive-visit-plans'] });
       queryClient.invalidateQueries({ queryKey: ['delegate-dashboard-stats'] });
+    },
+    onError: (error: any, visitPlanId) => {
+      console.error('Failed to record visit:', error);
+      
+      const visitPlan = visitPlansData.find(plan => plan.id === visitPlanId);
+      const doctorName = visitPlan?.doctor_name || 'Doctor';
+      
+      toast({
+        title: "Failed to Record Visit",
+        description: `Could not record visit for ${doctorName}. ${error.message || 'Please try again.'}`,
+        variant: "destructive",
+      });
     }
   });
 
@@ -188,6 +238,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   const handleTouchStart = (e: React.TouchEvent, rowId: string) => {
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setSwipingRowId(rowId);
   };
 
   const handleTouchEnd = (e: React.TouchEvent, visitPlan: VisitPlanData) => {
@@ -201,7 +252,17 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     if (Math.abs(deltaX) > 50 && deltaY < 30) {
       if (deltaX > 0 && visitPlan.can_record_today) {
         // Swipe right to record visit
+        console.log('Swipe detected for visit plan:', visitPlan.id);
         handleRecordVisit(visitPlan.id);
+      } else if (deltaX > 0 && !visitPlan.can_record_today) {
+        // Show feedback for why they can't record
+        toast({
+          title: "Cannot Record Visit",
+          description: visitPlan.visits_today > 0 
+            ? "You've already recorded a visit for this doctor today"
+            : "Monthly visit limit reached for this doctor",
+          variant: "destructive",
+        });
       }
     }
 
@@ -210,11 +271,13 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   };
 
   const handleRecordVisit = async (visitPlanId: string) => {
+    if (recordingVisit) return; // Prevent duplicate recordings
+    
     setRecordingVisit(visitPlanId);
     try {
       await recordVisitMutation.mutateAsync(visitPlanId);
     } catch (error) {
-      console.error('Error recording visit:', error);
+      console.error('Error in handleRecordVisit:', error);
     } finally {
       setRecordingVisit(null);
     }
@@ -312,7 +375,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                     key={plan.id} 
                     className={`${getRowColorClass(plan.row_color)} ${
                       plan.can_record_today ? 'cursor-pointer hover:opacity-80' : 'opacity-60'
-                    } transition-all duration-200`}
+                    } transition-all duration-200 ${
+                      recordingVisit === plan.id ? 'bg-blue-100' : ''
+                    } ${
+                      swipingRowId === plan.id ? 'transform scale-[0.99]' : ''
+                    }`}
                     onTouchStart={(e) => handleTouchStart(e, plan.id)}
                     onTouchEnd={(e) => handleTouchEnd(e, plan)}
                   >

@@ -27,6 +27,11 @@ const DelegateDashboard: React.FC = () => {
     navigate('/delegate/recruitment-rate');
   };
 
+  // Helper function to get the last day of a month
+  const getLastDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+
   // Fetch quick stats for dashboard cards
   const { data: dashboardStats, isLoading: statsLoading } = useQuery({
     queryKey: ['delegate-dashboard-stats', profile?.id],
@@ -50,17 +55,27 @@ const DelegateDashboard: React.FC = () => {
 
         if (salesPlansError) throw salesPlansError;
 
-        // Fetch this month's visits
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
+        // Calculate proper date range for current month
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+        const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
+        
+        const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
+        const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
+        
+        console.log('Fetching visits for date range:', startDate, 'to', endDate);
         
         const { data: thisMonthVisits, error: visitsError } = await supabase
           .from('visits')
           .select('id, visit_plan_id, visit_date')
-          .gte('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-          .lte('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-31`);
+          .gte('visit_date', startDate)
+          .lte('visit_date', endDate);
 
-        if (visitsError) throw visitsError;
+        if (visitsError) {
+          console.error('Error fetching visits:', visitsError);
+          throw visitsError;
+        }
 
         // Calculate return index (simplified)
         const returnIndex = visitPlans && visitPlans.length > 0 
