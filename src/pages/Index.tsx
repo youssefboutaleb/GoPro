@@ -174,6 +174,45 @@ const Index = () => {
     retryDelay: 1000,
   });
 
+  // Fetch delegates for ALL supervisors (for Sales Director double-grouped view)
+  const { 
+    data: allDelegatesBySupervisor = new Map(), 
+    isLoading: allDelegatesLoading,
+    error: allDelegatesError,
+    refetch: refetchAllDelegates
+  } = useQuery({
+    queryKey: ['all-delegates-by-supervisor', supervisedSupervisors.map(s => s.id)],
+    queryFn: async () => {
+      if (supervisedSupervisors.length === 0) return new Map();
+      
+      console.log('🔍 Fetching all delegates for all supervisors');
+      
+      const delegatesBySupervidor = new Map();
+      
+      // Fetch delegates for each supervisor
+      for (const supervisor of supervisedSupervisors) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('supervisor_id', supervisor.id)
+          .eq('role', 'Delegate');
+
+        if (error) {
+          console.error(`Error fetching delegates for supervisor ${supervisor.id}:`, error);
+          continue;
+        }
+
+        delegatesBySupervidor.set(supervisor.id, data || []);
+      }
+      
+      console.log('✅ All delegates by supervisor fetched:', delegatesBySupervidor);
+      return delegatesBySupervidor;
+    },
+    enabled: supervisedSupervisors.length > 0,
+    retry: 2,
+    retryDelay: 1000,
+  });
+
   const handleSignOut = async () => {
     console.log('🚪 Sign out button clicked');
     
@@ -299,7 +338,7 @@ const Index = () => {
     );
   }
 
-  // Handle view routing for Sales Director role with improved loading states and tab selection
+  // Handle view routing for Sales Director role with double-grouped structure
   if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Sales Director') {
     const Component = currentView === 'recruitment' ? RythmeRecrutement : ReturnIndexAnalysis;
     const title = currentView === 'recruitment' ? 'Rythme de Recrutement' : 'Indice de Retour';
@@ -320,20 +359,23 @@ const Index = () => {
         </div>
         
         <div className="max-w-7xl mx-auto px-6 py-8">
-          {supervisorsLoading ? (
+          {supervisorsLoading || allDelegatesLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading supervised supervisors...</p>
+              <p className="text-gray-600">Loading supervised supervisors and delegates...</p>
               <p className="text-sm text-gray-500 mt-2">
                 Profile: {profile?.first_name} {profile?.last_name} (ID: {profile?.id})
               </p>
             </div>
-          ) : supervisorsError ? (
+          ) : supervisorsError || allDelegatesError ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Supervisors</h3>
-              <p className="text-red-600 mb-4">{supervisorsError.message}</p>
-              <Button onClick={() => refetchSupervisors()}>Retry</Button>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
+              <p className="text-red-600 mb-4">{supervisorsError?.message || allDelegatesError?.message}</p>
+              <Button onClick={() => {
+                refetchSupervisors();
+                refetchAllDelegates();
+              }}>Retry</Button>
             </div>
           ) : supervisedSupervisors.length === 0 ? (
             <div className="text-center py-8">
@@ -352,51 +394,77 @@ const Index = () => {
           ) : (
             <Tabs value={selectedSupervisor} onValueChange={setSelectedSupervisor} className="w-full">
               <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-4 mb-6">
-                {supervisedSupervisors.map((supervisor) => (
-                  <TabsTrigger key={supervisor.id} value={supervisor.id}>
-                    {supervisor.first_name} {supervisor.last_name}
-                  </TabsTrigger>
-                ))}
+                {supervisedSupervisors.map((supervisor) => {
+                  const delegateCount = allDelegatesBySupervisor.get(supervisor.id)?.length || 0;
+                  return (
+                    <TabsTrigger key={supervisor.id} value={supervisor.id}>
+                      {supervisor.first_name} {supervisor.last_name} ({delegateCount})
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
               
-              {supervisedSupervisors.map((supervisor) => (
-                <TabsContent key={supervisor.id} value={supervisor.id}>
-                  {selectedSupervisor === supervisor.id && (
-                    <>
-                      {delegatesUnderSupervisorLoading ? (
-                        <div className="text-center py-8">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                          <p className="text-gray-600">Loading delegates under {supervisor.first_name} {supervisor.last_name}...</p>
-                        </div>
-                      ) : delegatesUnderSupervisorError ? (
-                        <div className="text-center py-8">
-                          <Users className="h-8 w-8 text-red-400 mx-auto mb-4" />
-                          <h4 className="text-md font-medium text-gray-900 mb-2">Error Loading Delegates</h4>
-                          <p className="text-red-600 mb-4">{delegatesUnderSupervisorError.message}</p>
-                          <Button onClick={() => refetchDelegatesUnderSupervisor()} size="sm">Retry</Button>
-                        </div>
-                      ) : delegatesUnderSupervisor.length === 0 ? (
-                        <div className="text-center py-8">
-                          <Users className="h-8 w-8 text-gray-400 mx-auto mb-4" />
-                          <h4 className="text-md font-medium text-gray-900 mb-2">No Delegates Found</h4>
-                          <p className="text-gray-600">
-                            Supervisor {supervisor.first_name} {supervisor.last_name} doesn't have any delegates yet.
-                          </p>
-                          <Button onClick={() => refetchDelegatesUnderSupervisor()} size="sm" className="mt-4">
-                            Refresh
-                          </Button>
-                        </div>
-                      ) : (
-                        <Component 
-                          onBack={handleBackToDashboard} 
-                          delegateIds={delegatesUnderSupervisor.map(d => d.id)}
-                          supervisorName={`${supervisor.first_name} ${supervisor.last_name}`}
-                        />
-                      )}
-                    </>
-                  )}
-                </TabsContent>
-              ))}
+              {supervisedSupervisors.map((supervisor) => {
+                const supervisorDelegates = allDelegatesBySupervisor.get(supervisor.id) || [];
+                
+                return (
+                  <TabsContent key={supervisor.id} value={supervisor.id}>
+                    {selectedSupervisor === supervisor.id && (
+                      <>
+                        {supervisorDelegates.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Users className="h-8 w-8 text-gray-400 mx-auto mb-4" />
+                            <h4 className="text-md font-medium text-gray-900 mb-2">No Delegates Found</h4>
+                            <p className="text-gray-600">
+                              Supervisor {supervisor.first_name} {supervisor.last_name} doesn't have any delegates yet.
+                            </p>
+                            <Button onClick={() => refetchAllDelegates()} size="sm" className="mt-4">
+                              Refresh
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Supervisor context header */}
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                              <h3 className="text-lg font-semibold text-blue-900">
+                                {supervisor.first_name} {supervisor.last_name}'s Team
+                              </h3>
+                              <p className="text-sm text-blue-700">
+                                {supervisorDelegates.length} delegate{supervisorDelegates.length !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            
+                            {/* Nested delegate tabs */}
+                            <Tabs defaultValue={supervisorDelegates[0]?.id} className="w-full">
+                              <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 h-auto p-2 bg-gray-100">
+                                {supervisorDelegates.map((delegate) => (
+                                  <TabsTrigger 
+                                    key={delegate.id} 
+                                    value={delegate.id}
+                                    className="text-sm py-2 px-4 data-[state=active]:bg-white data-[state=active]:text-blue-600"
+                                  >
+                                    {delegate.first_name} {delegate.last_name}
+                                  </TabsTrigger>
+                                ))}
+                              </TabsList>
+                              
+                              {supervisorDelegates.map((delegate) => (
+                                <TabsContent key={delegate.id} value={delegate.id} className="mt-6">
+                                  <Component 
+                                    onBack={handleBackToDashboard} 
+                                    delegateIds={[delegate.id]}
+                                    supervisorName={`${delegate.first_name} ${delegate.last_name} (${supervisor.first_name} ${supervisor.last_name}'s team)`}
+                                  />
+                                </TabsContent>
+                              ))}
+                            </Tabs>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </TabsContent>
+                );
+              })}
             </Tabs>
           )}
         </div>
