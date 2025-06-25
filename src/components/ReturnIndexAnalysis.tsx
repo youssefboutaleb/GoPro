@@ -65,7 +65,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
             id, 
             delegate_id, 
             visit_frequency,
-            doctors (
+            doctors!doctor_id (
               id,
               first_name,
               last_name,
