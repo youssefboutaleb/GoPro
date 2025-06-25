@@ -1,0 +1,24 @@
+
+{
+  "welcome": "Bienvenue",
+  "loading": "Chargement...",
+  "error": "Erreur",
+  "retry": "Réessayer",
+  "refresh": "Actualiser",
+  "back": "Retour",
+  "signOut": "Déconnexion",
+  "signingOut": "Déconnexion...",
+  "clickToAccess": "Cliquez pour accéder",
+  "clickToView": "Cliquez pour voir",
+  "noDataFound": "Aucune donnée trouvée",
+  "active": "Actif",
+  "totalTargets": "Objectifs Totaux",
+  "totalAchievements": "Réalisations Totales",
+  "yearToDate": "Année en cours",
+  "overallPerformance": "Performance globale",
+  "teamSize": "Taille de l'équipe",
+  "activePeriod": "Période active",
+  "ytdMonths": "Mois YTD",
+  "analysisReady": "Analyse prête",
+  "teamMembers": "Membres de l'équipe"
+}

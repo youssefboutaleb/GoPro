@@ -1,0 +1,24 @@
+
+{
+  "welcome": "مرحبا",
+  "loading": "جاري التحميل...",
+  "error": "خطأ",
+  "retry": "إعادة المحاولة",
+  "refresh": "تحديث",
+  "back": "العودة",
+  "signOut": "تسجيل الخروج",
+  "signingOut": "جاري تسجيل الخروج...",
+  "clickToAccess": "انقر للوصول",
+  "clickToView": "انقر للعرض",
+  "noDataFound": "لم يتم العثور على بيانات",
+  "active": "نشط",
+  "totalTargets": "إجمالي الأهداف",
+  "totalAchievements": "إجمالي الإنجازات",
+  "yearToDate": "السنة حتى الآن",
+  "overallPerformance": "الأداء العام",
+  "teamSize": "حجم الفريق",
+  "activePeriod": "الفترة النشطة",
+  "ytdMonths": "أشهر السنة الحالية",
+  "analysisReady": "التحليل جاهز",
+  "teamMembers": "أعضاء الفريق"
+}

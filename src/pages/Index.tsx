@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +14,11 @@ import ReturnIndexAnalysis from '@/components/ReturnIndexAnalysis';
 import AdminDashboard from '@/components/AdminDashboard';
 import SupervisorKPIsDashboard from '@/components/SupervisorKPIsDashboard';
 import SalesDirectorKPIsDashboard from '@/components/SalesDirectorKPIsDashboard';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
+  const { t } = useTranslation(['dashboard', 'common']);
   const { user, profile, signOut, loading, signOutLoading } = useAuth();
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState('dashboard');
@@ -239,7 +242,7 @@ const Index = () => {
     console.log('⏳ Index page showing loading state');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="text-lg">{t('common:loading')}</div>
       </div>
     );
   }
@@ -266,7 +269,7 @@ const Index = () => {
   // Handle view routing for Supervisor role with individual delegate tabs
   if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Supervisor') {
     const Component = currentView === 'recruitment' ? RythmeRecrutement : ReturnIndexAnalysis;
-    const title = currentView === 'recruitment' ? 'Rythme de Recrutement' : 'Indice de Retour';
+    const title = currentView === 'recruitment' ? t('dashboard:recruitmentRhythm') : t('dashboard:returnIndex');
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -287,7 +290,7 @@ const Index = () => {
           {delegatesLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading supervised delegates...</p>
+              <p className="text-gray-600">{t('dashboard:loadingSupervisedDelegates')}</p>
               <p className="text-sm text-gray-500 mt-2">
                 Profile: {profile?.first_name} {profile?.last_name} (ID: {profile?.id})
               </p>
@@ -295,22 +298,22 @@ const Index = () => {
           ) : delegatesError ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Delegates</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('dashboard:errorLoadingDelegates')}</h3>
               <p className="text-red-600 mb-4">{delegatesError.message}</p>
-              <Button onClick={() => refetchDelegates()}>Retry</Button>
+              <Button onClick={() => refetchDelegates()}>{t('common:retry')}</Button>
             </div>
           ) : supervisedDelegates.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Delegates Found</h3>
-              <p className="text-gray-600">You don't have any supervised delegates yet.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('dashboard:noDelegatesFound')}</h3>
+              <p className="text-gray-600">{t('dashboard:noDelegatesFoundDescription')}</p>
               <div className="text-sm text-gray-500 mt-4 space-y-1">
                 <p>Profile ID: {profile?.id} | Role: {profile?.role}</p>
                 <p>Query enabled: {isProfileReady && profile?.role === 'Supervisor' ? 'Yes' : 'No'}</p>
                 <p>Profile ready: {isProfileReady ? 'Yes' : 'No'}</p>
               </div>
               <Button onClick={() => refetchDelegates()} className="mt-4">
-                Refresh
+                {t('common:refresh')}
               </Button>
             </div>
           ) : (
@@ -342,7 +345,7 @@ const Index = () => {
   // Handle view routing for Sales Director role with double-grouped structure
   if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Sales Director') {
     const Component = currentView === 'recruitment' ? RythmeRecrutement : ReturnIndexAnalysis;
-    const title = currentView === 'recruitment' ? 'Rythme de Recrutement' : 'Indice de Retour';
+    const title = currentView === 'recruitment' ? t('dashboard:recruitmentRhythm') : t('dashboard:returnIndex');
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -363,7 +366,7 @@ const Index = () => {
           {supervisorsLoading || allDelegatesLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading supervised supervisors and delegates...</p>
+              <p className="text-gray-600">{t('dashboard:loadingSupervisedSupervisors')}</p>
               <p className="text-sm text-gray-500 mt-2">
                 Profile: {profile?.first_name} {profile?.last_name} (ID: {profile?.id})
               </p>
@@ -371,25 +374,25 @@ const Index = () => {
           ) : supervisorsError || allDelegatesError ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('dashboard:errorLoadingData')}</h3>
               <p className="text-red-600 mb-4">{supervisorsError?.message || allDelegatesError?.message}</p>
               <Button onClick={() => {
                 refetchSupervisors();
                 refetchAllDelegates();
-              }}>Retry</Button>
+              }}>{t('common:retry')}</Button>
             </div>
           ) : supervisedSupervisors.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Supervisors Found</h3>
-              <p className="text-gray-600">You don't have any supervised supervisors yet.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('dashboard:noSupervisorsFound')}</h3>
+              <p className="text-gray-600">{t('dashboard:noSupervisorsFoundDescription')}</p>
               <div className="text-sm text-gray-500 mt-4 space-y-1">
                 <p>Profile ID: {profile?.id} | Role: {profile?.role}</p>
                 <p>Query enabled: {isProfileReady && profile?.role === 'Sales Director' ? 'Yes' : 'No'}</p>
                 <p>Sales Director setup: Check if supervisors have their supervisor_id set to your profile ID</p>
               </div>
               <Button onClick={() => refetchSupervisors()} className="mt-4">
-                Refresh
+                {t('common:refresh')}
               </Button>
             </div>
           ) : (
@@ -415,12 +418,12 @@ const Index = () => {
                         {supervisorDelegates.length === 0 ? (
                           <div className="text-center py-8">
                             <Users className="h-8 w-8 text-gray-400 mx-auto mb-4" />
-                            <h4 className="text-md font-medium text-gray-900 mb-2">No Delegates Found</h4>
+                            <h4 className="text-md font-medium text-gray-900 mb-2">{t('dashboard:noDelegatesFound')}</h4>
                             <p className="text-gray-600">
-                              Supervisor {supervisor.first_name} {supervisor.last_name} doesn't have any delegates yet.
+                              {t('dashboard:supervisor')} {supervisor.first_name} {supervisor.last_name} {t('dashboard:noDelegatesFoundSupervisor')}
                             </p>
                             <Button onClick={() => refetchAllDelegates()} size="sm" className="mt-4">
-                              Refresh
+                              {t('common:refresh')}
                             </Button>
                           </div>
                         ) : (
@@ -431,7 +434,7 @@ const Index = () => {
                                 {supervisor.first_name} {supervisor.last_name}'s Team
                               </h3>
                               <p className="text-sm text-blue-700">
-                                {supervisorDelegates.length} delegate{supervisorDelegates.length !== 1 ? 's' : ''}
+                                {supervisorDelegates.length} {supervisorDelegates.length !== 1 ? t('dashboard:delegates') : t('dashboard:delegate')}
                               </p>
                             </div>
                             
@@ -493,24 +496,27 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('dashboard:dashboard')}</h1>
               {profile ? (
                 <p className="text-lg text-gray-600 mt-1">
-                  Bienvenue, {profile.first_name} {profile.last_name} ({profile.role})
+                  {t('common:welcome')}, {profile.first_name} {profile.last_name} ({profile.role})
                 </p>
               ) : (
                 <p className="text-lg text-gray-600 mt-1">
-                  Bienvenue! (Profile loading...)
+                  {t('common:welcome')}! (Profile loading...)
                 </p>
               )}
             </div>
-            <Button 
-              variant="outline" 
-              onClick={handleSignOut}
-              disabled={signOutLoading}
-            >
-              {signOutLoading ? 'Déconnexion...' : 'Déconnexion'}
-            </Button>
+            <div className="flex items-center space-x-4">
+              <LanguageSwitcher />
+              <Button 
+                variant="outline" 
+                onClick={handleSignOut}
+                disabled={signOutLoading}
+              >
+                {signOutLoading ? t('common:signingOut') : t('common:signOut')}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -529,20 +535,20 @@ const Index = () => {
                   <BarChart3 className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Indice de Retour</CardTitle>
+                  <CardTitle className="text-lg">{t('dashboard:returnIndex')}</CardTitle>
                   <CardDescription>
                     {profile?.role === 'Sales Director' 
-                      ? 'Analyser l\'efficacité des visites par superviseur'
+                      ? t('dashboard:returnIndexDescriptionSalesDirector')
                       : profile?.role === 'Supervisor'
-                      ? 'Analyser l\'efficacité des visites de vos délégués'
-                      : 'Analyser l\'efficacité des visites'
+                      ? t('dashboard:returnIndexDescriptionSupervisor')
+                      : t('dashboard:returnIndexDescription')
                     }
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour accéder à l'analyse</p>
+              <p className="text-gray-600">{t('common:clickToAccess')} l'analyse</p>
             </CardContent>
           </Card>
 
@@ -557,20 +563,20 @@ const Index = () => {
                   <Users className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Rythme de Recrutement</CardTitle>
+                  <CardTitle className="text-lg">{t('dashboard:recruitmentRhythm')}</CardTitle>
                   <CardDescription>
                     {profile?.role === 'Sales Director' 
-                      ? 'Analyser le recrutement par superviseur'
+                      ? t('dashboard:recruitmentRhythmDescriptionSalesDirector')
                       : profile?.role === 'Supervisor'
-                      ? 'Analyser le recrutement de vos délégués'
-                      : 'Analyser le recrutement par ventes'
+                      ? t('dashboard:recruitmentRhythmDescriptionSupervisor')
+                      : t('dashboard:recruitmentRhythmDescription')
                     }
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour accéder à l'analyse</p>
+              <p className="text-gray-600">{t('common:clickToAccess')} l'analyse</p>
             </CardContent>
           </Card>
 
@@ -586,15 +592,15 @@ const Index = () => {
                     <TrendingUp className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">KPIs d'Équipe</CardTitle>
+                    <CardTitle className="text-lg">{t('dashboard:teamKPIs')}</CardTitle>
                     <CardDescription>
-                      Tableau de bord des performances globales de votre équipe
+                      {t('dashboard:teamKPIsDescription')}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">Cliquez pour voir les indicateurs</p>
+                <p className="text-gray-600">{t('common:clickToView')} les indicateurs</p>
               </CardContent>
             </Card>
           )}
@@ -611,15 +617,15 @@ const Index = () => {
                     <Building className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">KPIs Directeur</CardTitle>
+                    <CardTitle className="text-lg">{t('dashboard:salesDirectorKPIs')}</CardTitle>
                     <CardDescription>
-                      Tableau de bord des performances agrégées de tous vos superviseurs et délégués
+                      {t('dashboard:salesDirectorKPIsDescription')}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">Cliquez pour voir les indicateurs consolidés</p>
+                <p className="text-gray-600">{t('common:clickToView')} les {t('dashboard:consolidatedIndicators')}</p>
               </CardContent>
             </Card>
           )}

@@ -1,0 +1,24 @@
+
+{
+  "welcome": "Welcome",
+  "loading": "Loading...",
+  "error": "Error",
+  "retry": "Retry",
+  "refresh": "Refresh",
+  "back": "Back",
+  "signOut": "Sign Out",
+  "signingOut": "Signing Out...",
+  "clickToAccess": "Click to access",
+  "clickToView": "Click to view",
+  "noDataFound": "No data found",
+  "active": "Active",
+  "totalTargets": "Total Targets",
+  "totalAchievements": "Total Achievements",
+  "yearToDate": "Year to date",
+  "overallPerformance": "Overall performance",
+  "teamSize": "Team Size",
+  "activePeriod": "Active Period",
+  "ytdMonths": "YTD Months",
+  "analysisReady": "Analysis Ready",
+  "teamMembers": "Team Members"
+}

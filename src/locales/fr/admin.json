@@ -1,0 +1,11 @@
+
+{
+  "adminDashboard": "Tableau de bord Admin",
+  "profilesManagement": "Gestion des profils",
+  "sectorsAndBricks": "Secteurs et briques",
+  "doctorsManagement": "Gestion des médecins",
+  "productsManagement": "Gestion des produits",
+  "salesManagement": "Gestion des ventes",
+  "visitsManagement": "Gestion des visites",
+  "reportsGeneration": "Génération de rapports"
+}

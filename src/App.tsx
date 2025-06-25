@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import CreateTestUsersPage from "./pages/CreateTestUsers";
+import './i18n';
 
 const queryClient = new QueryClient();
 

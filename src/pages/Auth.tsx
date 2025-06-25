@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const Auth = () => {
+  const { t } = useTranslation(['auth', 'common']);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -43,7 +46,7 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       console.log('Sign in successful from Auth page');
-      toast.success("Connexion réussie!");
+      toast.success(t('auth:signInSuccess'));
       
       // Fallback redirect - give AuthContext time to update, then force redirect
       setTimeout(() => {
@@ -66,7 +69,7 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       console.log('Sign up successful from Auth page');
-      toast.success("Inscription réussie!");
+      toast.success(t('auth:signUpSuccess'));
       
       // Fallback redirect for sign up as well
       setTimeout(() => {
@@ -86,24 +89,27 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <div className="mb-4 flex justify-center">
+          <LanguageSwitcher />
+        </div>
         <Card>
           <CardHeader>
-            <CardTitle>Authentification</CardTitle>
+            <CardTitle>{t('auth:authentication')}</CardTitle>
             <CardDescription>
-              Connectez-vous ou créez un compte
+              {t('auth:signInOrCreateAccount')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Connexion</TabsTrigger>
-                <TabsTrigger value="signup">Inscription</TabsTrigger>
+                <TabsTrigger value="signin">{t('auth:signIn')}</TabsTrigger>
+                <TabsTrigger value="signup">{t('auth:signUp')}</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email">{t('auth:email')}</Label>
                     <Input
                       id="signin-email"
                       type="email"
@@ -113,7 +119,7 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Mot de passe</Label>
+                    <Label htmlFor="signin-password">{t('auth:password')}</Label>
                     <Input
                       id="signin-password"
                       type="password"
@@ -123,16 +129,16 @@ const Auth = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Connexion...' : 'Se connecter'}
+                    {loading ? t('auth:signingIn') : t('auth:signIn')}
                   </Button>
                 </form>
                 <div className="mt-4">
                   <p className="text-sm text-blue-700">
-                    <strong>Admin :</strong> admin@admin.com / adminadmin <br />
-                    <strong>Utilisateur:</strong> medalia@protonmail.ch / dalidali <br />
-                    <strong>2 Sales Directors:</strong> director1@sales.com, director2@sales.com / 123456 <br />
-                    <strong>4 Supervisors:</strong> supervisor1@sup.com, ... , supervisor4@sup.com / 123456 <br />
-                    <strong>10 Delegates:</strong> delegate1@dlg.com, ..., delegate10@dlg.com / 123456
+                    <strong>{t('auth:admin')} :</strong> admin@admin.com / adminadmin <br />
+                    <strong>{t('auth:user')}:</strong> medalia@protonmail.ch / dalidali <br />
+                    <strong>2 {t('auth:salesDirectors')}:</strong> director1@sales.com, director2@sales.com / 123456 <br />
+                    <strong>4 {t('auth:supervisors')}:</strong> supervisor1@sup.com, ... , supervisor4@sup.com / 123456 <br />
+                    <strong>10 {t('auth:delegates')}:</strong> delegate1@dlg.com, ..., delegate10@dlg.com / 123456
                   </p>
                 </div>
               </TabsContent>
@@ -141,7 +147,7 @@ const Auth = () => {
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="first-name">Prénom</Label>
+                      <Label htmlFor="first-name">{t('auth:firstName')}</Label>
                       <Input
                         id="first-name"
                         value={firstName}
@@ -149,7 +155,7 @@ const Auth = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="last-name">Nom</Label>
+                      <Label htmlFor="last-name">{t('auth:lastName')}</Label>
                       <Input
                         id="last-name"
                         value={lastName}
@@ -158,7 +164,7 @@ const Auth = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email">{t('auth:email')}</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -168,7 +174,7 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <Label htmlFor="signup-password">{t('auth:password')}</Label>
                     <Input
                       id="signup-password"
                       type="password"
@@ -179,7 +185,7 @@ const Auth = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Inscription...' : "S'inscrire"}
+                    {loading ? t('auth:signingUp') : t('auth:signUp')}
                   </Button>
                 </form>
               </TabsContent>
