@@ -3,8 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import AdminDashboard from "@/components/AdminDashboard";
 import SupervisorDashboard from "@/components/SupervisorDashboard";
-import SalesDirectorKPIsDashboard from "@/components/SalesDirectorKPIsDashboard";
-import VisitReport from "@/components/VisitReport";
+import SalesDirectorDashboard from "@/components/SalesDirectorDashboard";
+import DelegateDashboard from "@/components/DelegateDashboard";
 import ProgressiveAuthLoader from "@/components/common/ProgressiveAuthLoader";
 
 const Index = () => {
@@ -54,12 +54,6 @@ const Index = () => {
       );
     }
 
-    // Dummy handler for components that need onBack prop
-    const handleBack = () => {
-      // This won't be used in the main index since these are root components
-      console.log('Back handler called');
-    };
-
     // Render role-based dashboard when profile is available
     switch (profile.role) {
       case 'Admin':
@@ -79,9 +73,9 @@ const Index = () => {
           />
         );
       case 'Sales Director':
-        return <SalesDirectorKPIsDashboard onBack={handleBack} />;
+        return <SalesDirectorDashboard />;
       case 'Delegate':
-        return <VisitReport onBack={handleBack} />;
+        return <DelegateDashboard />;
       default:
         return (
           <div className="min-h-screen bg-gray-50 flex items-center justify-center">
