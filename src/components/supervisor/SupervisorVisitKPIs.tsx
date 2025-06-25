@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -65,18 +64,13 @@ const SupervisorVisitKPIs: React.FC<SupervisorVisitKPIsProps> = ({
           const frequency = plan.visit_frequency;
           let monthlyVisits = 0;
           
+          // Map database enum values to visit frequencies
           switch (frequency) {
-            case 'Weekly':
-              monthlyVisits = 4;
+            case '1':
+              monthlyVisits = 1; // Monthly visits
               break;
-            case 'Bi-weekly':
-              monthlyVisits = 2;
-              break;
-            case 'Monthly':
-              monthlyVisits = 1;
-              break;
-            case 'Quarterly':
-              monthlyVisits = selectedMonth >= 3 ? 1 : 0;
+            case '2':
+              monthlyVisits = 2; // Bi-weekly visits (2 per month)
               break;
             default:
               monthlyVisits = 1;
