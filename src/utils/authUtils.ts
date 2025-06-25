@@ -1,89 +1,24 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/auth';
 
 export const fetchProfile = async (userId: string): Promise<Profile | null> => {
   try {
-    console.log('🔍 Starting profile fetch for user:', userId);
+    console.log('🔍 Fetching profile for user:', userId);
     
-    // First, let's check what session we have
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log('📋 Current session status:', !!sessionData.session, 'User:', sessionData.session?.user?.id);
-    
-    // Add more detailed logging for the actual query
-    console.log('🔎 About to execute profiles query with userId:', userId);
-    
-    // Let's try a simple count query first to test RLS
-    console.log('🧪 Testing RLS access with count query...');
-    const { data: countData, error: countError } = await supabase
-      .from('profiles')
-      .select('count(*)', { count: 'exact' });
-    
-    console.log('🧪 Count query result:', {
-      count: countData,
-      error: countError ? {
-        message: countError.message,
-        details: countError.details,
-        hint: countError.hint,
-        code: countError.code
-      } : null
-    });
-
-    // Now try the actual profile query
-    console.log('🔎 Executing main profile query...');
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
 
-    console.log('📊 Profile query completed:', {
-      hasData: !!data,
-      hasError: !!error,
-      errorDetails: error ? {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      } : null,
-      userData: data ? {
-        id: data.id,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        role: data.role
-      } : null
-    });
-
     if (error) {
-      console.error('❌ Profile fetch error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
+      console.error('❌ Profile fetch error:', error.message);
       return null;
     }
 
     if (!data) {
-      console.log('⚠️ No profile found for user:', userId, 'This might be normal for new users');
-      
-      // Let's check if there are any profiles in the table at all
-      console.log('🔍 Checking if profiles table has any data...');
-      const { data: allProfiles, error: allError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(5);
-      
-      console.log('📋 Profiles table check:', {
-        profileCount: allProfiles?.length || 0,
-        hasError: !!allError,
-        errorDetails: allError ? {
-          message: allError.message,
-          details: allError.details,
-          hint: allError.hint,
-          code: allError.code
-        } : null
-      });
-      
+      console.log('⚠️ No profile found for user:', userId);
       return null;
     }
 
