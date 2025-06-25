@@ -340,6 +340,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_current_user_supervisor: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_current_user_supervisor_of: {
         Args: { delegate_id: string }
         Returns: boolean
