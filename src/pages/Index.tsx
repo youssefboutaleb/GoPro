@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -474,6 +473,11 @@ const Index = () => {
     );
   }
 
+  // Handle view routing for Sales Director KPIs
+  if (currentView === 'sales-director-kpis' && profile?.role === 'Sales Director') {
+    return <SalesDirectorKPIsDashboard onBack={handleBackToDashboard} />;
+  }
+
   console.log('🖥️ Index page rendering main content for user:', user.id);
 
   // Admin Dashboard
@@ -513,7 +517,7 @@ const Index = () => {
 
       {/* Main Content with the cards */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className={`grid grid-cols-1 ${profile?.role === 'Supervisor' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6`}>
+        <div className={`grid grid-cols-1 ${(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6`}>
           {/* Indice de Retour Card */}
           <Card 
             className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
@@ -591,6 +595,31 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">Cliquez pour voir les indicateurs</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Sales Director KPIs Card - Only for Sales Directors */}
+          {profile?.role === 'Sales Director' && (
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+              onClick={() => handleCardClick('sales-director-kpis')}
+            >
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <Building className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">KPIs Directeur</CardTitle>
+                    <CardDescription>
+                      Tableau de bord des performances agrégées de tous vos superviseurs et délégués
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Cliquez pour voir les indicateurs consolidés</p>
               </CardContent>
             </Card>
           )}
