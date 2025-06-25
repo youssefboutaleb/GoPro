@@ -332,6 +332,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_profile: {
+        Args: { profile_id: string }
+        Returns: boolean
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
