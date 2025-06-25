@@ -8,6 +8,7 @@
   "back": "العودة",
   "signOut": "تسجيل الخروج",
   "signingOut": "جاري تسجيل الخروج...",
+  "signOutError": "خطأ أثناء تسجيل الخروج",
   "clickToAccess": "انقر للوصول",
   "clickToView": "انقر للعرض",
   "noDataFound": "لم يتم العثور على بيانات",
@@ -20,5 +21,6 @@
   "activePeriod": "الفترة النشطة",
   "ytdMonths": "أشهر السنة الحالية",
   "analysisReady": "التحليل جاهز",
-  "teamMembers": "أعضاء الفريق"
+  "teamMembers": "أعضاء الفريق",
+  "theAnalysis": "التحليل"
 }

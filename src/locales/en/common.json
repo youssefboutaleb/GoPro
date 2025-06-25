@@ -8,6 +8,7 @@
   "back": "Back",
   "signOut": "Sign Out",
   "signingOut": "Signing Out...",
+  "signOutError": "Error during sign out",
   "clickToAccess": "Click to access",
   "clickToView": "Click to view",
   "noDataFound": "No data found",
@@ -20,5 +21,6 @@
   "activePeriod": "Active Period",
   "ytdMonths": "YTD Months",
   "analysisReady": "Analysis Ready",
-  "teamMembers": "Team Members"
+  "teamMembers": "Team Members",
+  "theAnalysis": "the analysis"
 }

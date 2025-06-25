@@ -7,5 +7,18 @@
   "productsManagement": "Gestion des produits",
   "salesManagement": "Gestion des ventes",
   "visitsManagement": "Gestion des visites",
-  "reportsGeneration": "Génération de rapports"
+  "reportsGeneration": "Génération de rapports",
+  "manageUsers": "Gérer les utilisateurs et leurs rôles",
+  "clickToManageProfiles": "Cliquez pour gérer les profils",
+  "manageSectorsBricks": "Gérer les secteurs et briques",
+  "clickToManageSectorsBricks": "Cliquez pour gérer les secteurs et briques",
+  "manageDoctors": "Gérer les médecins",
+  "clickToManageDoctors": "Cliquez pour gérer les médecins",
+  "manageVisits": "Gérer les visites",
+  "clickToManageVisits": "Cliquez pour gérer les visites",
+  "manageProducts": "Gérer les produits",
+  "clickToManageProducts": "Cliquez pour gérer les produits",
+  "manageSales": "Gérer les ventes",
+  "clickToManageSales": "Cliquez pour gérer les ventes",
+  "administrator": "Administrateur"
 }

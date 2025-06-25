@@ -224,7 +224,7 @@ const Index = () => {
     
     if (error) {
       console.error('❌ Sign out failed with error:', error);
-      toast.error('Erreur lors de la déconnexion');
+      toast.error(t('common:signOutError'));
     } else {
       console.log('✅ Sign out completed successfully');
     }
@@ -548,7 +548,7 @@ const Index = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">{t('common:clickToAccess')} l'analyse</p>
+              <p className="text-gray-600">{t('common:clickToAccess')} {t('common:theAnalysis')}</p>
             </CardContent>
           </Card>
 
@@ -576,7 +576,7 @@ const Index = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">{t('common:clickToAccess')} l'analyse</p>
+              <p className="text-gray-600">{t('common:clickToAccess')} {t('common:theAnalysis')}</p>
             </CardContent>
           </Card>
 

@@ -7,5 +7,18 @@
   "productsManagement": "إدارة المنتجات",
   "salesManagement": "إدارة المبيعات",
   "visitsManagement": "إدارة الزيارات",
-  "reportsGeneration": "إنشاء التقارير"
+  "reportsGeneration": "إنشاء التقارير",
+  "manageUsers": "إدارة المستخدمين وأدوارهم",
+  "clickToManageProfiles": "انقر لإدارة الملفات الشخصية",
+  "manageSectorsBricks": "إدارة القطاعات والوحدات",
+  "clickToManageSectorsBricks": "انقر لإدارة القطاعات والوحدات",
+  "manageDoctors": "إدارة الأطباء",
+  "clickToManageDoctors": "انقر لإدارة الأطباء",
+  "manageVisits": "إدارة الزيارات",
+  "clickToManageVisits": "انقر لإدارة الزيارات",
+  "manageProducts": "إدارة المنتجات",
+  "clickToManageProducts": "انقر لإدارة المنتجات",
+  "manageSales": "إدارة المبيعات",
+  "clickToManageSales": "انقر لإدارة المبيعات",
+  "administrator": "مدير"
 }

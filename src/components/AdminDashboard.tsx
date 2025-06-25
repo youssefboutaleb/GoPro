@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Settings, Building, UserCheck, Calendar, Package, TrendingUp, Users, ArrowLeft } from 'lucide-react';
@@ -19,6 +20,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoading, profile }) => {
+  const { t } = useTranslation(['admin', 'common']);
   const [currentSection, setCurrentSection] = useState<string>('dashboard');
 
   const handleSectionClick = (section: string) => {
@@ -62,9 +64,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('admin:adminDashboard')}</h1>
               <p className="text-lg text-gray-600 mt-1">
-                Bienvenue, {profile.first_name} {profile.last_name} (Administrator)
+                {t('common:welcome')}, {profile.first_name} {profile.last_name} ({t('admin:administrator')})
               </p>
             </div>
             <Button 
@@ -72,7 +74,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
               onClick={onSignOut}
               disabled={signOutLoading}
             >
-              {signOutLoading ? 'Déconnexion...' : 'Déconnexion'}
+              {signOutLoading ? t('common:signingOut') : t('common:signOut')}
             </Button>
           </div>
         </div>
@@ -93,13 +95,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Profiles Management</CardTitle>
-                  <CardDescription>Gérer les utilisateurs et leurs rôles</CardDescription>
+                  <CardTitle className="text-lg">{t('admin:profilesManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageUsers')}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les profils</p>
+              <p className="text-gray-600">{t('admin:clickToManageProfiles')}</p>
             </CardContent>
           </Card>
 
@@ -114,13 +116,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                   <Building className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Sectors & Bricks</CardTitle>
-                  <CardDescription>Gérer les secteurs et briques</CardDescription>
+                  <CardTitle className="text-lg">{t('admin:sectorsAndBricks')}</CardTitle>
+                  <CardDescription>{t('admin:manageSectorsBricks')}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les secteurs et briques</p>
+              <p className="text-gray-600">{t('admin:clickToManageSectorsBricks')}</p>
             </CardContent>
           </Card>
 
@@ -135,13 +137,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                   <UserCheck className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Doctors Management</CardTitle>
-                  <CardDescription>Gérer les médecins</CardDescription>
+                  <CardTitle className="text-lg">{t('admin:doctorsManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageDoctors')}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les médecins</p>
+              <p className="text-gray-600">{t('admin:clickToManageDoctors')}</p>
             </CardContent>
           </Card>
 
@@ -156,13 +158,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                   <Calendar className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Visits Management</CardTitle>
-                  <CardDescription>Gérer les visites</CardDescription>
+                  <CardTitle className="text-lg">{t('admin:visitsManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageVisits')}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les visites</p>
+              <p className="text-gray-600">{t('admin:clickToManageVisits')}</p>
             </CardContent>
           </Card>
 
@@ -177,13 +179,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                   <Package className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Products Management</CardTitle>
-                  <CardDescription>Gérer les produits</CardDescription>
+                  <CardTitle className="text-lg">{t('admin:productsManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageProducts')}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les produits</p>
+              <p className="text-gray-600">{t('admin:clickToManageProducts')}</p>
             </CardContent>
           </Card>
 
@@ -198,13 +200,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                   <TrendingUp className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Sales Management</CardTitle>
-                  <CardDescription>Gérer les ventes</CardDescription>
+                  <CardTitle className="text-lg">{t('admin:salesManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageSales')}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Cliquez pour gérer les ventes</p>
+              <p className="text-gray-600">{t('admin:clickToManageSales')}</p>
             </CardContent>
           </Card>
 

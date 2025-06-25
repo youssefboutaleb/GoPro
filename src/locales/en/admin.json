@@ -7,5 +7,18 @@
   "productsManagement": "Products Management",
   "salesManagement": "Sales Management",
   "visitsManagement": "Visits Management",
-  "reportsGeneration": "Reports Generation"
+  "reportsGeneration": "Reports Generation",
+  "manageUsers": "Manage users and their roles",
+  "clickToManageProfiles": "Click to manage profiles",
+  "manageSectorsBricks": "Manage sectors and bricks",
+  "clickToManageSectorsBricks": "Click to manage sectors and bricks",
+  "manageDoctors": "Manage doctors",
+  "clickToManageDoctors": "Click to manage doctors",
+  "manageVisits": "Manage visits",
+  "clickToManageVisits": "Click to manage visits",
+  "manageProducts": "Manage products",
+  "clickToManageProducts": "Click to manage products",
+  "manageSales": "Manage sales",
+  "clickToManageSales": "Click to manage sales",
+  "administrator": "Administrator"
 }

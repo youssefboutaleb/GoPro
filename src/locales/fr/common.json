@@ -8,6 +8,7 @@
   "back": "Retour",
   "signOut": "Déconnexion",
   "signingOut": "Déconnexion...",
+  "signOutError": "Erreur lors de la déconnexion",
   "clickToAccess": "Cliquez pour accéder",
   "clickToView": "Cliquez pour voir",
   "noDataFound": "Aucune donnée trouvée",
@@ -20,5 +21,6 @@
   "activePeriod": "Période active",
   "ytdMonths": "Mois YTD",
   "analysisReady": "Analyse prête",
-  "teamMembers": "Membres de l'équipe"
+  "teamMembers": "Membres de l'équipe",
+  "theAnalysis": "l'analyse"
 }
