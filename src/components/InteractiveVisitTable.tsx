@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Circle, Calendar, Target, TrendingUp } from 'lucide-react';
+import { CheckCircle, Circle, Calendar, Target, TrendingUp, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,12 +12,14 @@ interface VisitPlanData {
   doctor_name: string;
   brick_name: string;
   visit_frequency: number;
-  planned_visits: number[];
-  actual_visits: number[];
+  monthly_visits: number[];
+  visits_today: number;
+  remaining_this_month: number;
+  total_visits: number;
+  expected_visits: number;
   return_index: number;
   row_color: 'red' | 'yellow' | 'green';
   can_record_today: boolean;
-  visits_today: number;
   monthly_target_met: boolean;
 }
 
@@ -40,6 +42,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const today = new Date().toISOString().split('T')[0];
+
+  // Month names for headers
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   // Fetch visit plans with doctors and bricks data
   const { data: visitPlansData = [], isLoading } = useQuery({
@@ -93,39 +98,36 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 
         if (!doctor) continue;
 
-        const monthlyPlannedVisits = visitPlan.visit_frequency === '1' ? 1 : 2;
-        const planned_visits = Array(12).fill(monthlyPlannedVisits);
-
+        const monthlyFrequency = visitPlan.visit_frequency === '1' ? 1 : 2;
+        
         // Calculate actual visits per month
-        const actual_visits = Array(12).fill(0);
+        const monthly_visits = Array(12).fill(0);
         const planVisits = visits?.filter(v => v.visit_plan_id === visitPlan.id) || [];
         
         planVisits.forEach(visit => {
           const visitDate = new Date(visit.visit_date);
           const monthIndex = visitDate.getMonth();
           if (monthIndex >= 0 && monthIndex < 12) {
-            actual_visits[monthIndex]++;
+            monthly_visits[monthIndex]++;
           }
         });
 
         // Calculate visits today
         const visitsToday = planVisits.filter(v => v.visit_date === today).length;
 
+        // Calculate remaining visits for current month
+        const currentMonthVisits = monthly_visits[currentMonth - 1] || 0;
+        const remainingThisMonth = Math.max(0, monthlyFrequency - currentMonthVisits);
+
+        // Calculate total visits and expected visits
+        const totalVisits = monthly_visits.reduce((sum, count) => sum + count, 0);
+        const expectedVisits = currentMonth * monthlyFrequency;
+
+        // Calculate return index
+        const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
+
         // Check if monthly target is met for current month
-        const currentMonthActual = actual_visits[currentMonth - 1] || 0;
-        const currentMonthPlanned = planned_visits[currentMonth - 1] || 0;
-        const monthlyTargetMet = currentMonthActual >= currentMonthPlanned;
-
-        // Calculate return index up to current month
-        let totalPlanned = 0;
-        let totalActual = 0;
-
-        for (let i = 0; i < currentMonth; i++) {
-          totalPlanned += planned_visits[i] || 0;
-          totalActual += actual_visits[i] || 0;
-        }
-
-        const returnIndex = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
+        const monthlyTargetMet = currentMonthVisits >= monthlyFrequency;
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
         if (returnIndex >= 80) {
@@ -135,19 +137,21 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         }
 
         // Can record if haven't exceeded monthly limit and haven't recorded today
-        const canRecordToday = currentMonthActual < currentMonthPlanned && visitsToday === 0;
+        const canRecordToday = currentMonthVisits < monthlyFrequency && visitsToday === 0;
 
         processed.push({
           id: visitPlan.id,
           doctor_name: `${doctor.first_name} ${doctor.last_name}`,
           brick_name: brick?.name || 'Unknown Brick',
-          visit_frequency: monthlyPlannedVisits,
-          planned_visits,
-          actual_visits,
+          visit_frequency: monthlyFrequency,
+          monthly_visits,
+          visits_today: visitsToday,
+          remaining_this_month: remainingThisMonth,
+          total_visits: totalVisits,
+          expected_visits: expectedVisits,
           return_index: returnIndex,
           row_color: rowColor,
           can_record_today: canRecordToday,
-          visits_today: visitsToday,
           monthly_target_met: monthlyTargetMet
         });
       }
@@ -230,9 +234,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   };
 
   // Calculate summary stats
-  const totalPlans = visitPlansData.length;
-  const completedToday = visitPlansData.filter(p => p.visits_today > 0).length;
-  const monthlyTargetsMet = visitPlansData.filter(p => p.monthly_target_met).length;
+  const totalVisitPlans = visitPlansData.length;
+  const totalVisits = visitPlansData.reduce((sum, plan) => sum + plan.total_visits, 0);
+  const averageReturnIndex = totalVisitPlans > 0 
+    ? Math.round(visitPlansData.reduce((sum, plan) => sum + plan.return_index, 0) / totalVisitPlans)
+    : 0;
 
   if (isLoading) {
     return (
@@ -249,32 +255,32 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     <div className="space-y-6">
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-white border border-gray-200">
           <CardContent className="p-4 text-center">
-            <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-blue-900">{completedToday}</div>
-            <div className="text-sm text-blue-700">Visits Today</div>
+            <User className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{totalVisitPlans}</div>
+            <div className="text-sm text-gray-600">Total Visit Plans</div>
           </CardContent>
         </Card>
         
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-white border border-gray-200">
           <CardContent className="p-4 text-center">
-            <Target className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-green-900">{monthlyTargetsMet}</div>
-            <div className="text-sm text-green-700">Monthly Targets Met</div>
+            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{totalVisits}</div>
+            <div className="text-sm text-gray-600">Total Visits</div>
           </CardContent>
         </Card>
         
-        <Card className="bg-purple-50 border-purple-200">
+        <Card className="bg-white border border-gray-200">
           <CardContent className="p-4 text-center">
-            <TrendingUp className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-purple-900">{totalPlans}</div>
-            <div className="text-sm text-purple-700">Total Visit Plans</div>
+            <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900">{averageReturnIndex}%</div>
+            <div className="text-sm text-gray-600">Average Return Index</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Interactive Visit Table */}
+      {/* Visit Plans Analysis Table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Visit Plans Analysis</CardTitle>
@@ -282,14 +288,22 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Doctor</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Progress</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-700">Action</th>
+                  <th className="text-left py-3 px-3 font-medium text-gray-700">Doctor</th>
+                  <th className="text-left py-3 px-3 font-medium text-gray-700">Brick</th>
+                  <th className="text-center py-3 px-2 font-medium text-gray-700">Freq</th>
+                  {/* Monthly columns up to current month */}
+                  {monthNames.slice(0, currentMonth).map((month, index) => (
+                    <th key={month} className="text-center py-3 px-2 font-medium text-gray-700 min-w-[40px]">
+                      {month}
+                    </th>
+                  ))}
+                  <th className="text-center py-3 px-3 font-medium text-gray-700">Remaining</th>
+                  <th className="text-center py-3 px-3 font-medium text-gray-700">Total</th>
+                  <th className="text-center py-3 px-3 font-medium text-gray-700">Expected</th>
+                  <th className="text-center py-3 px-3 font-medium text-gray-700">Return Index</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,49 +316,43 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                     onTouchStart={(e) => handleTouchStart(e, plan.id)}
                     onTouchEnd={(e) => handleTouchEnd(e, plan)}
                   >
-                    <td className="py-4 px-4 font-medium">
-                      {plan.doctor_name}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-600">
-                      {plan.brick_name}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex justify-center space-x-2">
-                        {plan.visits_today > 0 ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-400" />
+                    <td className="py-3 px-3">
+                      <div className="flex items-center space-x-2">
+                        {plan.visits_today > 0 && (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
                         )}
                         {plan.monthly_target_met && (
                           <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                         )}
+                        <span className="font-medium text-gray-900">{plan.doctor_name}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="text-sm">
-                        <div className="font-medium">
-                          {plan.actual_visits[currentMonth - 1] || 0} / {plan.planned_visits[currentMonth - 1] || 0}
-                        </div>
-                        <div className="text-xs text-gray-500">This month</div>
-                      </div>
+                    <td className="py-3 px-3 text-gray-600">{plan.brick_name}</td>
+                    <td className="py-3 px-2 text-center text-gray-700">
+                      {plan.visit_frequency}x/month
                     </td>
-                    <td className="py-4 px-4 text-center">
-                      {recordingVisit === plan.id ? (
-                        <div className="flex justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        </div>
-                      ) : plan.can_record_today ? (
-                        <button
-                          onClick={() => handleRecordVisit(plan.id)}
-                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-                        >
-                          Record Visit
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-400">
-                          {plan.visits_today > 0 ? 'Visited Today' : 'Target Met'}
-                        </span>
-                      )}
+                    {/* Monthly visit counts */}
+                    {plan.monthly_visits.slice(0, currentMonth).map((count, index) => (
+                      <td key={index} className="py-3 px-2 text-center text-gray-700">
+                        {count || '-'}
+                      </td>
+                    ))}
+                    <td className="py-3 px-3 text-center text-gray-700">
+                      {plan.remaining_this_month}
+                    </td>
+                    <td className="py-3 px-3 text-center font-medium text-gray-900">
+                      {plan.total_visits}
+                    </td>
+                    <td className="py-3 px-3 text-center text-gray-700">
+                      {plan.expected_visits}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span className={`font-medium ${
+                        plan.return_index >= 80 ? 'text-green-600' :
+                        plan.return_index >= 50 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {plan.return_index}%
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -381,7 +389,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            💡 Tip: Swipe right on any row to quickly record a visit, or tap the "Record Visit" button
+            💡 Tip: Swipe right on any row to quickly record a visit
           </p>
         </CardContent>
       </Card>
