@@ -322,7 +322,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                     {supervisorName 
                       ? `Return index analysis for ${supervisorName} team`
                       : profile?.role === 'Supervisor'
-                      ? `Return index analysis for your supervised delegates`
+                      ? 'Return index analysis for your supervised delegates'
                       : 'Return index analysis and visit effectiveness'
                     }
                   </p>
@@ -436,11 +436,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                <span>Yellow: 50% ≤ Return Index < 80%</span>
+                <span>Yellow: 50% ≤ Return Index &lt; 80%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                <span>Red: Return Index < 50%</span>
+                <span>Red: Return Index &lt; 50%</span>
               </div>
             </div>
           </CardContent>
