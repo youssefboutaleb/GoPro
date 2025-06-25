@@ -37,6 +37,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   const [swipingRowId, setSwipingRowId] = useState<string | null>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [recordingVisit, setRecordingVisit] = useState<string | null>(null);
+  const [swipeProgress, setSwipeProgress] = useState<{ [key: string]: number }>({});
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
@@ -234,11 +235,26 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     }
   });
 
-  // Touch event handlers for swipe
+  // Touch event handlers for swipe with enhanced feedback
   const handleTouchStart = (e: React.TouchEvent, rowId: string) => {
     const touch = e.touches[0];
     setTouchStart({ x: touch.clientX, y: touch.clientY });
     setSwipingRowId(rowId);
+    setSwipeProgress({ ...swipeProgress, [rowId]: 0 });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, rowId: string) => {
+    if (!touchStart || swipingRowId !== rowId) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = Math.abs(touch.clientY - touchStart.y);
+
+    // Calculate swipe progress (0-100)
+    if (deltaX > 0 && deltaY < 30) {
+      const progress = Math.min(Math.max((deltaX / 100) * 100, 0), 100);
+      setSwipeProgress({ ...swipeProgress, [rowId]: progress });
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent, visitPlan: VisitPlanData) => {
@@ -268,6 +284,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 
     setTouchStart(null);
     setSwipingRowId(null);
+    setSwipeProgress({ ...swipeProgress, [visitPlan.id]: 0 });
   };
 
   const handleRecordVisit = async (visitPlanId: string) => {
@@ -373,7 +390,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                 {visitPlansData.map((plan) => (
                   <tr 
                     key={plan.id} 
-                    className={`${getRowColorClass(plan.row_color)} ${
+                    className={`relative ${getRowColorClass(plan.row_color)} ${
                       plan.can_record_today ? 'cursor-pointer hover:opacity-80' : 'opacity-60'
                     } transition-all duration-200 ${
                       recordingVisit === plan.id ? 'bg-blue-100' : ''
@@ -381,15 +398,30 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                       swipingRowId === plan.id ? 'transform scale-[0.99]' : ''
                     }`}
                     onTouchStart={(e) => handleTouchStart(e, plan.id)}
+                    onTouchMove={(e) => handleTouchMove(e, plan.id)}
                     onTouchEnd={(e) => handleTouchEnd(e, plan)}
                   >
+                    {/* Swipe feedback overlay */}
+                    {swipeProgress[plan.id] > 0 && plan.can_record_today && (
+                      <div 
+                        className="absolute inset-0 bg-green-100 flex items-center justify-center text-green-700 font-medium z-10 transition-opacity duration-200"
+                        style={{ 
+                          opacity: Math.min(swipeProgress[plan.id] / 100, 0.9),
+                          transform: `translateX(${Math.max(0, swipeProgress[plan.id] - 50)}px)`
+                        }}
+                      >
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        Record Visit
+                      </div>
+                    )}
+                    
                     <td className="py-3 px-3">
                       <div className="flex items-center space-x-2">
                         {plan.visits_today > 0 && (
                           <CheckCircle className="h-4 w-4 text-green-600" />
                         )}
                         {plan.monthly_target_met && (
-                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                          <CheckCircle className="h-4 w-4 text-blue-600" />
                         )}
                         <span className="font-medium text-gray-900">{plan.doctor_name}</span>
                       </div>
@@ -439,8 +471,8 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               <span>Green checkmark: Visit recorded today</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span>Blue dot: Monthly frequency target met</span>
+              <CheckCircle className="h-4 w-4 text-blue-600" />
+              <span>Blue checkmark: Monthly frequency target met</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-1 bg-green-500"></div>

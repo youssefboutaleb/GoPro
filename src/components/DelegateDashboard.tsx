@@ -7,13 +7,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import InteractiveVisitTable from './InteractiveVisitTable';
+import VisitPlansManagement from './VisitPlansManagement';
 
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
   const [recordingVisit, setRecordingVisit] = useState(false);
-  const [showFullReturnIndex, setShowFullReturnIndex] = useState(false);
+  const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -119,6 +119,11 @@ const DelegateDashboard: React.FC = () => {
     }
   };
 
+  // Show Visit Plans Management interface
+  if (showVisitPlansManagement) {
+    return <VisitPlansManagement onBack={() => setShowVisitPlansManagement(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -181,170 +186,146 @@ const DelegateDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Return Index Full Interface or KPI Cards Row */}
-        {showFullReturnIndex ? (
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
+        {/* KPI Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Return Index Card */}
+          <Card 
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats ? getPerformanceColor(dashboardStats.returnIndex, 'return') : 'border-gray-200'
+            }`}
+            onClick={() => setShowVisitPlansManagement(true)}
+          >
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">Visit Plans Management</CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowFullReturnIndex(false)}
-                >
-                  Show Summary
-                </Button>
+                <div className="p-2 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
               </div>
             </CardHeader>
             <CardContent>
-              <InteractiveVisitTable delegateIds={profile?.id ? [profile.id] : []} />
+              <CardTitle className="text-lg mb-2">Return Index</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : `${dashboardStats?.returnIndex || 0}%`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Visit effectiveness this month
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.thisMonthVisits || 0} visits completed`}
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to manage visits →
+              </div>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Return Index Card */}
-            <Card 
-              className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
-                dashboardStats ? getPerformanceColor(dashboardStats.returnIndex, 'return') : 'border-gray-200'
-              }`}
-              onClick={() => setShowFullReturnIndex(true)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="p-2 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg">
-                    <BarChart3 className="h-6 w-6 text-white" />
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-lg mb-2">Return Index</CardTitle>
-                <div className="text-3xl font-bold mb-2">
-                  {statsLoading ? '...' : `${dashboardStats?.returnIndex || 0}%`}
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Visit effectiveness this month
-                </p>
-                <div className="mt-3 text-xs text-gray-500">
-                  {statsLoading ? 'Loading...' : `${dashboardStats?.thisMonthVisits || 0} visits completed`}
-                </div>
-                <div className="mt-2 text-xs text-blue-600 font-medium">
-                  Click to manage visits →
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Recruitment Rate Card */}
-            <Card 
-              className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
-                dashboardStats ? getPerformanceColor(dashboardStats.recruitmentRate, 'recruitment') : 'border-gray-200'
-              }`}
-              onClick={handleNavigateToRecruitmentRate}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-white" />
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+          {/* Recruitment Rate Card */}
+          <Card 
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats ? getPerformanceColor(dashboardStats.recruitmentRate, 'recruitment') : 'border-gray-200'
+            }`}
+            onClick={handleNavigateToRecruitmentRate}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-lg mb-2">Recruitment Rate</CardTitle>
-                <div className="text-3xl font-bold mb-2">
-                  {statsLoading ? '...' : `${dashboardStats?.recruitmentRate || 0}%`}
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Sales plan achievement rate
-                </p>
-                <div className="mt-3 text-xs text-gray-500">
-                  {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Recruitment Rate</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : `${dashboardStats?.recruitmentRate || 0}%`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Sales plan achievement rate
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Quick Actions */}
-        {!showFullReturnIndex && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card 
-              className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
-              onClick={handleNavigateToVisitReport}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
-                    <FileText className="h-6 w-6 text-white" />
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card 
+            className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={handleNavigateToVisitReport}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
+                  <FileText className="h-6 w-6 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-lg mb-2">Visit Reports</CardTitle>
-                <p className="text-gray-600 text-sm">
-                  View your visit history and detailed reports
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="pb-3">
-                <div className="p-2 bg-gradient-to-r from-green-600 to-green-700 rounded-lg">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-lg mb-2">Schedule</CardTitle>
-                <p className="text-gray-600 text-sm">
-                  Coming soon - Manage your visit schedule
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="pb-3">
-                <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
-                  <Target className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-lg mb-2">Targets</CardTitle>
-                <div className="text-sm text-gray-500 mb-2">
-                  {statsLoading ? 'Loading...' : `${dashboardStats?.visitPlansCount || 0} visit plans`}
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Track your monthly and yearly goals
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Performance Legend - only show when not in full view */}
-        {!showFullReturnIndex && (
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-sm">Performance Indicators</CardTitle>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
-                  <span>Excellent Performance (≥80%)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-yellow-50 border-2 border-yellow-200 rounded"></div>
-                  <span>Good Performance (50-79%)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
-                  <span>Needs Improvement (&lt;50%)</span>
-                </div>
-              </div>
+              <CardTitle className="text-lg mb-2">Visit Reports</CardTitle>
+              <p className="text-gray-600 text-sm">
+                View your visit history and detailed reports
+              </p>
             </CardContent>
           </Card>
-        )}
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="p-2 bg-gradient-to-r from-green-600 to-green-700 rounded-lg">
+                <Calendar className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Schedule</CardTitle>
+              <p className="text-gray-600 text-sm">
+                Coming soon - Manage your visit schedule
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                <Target className="h-6 w-6 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Targets</CardTitle>
+              <div className="text-sm text-gray-500 mb-2">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.visitPlansCount || 0} visit plans`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Track your monthly and yearly goals
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Performance Legend */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-sm">Performance Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
+                <span>Excellent Performance (≥80%)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-50 border-2 border-yellow-200 rounded"></div>
+                <span>Good Performance (50-79%)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
+                <span>Needs Improvement (&lt;50%)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
