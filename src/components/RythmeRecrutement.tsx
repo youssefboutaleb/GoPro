@@ -331,9 +331,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement</h1>
                   <p className="text-sm text-gray-600">
                     {supervisorName 
-                      ? `Sales plans analysis for ${supervisorName}'s team`
+                      ? `Sales plans analysis for ${supervisorName}`
                       : profile?.role === 'Supervisor'
-                      ? `Sales plans analysis for your supervised delegates`
+                      ? 'Sales plans analysis for your supervised delegates'
                       : 'Sales plans analysis and recruitment rhythm'
                     }
                   </p>
@@ -373,7 +373,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                 <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
                 <p className="text-gray-600">
-                  {profile?.role === 'Supervisor' 
+                  {supervisorName 
+                    ? `No sales plans found for ${supervisorName}.`
+                    : profile?.role === 'Supervisor' 
                     ? 'No sales plans found for your supervised delegates.'
                     : 'No sales plans found for your profile.'
                   }

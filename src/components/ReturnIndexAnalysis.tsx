@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -320,7 +319,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                   <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                   <p className="text-sm text-gray-600">
                     {supervisorName 
-                      ? `Return index analysis for ${supervisorName} team`
+                      ? `Return index analysis for ${supervisorName}`
                       : profile?.role === 'Supervisor'
                       ? 'Return index analysis for your supervised delegates'
                       : 'Return index analysis and visit effectiveness'
@@ -362,7 +361,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                 <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
                 <p className="text-gray-600">
-                  {profile?.role === 'Supervisor' 
+                  {supervisorName 
+                    ? `No sales plans found for ${supervisorName}.`
+                    : profile?.role === 'Supervisor' 
                     ? 'No sales plans found for your supervised delegates.'
                     : 'No sales plans found for your profile.'
                   }

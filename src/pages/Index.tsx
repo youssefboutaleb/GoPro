@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Users, Settings, Building, UserCheck, Calendar, Package, TrendingUp } from 'lucide-react';
+import { BarChart3, Users, Settings, Building, UserCheck, Calendar, Package, TrendingUp, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -137,27 +137,19 @@ const Index = () => {
     return null;
   }
 
-  // Handle view routing for Delegate and Supervisor roles
-  if (currentView === 'recruitment' && (profile?.role === 'Delegate' || profile?.role === 'Supervisor')) {
-    const delegateIds = profile.role === 'Delegate' 
-      ? [user.id] 
-      : supervisedDelegates.map(d => d.id);
-    
-    return <RythmeRecrutement onBack={handleBackToDashboard} delegateIds={delegateIds} />;
+  // Handle view routing for Delegate role
+  if (currentView === 'recruitment' && profile?.role === 'Delegate') {
+    return <RythmeRecrutement onBack={handleBackToDashboard} delegateIds={[user.id]} />;
   }
 
-  if (currentView === 'return-index' && (profile?.role === 'Delegate' || profile?.role === 'Supervisor')) {
-    const delegateIds = profile.role === 'Delegate' 
-      ? [user.id] 
-      : supervisedDelegates.map(d => d.id);
-    
-    return <ReturnIndexAnalysis onBack={handleBackToDashboard} delegateIds={delegateIds} />;
+  if (currentView === 'return-index' && profile?.role === 'Delegate') {
+    return <ReturnIndexAnalysis onBack={handleBackToDashboard} delegateIds={[user.id]} />;
   }
 
-  // Handle view routing for Sales Director role with tabs
-  if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Sales Director') {
+  // Handle view routing for Supervisor role with individual delegate tabs
+  if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Supervisor') {
     const Component = currentView === 'recruitment' ? RythmeRecrutement : ReturnIndexAnalysis;
-    const delegateIds = selectedSupervisor ? delegatesUnderSupervisor.map(d => d.id) : [];
+    const title = currentView === 'recruitment' ? 'Rythme de Recrutement' : 'Indice de Retour';
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -166,7 +158,59 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" onClick={handleBackToDashboard} className="p-2 hover:bg-blue-50">
-                  ← Back to Dashboard
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          {supervisedDelegates.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Delegates Found</h3>
+              <p className="text-gray-600">You don't have any supervised delegates yet.</p>
+            </div>
+          ) : (
+            <Tabs defaultValue={supervisedDelegates[0]?.id} className="w-full">
+              <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-6">
+                {supervisedDelegates.map((delegate) => (
+                  <TabsTrigger key={delegate.id} value={delegate.id}>
+                    {delegate.first_name} {delegate.last_name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              
+              {supervisedDelegates.map((delegate) => (
+                <TabsContent key={delegate.id} value={delegate.id}>
+                  <Component 
+                    onBack={handleBackToDashboard} 
+                    delegateIds={[delegate.id]}
+                    supervisorName={`${delegate.first_name} ${delegate.last_name}`}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Handle view routing for Sales Director role with tabs
+  if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Sales Director') {
+    const Component = currentView === 'recruitment' ? RythmeRecrutement : ReturnIndexAnalysis;
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="bg-white shadow-lg border-b border-blue-100">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button variant="ghost" onClick={handleBackToDashboard} className="p-2 hover:bg-blue-50">
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {currentView === 'recruitment' ? 'Rythme de Recrutement' : 'Indice de Retour'}
@@ -191,7 +235,7 @@ const Index = () => {
                 {selectedSupervisor === supervisor.id && (
                   <Component 
                     onBack={handleBackToDashboard} 
-                    delegateIds={delegateIds}
+                    delegateIds={delegatesUnderSupervisor.map(d => d.id)}
                     supervisorName={`${supervisor.first_name} ${supervisor.last_name}`}
                   />
                 )}
@@ -259,7 +303,7 @@ const Index = () => {
                     {profile?.role === 'Sales Director' 
                       ? 'Analyser l\'efficacité des visites par superviseur'
                       : profile?.role === 'Supervisor'
-                      ? 'Analyser l\'efficacité des visites de votre équipe'
+                      ? 'Analyser l\'efficacité des visites de vos délégués'
                       : 'Analyser l\'efficacité des visites'
                     }
                   </CardDescription>
@@ -287,7 +331,7 @@ const Index = () => {
                     {profile?.role === 'Sales Director' 
                       ? 'Analyser le recrutement par superviseur'
                       : profile?.role === 'Supervisor'
-                      ? 'Analyser le recrutement de votre équipe'
+                      ? 'Analyser le recrutement de vos délégués'
                       : 'Analyser le recrutement par ventes'
                     }
                   </CardDescription>
