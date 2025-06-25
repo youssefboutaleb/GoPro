@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,7 +65,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
             id, 
             delegate_id, 
             visit_frequency,
-            doctors!visit_plans_doctor_id_fkey (
+            doctors (
               id,
               first_name,
               last_name,
