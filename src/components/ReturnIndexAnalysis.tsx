@@ -1,12 +1,12 @@
-import React, { useState, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, TrendingUp, Users, Target, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, BarChart3, Calendar, TrendingUp, Target } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
 
 interface ReturnIndexAnalysisProps {
   onBack: () => void;
@@ -14,25 +14,14 @@ interface ReturnIndexAnalysisProps {
   supervisorName?: string;
 }
 
-interface VisitPlanData {
+interface AnalysisData {
   id: string;
-  doctor_name: string;
-  visit_frequency: number;
-  remaining_visits_this_month: number;
-  monthly_visits: number[];
-  total_visits: number;
-  expected_visits: number;
+  product_name: string;
+  brick_name: string;
+  targets: number[];
+  achievements: number[];
   return_index: number;
   row_color: 'red' | 'yellow' | 'green';
-  has_visit_today: boolean;
-  is_frequency_met: boolean;
-}
-
-interface SwipeState {
-  isActive: boolean;
-  startX: number;
-  currentX: number;
-  planId: string | null;
 }
 
 const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({ 
@@ -40,37 +29,28 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
   delegateIds = [], 
   supervisorName 
 }) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [swipeState, setSwipeState] = useState<SwipeState>({
-    isActive: false,
-    startX: 0,
-    currentX: 0,
-    planId: null
-  });
+  const { user, profile } = useAuth();
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
 
+  console.log('ReturnIndexAnalysis - User profile:', profile);
+  console.log('ReturnIndexAnalysis - Effective delegate IDs:', effectiveDelegateIds);
+
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const monthsElapsed = currentMonth;
 
-  console.log('=== DATE DEBUG ===');
-  console.log('Current Year:', currentYear);
-  console.log('Current Month (1-12):', currentMonth);
-  console.log('Current Month Index (0-11):', currentMonth - 1);
-  console.log('Effective Delegate IDs:', effectiveDelegateIds);
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // Generate month names for table headers
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch visit plans for multiple delegates
-  const { data: visitPlans = [], isLoading: visitPlansLoading, error: visitPlansError } = useQuery({
-    queryKey: ['visit-plans', effectiveDelegateIds.join(',')],
+  // Fetch sales plans for multiple delegates
+  const { data: salesPlans = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
+    queryKey: ['return-index-sales-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
-      console.log('Fetching visit plans for delegates:', effectiveDelegateIds);
+      console.log('Fetching sales plans for return index analysis:', effectiveDelegateIds);
+      console.log('Current user profile role:', profile?.role);
       
       if (effectiveDelegateIds.length === 0) {
         console.log('No delegate IDs provided');
@@ -79,19 +59,26 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
 
       try {
         const { data, error } = await supabase
-          .from('visit_plans')
-          .select('id, doctor_id, delegate_id, visit_frequency')
+          .from('sales_plans')
+          .select('id, product_id, brick_id, delegate_id')
           .in('delegate_id', effectiveDelegateIds);
 
         if (error) {
-          console.error('Visit plans query error:', error);
+          console.error('Sales plans query error for return index:', error);
+          console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+          });
           throw error;
         }
 
-        console.log('Visit plans fetched:', data?.length || 0);
+        console.log('Sales plans fetched successfully for return index:', data?.length || 0, 'items');
+        console.log('Sales plans data:', data);
         return data || [];
       } catch (error) {
-        console.error('Error in visit plans query:', error);
+        console.error('Error in sales plans query for return index:', error);
         throw error;
       }
     },
@@ -100,26 +87,26 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch doctors separately
-  const { data: doctors = [], isLoading: doctorsLoading } = useQuery({
-    queryKey: ['doctors'],
+  // Fetch products separately
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['products'],
     queryFn: async () => {
-      console.log('Fetching doctors');
+      console.log('Fetching products');
       
       try {
         const { data, error } = await supabase
-          .from('doctors')
-          .select('id, first_name, last_name, specialty');
+          .from('products')
+          .select('id, name');
 
         if (error) {
-          console.error('Doctors query error:', error);
+          console.error('Products query error:', error);
           throw error;
         }
 
-        console.log('Doctors fetched:', data?.length || 0);
+        console.log('Products fetched:', data?.length || 0);
         return data || [];
       } catch (error) {
-        console.error('Error in doctors query:', error);
+        console.error('Error in products query:', error);
         throw error;
       }
     },
@@ -127,333 +114,133 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
     staleTime: 10 * 60 * 1000,
   });
 
-  // Fetch visits separately
-  const { data: visits = [], isLoading: visitsLoading } = useQuery({
-    queryKey: ['visits-data', visitPlans.map(p => p.id), currentYear],
+  // Fetch bricks separately
+  const { data: bricks = [], isLoading: bricksLoading } = useQuery({
+    queryKey: ['bricks'],
     queryFn: async () => {
-      console.log('Fetching visits data for plans:', visitPlans.length);
+      console.log('Fetching bricks');
       
-      if (visitPlans.length === 0) {
-        console.log('No visit plans to fetch visits for');
+      try {
+        const { data, error } = await supabase
+          .from('bricks')
+          .select('id, name');
+
+        if (error) {
+          console.error('Bricks query error:', error);
+          throw error;
+        }
+
+        console.log('Bricks fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('Error in bricks query:', error);
+        throw error;
+      }
+    },
+    retry: 2,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch sales data separately
+  const { data: salesData = [], isLoading: salesLoading } = useQuery({
+    queryKey: ['sales-data', salesPlans.map(p => p.id), currentYear],
+    queryFn: async () => {
+      console.log('Fetching sales data for plans:', salesPlans.length);
+      
+      if (salesPlans.length === 0) {
+        console.log('No sales plans to fetch data for');
         return [];
       }
 
       try {
-        const visitPlanIds = visitPlans.map(plan => plan.id);
+        const salesPlanIds = salesPlans.map(plan => plan.id);
         
         const { data, error } = await supabase
-          .from('visits')
-          .select('id, visit_plan_id, visit_date')
-          .in('visit_plan_id', visitPlanIds)
-          .gte('visit_date', `${currentYear}-01-01`);
+          .from('sales')
+          .select('id, sales_plan_id, targets, achievements, year')
+          .in('sales_plan_id', salesPlanIds)
+          .eq('year', currentYear);
 
         if (error) {
-          console.error('Visits query error:', error);
+          console.error('Sales data query error:', error);
           throw error;
         }
 
-        console.log('Visits fetched:', data?.length || 0);
+        console.log('Sales data fetched:', data?.length || 0);
         return data || [];
       } catch (error) {
-        console.error('Error in visits query:', error);
+        console.error('Error in sales data query:', error);
         throw error;
       }
     },
-    enabled: visitPlans.length > 0,
+    enabled: salesPlans.length > 0,
     retry: 2,
     staleTime: 5 * 60 * 1000,
   });
 
   // Process data when all queries are complete
   const { data: processedData = [], isLoading: isProcessing } = useQuery({
-    queryKey: ['processed-visit-data', visitPlans, doctors, visits],
+    queryKey: ['processed-sales-data', salesPlans, products, bricks, salesData, selectedMonth],
     queryFn: async () => {
-      console.log('Processing visit data...');
+      console.log('Processing sales data...');
       
-      if (!visitPlans.length || !doctors.length) {
+      if (!salesPlans.length || !products.length || !bricks.length) {
         console.log('Missing required data for processing');
         return [];
       }
 
-      const processed: VisitPlanData[] = [];
-      const today = new Date().toISOString().split('T')[0];
+      const processed: AnalysisData[] = [];
 
-      for (const visitPlan of visitPlans) {
-        const doctor = doctors.find(d => d.id === visitPlan.doctor_id);
-        
-        if (!doctor) {
-          console.log('Missing doctor data for plan:', visitPlan.id);
+      for (const salesPlan of salesPlans) {
+        const product = products.find(p => p.id === salesPlan.product_id);
+        const brick = bricks.find(b => b.id === salesPlan.brick_id);
+        const sales = salesData.find(s => s.sales_plan_id === salesPlan.id);
+
+        if (!product || !brick) {
+          console.log('Missing product or brick data for plan:', salesPlan.id);
           continue;
         }
 
-        const planVisits = visits.filter(visit => visit.visit_plan_id === visitPlan.id);
-        
-        console.log(`=== PROCESSING ${doctor.first_name} ${doctor.last_name} ===`);
-        console.log('Plan visits:', planVisits);
+        const targets = sales?.targets || [];
+        const achievements = sales?.achievements || [];
 
-        const monthlyVisits = new Array(currentMonth).fill(0);
-        let hasVisitToday = false;
-        
-        planVisits.forEach(visit => {
-          const visitDate = new Date(visit.visit_date);
-          const visitMonth = visitDate.getMonth();
-          const visitYear = visitDate.getFullYear();
-          
-          console.log(`Visit for ${doctor.first_name} ${doctor.last_name}: ${visit.visit_date}`);
-          console.log(`Visit month (0-11): ${visitMonth}, Visit year: ${visitYear}`);
-          console.log(`Current month (0-11): ${currentMonth - 1}, Current year: ${currentYear}`);
-          
-          // FIXED: Include visits up to and including the current month for display
-          if (visitMonth <= (currentMonth - 1) && visitYear === currentYear) {
-            monthlyVisits[visitMonth]++;
-            console.log(`Added visit to month ${visitMonth}, new count: ${monthlyVisits[visitMonth]}`);
-          }
-          
-          // Check if there's a visit today
-          if (visit.visit_date === today) {
-            hasVisitToday = true;
-          }
-        });
+        let totalTargets = 0;
+        let totalAchievements = 0;
 
-        console.log(`Monthly visits array for ${doctor.first_name} ${doctor.last_name}:`, monthlyVisits);
+        for (let i = 0; i < selectedMonth; i++) {
+          totalTargets += targets[i] || 0;
+          totalAchievements += achievements[i] || 0;
+        }
 
-        const totalVisits = planVisits.length;
-        const visitFrequency = parseInt(visitPlan.visit_frequency) || 1;
-        const expectedVisits = visitFrequency * monthsElapsed;
-        const returnIndex = expectedVisits > 0 ? Math.round((totalVisits / expectedVisits) * 100) : 0;
-
-        // Calculate remaining visits this month and frequency met status
-        const currentMonthVisits = monthlyVisits[currentMonth - 1] || 0;
-        console.log(`Current month visits for ${doctor.first_name} ${doctor.last_name}: ${currentMonthVisits}, frequency: ${visitFrequency}`);
-        
-        const remainingVisitsThisMonth = Math.max(0, visitFrequency - currentMonthVisits);
-        const isFrequencyMet = currentMonthVisits >= visitFrequency;
-
-        // Determine row color based on visit history - CHECK ACTUAL VISITS THIS YEAR
-        // Check if there are any visits in the current month (this month)
-        const currentMonthVisitsCount = planVisits.filter(visit => {
-          const visitDate = new Date(visit.visit_date);
-          return visitDate.getMonth() === (currentMonth - 1) && visitDate.getFullYear() === currentYear;
-        }).length;
-
-        // Check if there are any visits in the last month
-        const lastMonthVisitsCount = planVisits.filter(visit => {
-          const visitDate = new Date(visit.visit_date);
-          const lastMonth = currentMonth - 2; // Previous month index
-          return visitDate.getMonth() === lastMonth && visitDate.getFullYear() === currentYear;
-        }).length;
-
-        // Check if there are any visits in the month before last
-        const monthBeforeLastVisitsCount = planVisits.filter(visit => {
-          const visitDate = new Date(visit.visit_date);
-          const monthBeforeLast = currentMonth - 3; // Two months ago index
-          return visitDate.getMonth() === monthBeforeLast && visitDate.getFullYear() === currentYear;
-        }).length;
-
-        const visitedCurrentMonth = currentMonthVisitsCount > 0;
-        const visitedLastMonth = lastMonthVisitsCount > 0;
-        const visitedMonthBeforeLast = monthBeforeLastVisitsCount > 0;
-
-        console.log(`=== ROW COLOR DEBUG for ${doctor.first_name} ${doctor.last_name} ===`);
-        console.log('Current month visits count:', currentMonthVisitsCount);
-        console.log('Last month visits count:', lastMonthVisitsCount);
-        console.log('Month before last visits count:', monthBeforeLastVisitsCount);
-        console.log('Visited current month:', visitedCurrentMonth);
-        console.log('Visited last month:', visitedLastMonth);
-        console.log('Visited month before last:', visitedMonthBeforeLast);
+        const returnIndex = totalTargets > 0 ? Math.round((totalAchievements / totalTargets) * 100) : 0;
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        if (visitedCurrentMonth || visitedLastMonth) {
+        if (returnIndex >= 80) {
           rowColor = 'green';
-          console.log(`Setting row color to GREEN for ${doctor.first_name} ${doctor.last_name}`);
-        } else if (visitedMonthBeforeLast) {
+        } else if (returnIndex >= 50) {
           rowColor = 'yellow';
-          console.log(`Setting row color to YELLOW for ${doctor.first_name} ${doctor.last_name}`);
-        } else {
-          console.log(`Setting row color to RED for ${doctor.first_name} ${doctor.last_name}`);
         }
 
         processed.push({
-          id: visitPlan.id,
-          doctor_name: `${doctor.first_name} ${doctor.last_name}`,
-          visit_frequency: visitFrequency,
-          remaining_visits_this_month: remainingVisitsThisMonth,
-          monthly_visits: monthlyVisits,
-          total_visits: totalVisits,
-          expected_visits: expectedVisits,
+          id: salesPlan.id,
+          product_name: product.name,
+          brick_name: brick.name,
+          targets,
+          achievements,
           return_index: returnIndex,
-          row_color: rowColor,
-          has_visit_today: hasVisitToday,
-          is_frequency_met: isFrequencyMet
+          row_color: rowColor
         });
-
-        console.log(`=== FINAL DATA for ${doctor.first_name} ${doctor.last_name} ===`);
-        console.log('Row color:', rowColor);
-        console.log('Monthly visits:', monthlyVisits);
-        console.log('==========================================');
       }
 
-      console.log('Processed visit data:', processed.length, 'items');
+      console.log('Processed data:', processed.length, 'items');
       return processed;
     },
-    enabled: !visitPlansLoading && !doctorsLoading && !visitsLoading,
+    enabled: !salesPlansLoading && !productsLoading && !bricksLoading && !salesLoading,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Record visit mutation with enhanced debugging
-  const recordVisitMutation = useMutation({
-    mutationFn: async (visitPlanId: string) => {
-      const today = new Date().toISOString().split('T')[0];
-      
-      console.log('=== VISIT RECORDING DEBUG ===');
-      console.log('Visit plan ID:', visitPlanId);
-      console.log('Today:', today);
-      console.log('User ID:', user?.id);
-      console.log('Supabase client:', !!supabase);
-      
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-
-      // Check if a visit already exists for today for this plan
-      console.log('Checking for existing visit...');
-      const { data: existingVisit, error: checkError } = await supabase
-        .from('visits')
-        .select('id')
-        .eq('visit_plan_id', visitPlanId)
-        .eq('visit_date', today)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking existing visit:', checkError);
-        throw checkError;
-      }
-
-      if (existingVisit) {
-        console.log('Visit already exists:', existingVisit);
-        throw new Error('A visit has already been recorded for today for this doctor');
-      }
-
-      console.log('No existing visit found, inserting new visit...');
-      
-      // Insert the new visit
-      const insertData = {
-        visit_plan_id: visitPlanId,
-        visit_date: today
-      };
-      
-      console.log('Insert data:', insertData);
-      console.log('Inserting into visits table...');
-
-      const { data, error } = await supabase
-        .from('visits')
-        .insert([insertData])
-        .select('*');
-
-      if (error) {
-        console.error('Error inserting visit:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
-        console.error('Error hint:', error.hint);
-        throw new Error(`Failed to record visit: ${error.message}`);
-      }
-
-      console.log('Visit recorded successfully:', data);
-      return data;
-    },
-    onSuccess: (data) => {
-      console.log('Visit mutation success:', data);
-      
-      // Invalidate and refetch all related queries
-      queryClient.invalidateQueries({ queryKey: ['visits-data'] });
-      queryClient.invalidateQueries({ queryKey: ['processed-visit-data'] });
-      
-      // Force immediate refetch
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ['visits-data'] });
-        queryClient.refetchQueries({ queryKey: ['processed-visit-data'] });
-      }, 100);
-      
-      toast({
-        title: "Visit recorded",
-        description: "Visit has been successfully recorded for today",
-      });
-    },
-    onError: (error: any) => {
-      console.error('Visit mutation error:', error);
-      console.error('Full error object:', JSON.stringify(error, null, 2));
-      toast({
-        title: "Error recording visit",
-        description: error.message || "Failed to record visit. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Swipe handlers
-  const handleTouchStart = (e: React.TouchEvent, planId: string) => {
-    // Disable swipe if either condition is true (has visit today OR frequency is met)
-    const plan = processedData.find(p => p.id === planId);
-    if (plan && (plan.has_visit_today || plan.is_frequency_met)) {
-      return; // Don't allow swipe when either condition is true
-    }
-    
-    const touch = e.touches[0];
-    setSwipeState({
-      isActive: true,
-      startX: touch.clientX,
-      currentX: touch.clientX,
-      planId
-    });
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swipeState.isActive) return;
-    
-    const touch = e.touches[0];
-    setSwipeState(prev => ({
-      ...prev,
-      currentX: touch.clientX
-    }));
-  };
-
-  const handleTouchEnd = () => {
-    if (!swipeState.isActive || !swipeState.planId) return;
-
-    const swipeDistance = swipeState.currentX - swipeState.startX;
-    const threshold = 100; // pixels
-
-    if (swipeDistance > threshold) {
-      // Swiped right - record visit
-      recordVisitMutation.mutate(swipeState.planId);
-    }
-
-    setSwipeState({
-      isActive: false,
-      startX: 0,
-      currentX: 0,
-      planId: null
-    });
-  };
-
-  const getSwipeOffset = (planId: string) => {
-    if (swipeState.planId !== planId || !swipeState.isActive) return 0;
-    const offset = Math.max(0, swipeState.currentX - swipeState.startX);
-    return Math.min(offset, 120); // Max offset
-  };
-
-  const getSwipeOpacity = (planId: string) => {
-    const offset = getSwipeOffset(planId);
-    return Math.min(offset / 100, 1);
-  };
-
-  const isLoading = visitPlansLoading || doctorsLoading || visitsLoading || isProcessing;
-  const error = visitPlansError;
-
-  const averageReturnIndex = processedData.length > 0 
-    ? Math.round(processedData.reduce((sum, plan) => sum + plan.return_index, 0) / processedData.length)
-    : 0;
+  const isLoading = salesPlansLoading || productsLoading || bricksLoading || salesLoading || isProcessing;
+  const error = salesPlansError;
 
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
     switch (color) {
@@ -474,12 +261,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
     return 'text-red-600 bg-red-100';
   };
 
-  const getDisabledRowClass = (plan: VisitPlanData) => {
-    // Disable when either visit is recorded today OR frequency is met
-    if (plan.has_visit_today || plan.is_frequency_met) {
-      return 'opacity-50 bg-gray-100 cursor-not-allowed';
+  const getMonthHighlightClass = (monthIndex: number) => {
+    if (monthIndex < selectedMonth) {
+      return 'bg-blue-50 border-2 border-blue-200';
     }
-    return 'cursor-pointer';
+    return '';
   };
 
   if (isLoading) {
@@ -489,7 +275,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading return index analysis...</p>
           <p className="text-sm text-gray-500 mt-2">
-            Loading: {visitPlansLoading && 'Plans'} {doctorsLoading && 'Doctors'} {visitsLoading && 'Visits'} {isProcessing && 'Processing'}
+            User: {profile?.role} | Delegates: {effectiveDelegateIds.length}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Loading: {salesPlansLoading && 'Plans'} {productsLoading && 'Products'} {bricksLoading && 'Bricks'} {salesLoading && 'Sales'} {isProcessing && 'Processing'}
           </p>
         </div>
       </div>
@@ -497,12 +286,15 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
   }
 
   if (error) {
-    console.error('Component error:', error);
+    console.error('Return index component error:', error);
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading return index data</p>
+          <p className="text-red-600 mb-4">Error loading return index analysis</p>
           <p className="text-sm text-gray-600 mb-4">{error.message}</p>
+          <p className="text-xs text-gray-500 mb-4">
+            User Role: {profile?.role} | Delegate IDs: {effectiveDelegateIds.join(', ')}
+          </p>
           <Button onClick={onBack}>Back</Button>
         </div>
       </div>
@@ -514,171 +306,117 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
       {/* Header */}
       <div className="bg-white shadow-lg border-b border-blue-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-blue-50">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" onClick={onBack} className="p-2 hover:bg-blue-50">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
+                  <p className="text-sm text-gray-600">
+                    {supervisorName 
+                      ? `Return index analysis for ${supervisorName}'s team`
+                      : profile?.role === 'Supervisor'
+                      ? `Return index analysis for your supervised delegates`
+                      : 'Return index analysis and visit effectiveness'
+                    }
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
-                <p className="text-sm text-gray-600">
-                  {supervisorName 
-                    ? `Tracking ${processedData.length} visit plans for ${supervisorName}'s team`
-                    : `Tracking ${processedData.length} visit plans`
-                  }
-                </p>
-              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {displayMonths.map((month, index) => (
+                    <SelectItem key={index + 1} value={(index + 1).toString()}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Visit Plans</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{processedData.length}</div>
-              <p className="text-xs text-muted-foreground">Active plans</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Visits</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {processedData.reduce((sum, plan) => sum + plan.total_visits, 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">This year</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Return Index</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${getReturnIndexColor(averageReturnIndex).split(' ')[0]}`}>
-                {averageReturnIndex}%
-              </div>
-              <p className="text-xs text-muted-foreground">Overall performance</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Visit Plans Table */}
+        {/* Return Index Analysis Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
-            <CardTitle>Visit Plans Analysis</CardTitle>
-            <p className="text-sm text-gray-600">Swipe right on any row to record a visit for today</p>
+            <CardTitle>Return Index Analysis</CardTitle>
+            <p className="text-sm text-gray-500">
+              Analyzing {effectiveDelegateIds.length} delegate(s) | Found {processedData.length} sales plans
+            </p>
           </CardHeader>
           <CardContent>
             {processedData.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Visit Plans Found</h3>
+                <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
                 <p className="text-gray-600">
-                  No visit plans found for your profile. Please contact your administrator.
+                  {profile?.role === 'Supervisor' 
+                    ? 'No sales plans found for your supervised delegates.'
+                    : 'No sales plans found for your profile.'
+                  }
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Delegate IDs: {effectiveDelegateIds.join(', ')}
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Doctor Name</TableHead>
-                      <TableHead>Visit Frequency</TableHead>
-                      <TableHead>Remaining This Month</TableHead>
-                      {displayMonths.map(month => (
-                        <TableHead key={month} className="text-center min-w-[60px]">{month}</TableHead>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
+                      {displayMonths.map((month, index) => (
+                        <th 
+                          key={month} 
+                          className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
+                        >
+                          {month}
+                        </th>
                       ))}
-                      <TableHead className="text-center">Total</TableHead>
-                      <TableHead className="text-center">Expected</TableHead>
-                      <TableHead className="text-center">Return Index</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Return Index</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {processedData.map((plan) => (
-                      <TableRow
-                        key={plan.id}
-                        className={`${getRowColorClass(plan.row_color)} ${getDisabledRowClass(plan)} touch-pan-y relative overflow-hidden select-none`}
-                        style={{ 
-                          transform: `translateX(${getSwipeOffset(plan.id)}px)`,
-                          transition: swipeState.planId === plan.id && swipeState.isActive ? 'none' : 'transform 0.2s ease-out'
-                        }}
-                        onTouchStart={(e) => handleTouchStart(e, plan.id)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                      >
-                        {/* Swipe action background */}
-                        {!(plan.has_visit_today || plan.is_frequency_met) && (
-                          <div 
-                            className="absolute inset-y-0 left-0 bg-green-500 flex items-center justify-start px-4 pointer-events-none"
-                            style={{ 
-                              width: `${getSwipeOffset(plan.id)}px`,
-                              opacity: getSwipeOpacity(plan.id),
-                              zIndex: 0
-                            }}
+                      <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
+                        <td className="py-4 px-4 font-medium">
+                          {plan.product_name}
+                        </td>
+                        <td className="py-4 px-4">
+                          {plan.brick_name}
+                        </td>
+                        {displayMonths.map((_, index) => (
+                          <td 
+                            key={index} 
+                            className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
                           >
-                            <Check className="h-6 w-6 text-white" />
-                            <span className="text-white font-medium ml-2">Record Visit</span>
-                          </div>
-                        )}
-                        {(plan.has_visit_today || plan.is_frequency_met) && (
-                        <TableCell className="w-12 relative z-10">
-                          <div className="flex items-center space-x-1">
-                            {/* Green checkmark for visit today */}
-                            {plan.has_visit_today && (
-                              <Check className="h-4 w-4 text-green-600" />
-                            )}
-                            {/* Blue checkmark for frequency met */}
-                            {plan.is_frequency_met && (
-                              <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">✓</span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                         )}
-                        <TableCell className="font-medium relative z-10">
-                          {plan.doctor_name}
-                        </TableCell>
-                        <TableCell className="relative z-10">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                            {plan.visit_frequency}x/month
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center font-medium relative z-10">
-                          {plan.remaining_visits_this_month}
-                        </TableCell>
-                        {plan.monthly_visits.map((visits, monthIndex) => (
-                          <TableCell key={monthIndex} className="text-center relative z-10">
-                            {visits}
-                          </TableCell>
+                            <div className="text-sm">
+                              <div className="font-medium">{plan.achievements[index] || 0}</div>
+                              <div className="text-gray-500">/ {plan.targets[index] || 0}</div>
+                            </div>
+                          </td>
                         ))}
-                        <TableCell className="text-center font-medium relative z-10">{plan.total_visits}</TableCell>
-                        <TableCell className="text-center relative z-10">{plan.expected_visits}</TableCell>
-                        <TableCell className="text-center relative z-10">
+                        <td className="py-4 px-4 text-center">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReturnIndexColor(plan.return_index)}`}>
                             {plan.return_index}%
                           </span>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
@@ -687,42 +425,21 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
         {/* Legend */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
           <CardHeader>
-            <CardTitle className="text-sm">Instructions & Legend</CardTitle>
+            <CardTitle className="text-sm">Color Legend</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>How to record a visit:</strong> Swipe right on any row in the table to record a visit for today. The table will update automatically.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-4 text-sm mb-4">
+            <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
-                <span>Green: Visited current or last month</span>
+                <span>Green: Return Index ≥ 80%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                <span>Yellow: Visited month before last, but not current/last month</span>
+                <span>Yellow: 50% ≤ Return Index < 80%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                <span>Red: Not visited in last three months</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <Check className="h-4 w-4 text-green-600" />
-                <span>Visit recorded today</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-                <span>Monthly frequency met</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                <span>Disabled (visit recorded today OR frequency met)</span>
+                <span>Red: Return Index < 50%</span>
               </div>
             </div>
           </CardContent>

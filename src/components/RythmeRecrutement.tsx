@@ -29,11 +29,14 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   delegateIds = [], 
   supervisorName 
 }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
+
+  console.log('RythmeRecrutement - User profile:', profile);
+  console.log('RythmeRecrutement - Effective delegate IDs:', effectiveDelegateIds);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -47,6 +50,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     queryKey: ['sales-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
       console.log('Fetching sales plans for delegates:', effectiveDelegateIds);
+      console.log('Current user profile role:', profile?.role);
       
       if (effectiveDelegateIds.length === 0) {
         console.log('No delegate IDs provided');
@@ -61,10 +65,17 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 
         if (error) {
           console.error('Sales plans query error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+          });
           throw error;
         }
 
-        console.log('Sales plans fetched:', data?.length || 0);
+        console.log('Sales plans fetched successfully:', data?.length || 0, 'items');
+        console.log('Sales plans data:', data);
         return data || [];
       } catch (error) {
         console.error('Error in sales plans query:', error);
@@ -276,6 +287,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading recruitment rhythm data...</p>
           <p className="text-sm text-gray-500 mt-2">
+            User: {profile?.role} | Delegates: {effectiveDelegateIds.length}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
             Loading: {salesPlansLoading && 'Plans'} {productsLoading && 'Products'} {bricksLoading && 'Bricks'} {salesLoading && 'Sales'} {isProcessing && 'Processing'}
           </p>
         </div>
@@ -290,6 +304,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
         <div className="text-center">
           <p className="text-red-600 mb-4">Error loading recruitment rhythm data</p>
           <p className="text-sm text-gray-600 mb-4">{error.message}</p>
+          <p className="text-xs text-gray-500 mb-4">
+            User Role: {profile?.role} | Delegate IDs: {effectiveDelegateIds.join(', ')}
+          </p>
           <Button onClick={onBack}>Back</Button>
         </div>
       </div>
@@ -315,6 +332,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   <p className="text-sm text-gray-600">
                     {supervisorName 
                       ? `Sales plans analysis for ${supervisorName}'s team`
+                      : profile?.role === 'Supervisor'
+                      ? `Sales plans analysis for your supervised delegates`
                       : 'Sales plans analysis and recruitment rhythm'
                     }
                   </p>
@@ -344,6 +363,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle>Sales Plans Analysis</CardTitle>
+            <p className="text-sm text-gray-500">
+              Analyzing {effectiveDelegateIds.length} delegate(s) | Found {processedData.length} sales plans
+            </p>
           </CardHeader>
           <CardContent>
             {processedData.length === 0 ? (
@@ -351,7 +373,13 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                 <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
                 <p className="text-gray-600">
-                  No sales plans found for your profile.
+                  {profile?.role === 'Supervisor' 
+                    ? 'No sales plans found for your supervised delegates.'
+                    : 'No sales plans found for your profile.'
+                  }
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Delegate IDs: {effectiveDelegateIds.join(', ')}
                 </p>
               </div>
             ) : (
