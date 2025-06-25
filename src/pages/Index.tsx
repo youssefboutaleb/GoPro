@@ -8,7 +8,7 @@ import VisitReport from "@/components/VisitReport";
 import ProgressiveAuthLoader from "@/components/common/ProgressiveAuthLoader";
 
 const Index = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut, signOutLoading } = useAuth();
 
   console.log('Index page - Auth state:', {
     userExists: !!user,
@@ -54,16 +54,34 @@ const Index = () => {
       );
     }
 
+    // Dummy handler for components that need onBack prop
+    const handleBack = () => {
+      // This won't be used in the main index since these are root components
+      console.log('Back handler called');
+    };
+
     // Render role-based dashboard when profile is available
     switch (profile.role) {
       case 'Admin':
-        return <AdminDashboard />;
+        return (
+          <AdminDashboard 
+            onSignOut={signOut}
+            signOutLoading={signOutLoading}
+            profile={profile}
+          />
+        );
       case 'Supervisor':
-        return <SupervisorDashboard />;
+        return (
+          <SupervisorDashboard 
+            onSignOut={signOut}
+            signOutLoading={signOutLoading}
+            profile={profile}
+          />
+        );
       case 'Sales Director':
-        return <SalesDirectorKPIsDashboard />;
+        return <SalesDirectorKPIsDashboard onBack={handleBack} />;
       case 'Delegate':
-        return <VisitReport />;
+        return <VisitReport onBack={handleBack} />;
       default:
         return (
           <div className="min-h-screen bg-gray-50 flex items-center justify-center">
