@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +21,7 @@ const Index = () => {
   useEffect(() => {
     console.log('📊 Index page - Auth state:', { 
       user: user?.id, 
-      profile: profile ? `${profile.first_name} ${profile.last_name}` : 'No profile',
+      profile: profile ? `${profile.first_name} ${profile.last_name} (ID: ${profile.id})` : 'No profile',
       loading 
     });
     
@@ -33,51 +32,64 @@ const Index = () => {
     
     if (user && profile) {
       console.log('🎉 Successfully connected! Welcome:', profile.first_name, profile.last_name);
+      console.log('🔍 Profile ID vs User ID:', { profileId: profile.id, userId: user.id });
     }
   }, [user, profile, loading, navigate]);
 
   // Fetch supervised delegates for Supervisor role
   const { data: supervisedDelegates = [] } = useQuery({
-    queryKey: ['supervised-delegates', user?.id],
+    queryKey: ['supervised-delegates', profile?.id],
     queryFn: async () => {
-      if (!user?.id || !profile || profile.role !== 'Supervisor') return [];
+      if (!profile?.id || profile.role !== 'Supervisor') {
+        console.log('❌ No profile ID or not a supervisor, skipping supervised delegates query');
+        return [];
+      }
+      
+      console.log('🔍 Fetching supervised delegates for supervisor ID:', profile.id);
       
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
-        .eq('supervisor_id', user.id)
+        .eq('supervisor_id', profile.id)
         .eq('role', 'Delegate');
 
       if (error) {
-        console.error('Error fetching supervised delegates:', error);
+        console.error('❌ Error fetching supervised delegates:', error);
         return [];
       }
 
+      console.log('✅ Supervised delegates found:', data?.length || 0, data);
       return data || [];
     },
-    enabled: !!user?.id && profile?.role === 'Supervisor',
+    enabled: !!profile?.id && profile?.role === 'Supervisor',
   });
 
   // Fetch supervised supervisors for Sales Director role
   const { data: supervisedSupervisors = [] } = useQuery({
-    queryKey: ['supervised-supervisors', user?.id],
+    queryKey: ['supervised-supervisors', profile?.id],
     queryFn: async () => {
-      if (!user?.id || !profile || profile.role !== 'Sales Director') return [];
+      if (!profile?.id || profile.role !== 'Sales Director') {
+        console.log('❌ No profile ID or not a sales director, skipping supervised supervisors query');
+        return [];
+      }
+      
+      console.log('🔍 Fetching supervised supervisors for sales director ID:', profile.id);
       
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
-        .eq('supervisor_id', user.id)
+        .eq('supervisor_id', profile.id)
         .eq('role', 'Supervisor');
 
       if (error) {
-        console.error('Error fetching supervised supervisors:', error);
+        console.error('❌ Error fetching supervised supervisors:', error);
         return [];
       }
 
+      console.log('✅ Supervised supervisors found:', data?.length || 0, data);
       return data || [];
     },
-    enabled: !!user?.id && profile?.role === 'Sales Director',
+    enabled: !!profile?.id && profile?.role === 'Sales Director',
   });
 
   // Fetch delegates under selected supervisor for Sales Director role
@@ -172,6 +184,9 @@ const Index = () => {
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Delegates Found</h3>
               <p className="text-gray-600">You don't have any supervised delegates yet.</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Profile ID: {profile?.id} | Role: {profile?.role}
+              </p>
             </div>
           ) : (
             <Tabs defaultValue={supervisedDelegates[0]?.id} className="w-full">
