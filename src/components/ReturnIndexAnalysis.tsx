@@ -46,7 +46,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch visit plans for multiple delegates
+  // Fetch visit plans with separate queries to avoid relationship conflicts
   const { data: visitPlans = [], isLoading: visitPlansLoading, error: visitPlansError } = useQuery({
     queryKey: ['return-index-visit-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
@@ -61,21 +61,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
       try {
         const { data, error } = await supabase
           .from('visit_plans')
-          .select(`
-            id, 
-            delegate_id, 
-            visit_frequency,
-            doctors!doctor_id (
-              id,
-              first_name,
-              last_name,
-              brick_id,
-              bricks (
-                id,
-                name
-              )
-            )
-          `)
+          .select('id, delegate_id, visit_frequency, doctor_id')
           .in('delegate_id', effectiveDelegateIds);
 
         if (error) {
@@ -100,6 +86,56 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
     enabled: effectiveDelegateIds.length > 0,
     retry: 2,
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch doctors data separately
+  const { data: doctorsData = [], isLoading: doctorsLoading } = useQuery({
+    queryKey: ['doctors-for-visit-plans', visitPlans.map(p => p.doctor_id)],
+    queryFn: async () => {
+      if (visitPlans.length === 0) return [];
+      
+      const doctorIds = visitPlans.map(plan => plan.doctor_id).filter(Boolean);
+      
+      if (doctorIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('doctors')
+        .select('id, first_name, last_name, brick_id')
+        .in('id', doctorIds);
+
+      if (error) {
+        console.error('Doctors query error:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: visitPlans.length > 0,
+  });
+
+  // Fetch bricks data separately
+  const { data: bricksData = [], isLoading: bricksLoading } = useQuery({
+    queryKey: ['bricks-for-doctors', doctorsData.map(d => d.brick_id)],
+    queryFn: async () => {
+      if (doctorsData.length === 0) return [];
+      
+      const brickIds = doctorsData.map(doctor => doctor.brick_id).filter(Boolean);
+      
+      if (brickIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('bricks')
+        .select('id, name')
+        .in('id', brickIds);
+
+      if (error) {
+        console.error('Bricks query error:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: doctorsData.length > 0,
   });
 
   // Fetch actual visits data
@@ -142,28 +178,28 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
 
   // Process data when all queries are complete
   const { data: processedData = [], isLoading: isProcessing } = useQuery({
-    queryKey: ['processed-visit-data', visitPlans, visitsData, selectedMonth],
+    queryKey: ['processed-visit-data', visitPlans, doctorsData, bricksData, visitsData, selectedMonth],
     queryFn: async () => {
       console.log('Processing visit data...');
       
-      if (!visitPlans.length) {
-        console.log('Missing visit plans data for processing');
+      if (!visitPlans.length || !doctorsData.length) {
+        console.log('Missing data for processing');
         return [];
       }
 
       const processed: AnalysisData[] = [];
 
       for (const visitPlan of visitPlans) {
-        const doctor = visitPlan.doctors;
-        const brick = doctor?.bricks;
+        const doctor = doctorsData.find(d => d.id === visitPlan.doctor_id);
+        const brick = doctor ? bricksData.find(b => b.id === doctor.brick_id) : null;
 
-        if (!doctor || !brick) {
-          console.log('Missing doctor or brick data for visit plan:', visitPlan.id);
+        if (!doctor) {
+          console.log('Missing doctor data for visit plan:', visitPlan.id);
           continue;
         }
 
         // Calculate planned visits per month based on visit frequency
-        const monthlyPlannedVisits = parseInt(visitPlan.visit_frequency);
+        const monthlyPlannedVisits = visitPlan.visit_frequency === '1' ? 1 : 2;
         const planned_visits = Array(12).fill(monthlyPlannedVisits);
 
         // Calculate actual visits per month
@@ -199,7 +235,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
         processed.push({
           id: visitPlan.id,
           doctor_name: `${doctor.first_name} ${doctor.last_name}`,
-          brick_name: brick.name,
+          brick_name: brick?.name || 'Unknown Brick',
           visit_frequency: monthlyPlannedVisits,
           planned_visits,
           actual_visits,
@@ -211,11 +247,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
       console.log('Processed visit data:', processed.length, 'items');
       return processed;
     },
-    enabled: !visitPlansLoading && !visitsLoading,
+    enabled: !visitPlansLoading && !doctorsLoading && !bricksLoading && !visitsLoading,
     staleTime: 5 * 60 * 1000,
   });
 
-  const isLoading = visitPlansLoading || visitsLoading || isProcessing;
+  const isLoading = visitPlansLoading || doctorsLoading || bricksLoading || visitsLoading || isProcessing;
   const error = visitPlansError;
 
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
@@ -254,7 +290,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
             User: {profile?.role} | Delegates: {effectiveDelegateIds.length}
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            Loading: {visitPlansLoading && 'Visit Plans'} {visitsLoading && 'Visits'} {isProcessing && 'Processing'}
+            Loading: {visitPlansLoading && 'Visit Plans'} {doctorsLoading && 'Doctors'} {bricksLoading && 'Bricks'} {visitsLoading && 'Visits'} {isProcessing && 'Processing'}
           </p>
         </div>
       </div>
