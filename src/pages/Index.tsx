@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import RythmeRecrutement from '@/components/RythmeRecrutement';
 import ReturnIndexAnalysis from '@/components/ReturnIndexAnalysis';
 import AdminDashboard from '@/components/AdminDashboard';
 import SupervisorKPIsDashboard from '@/components/SupervisorKPIsDashboard';
+import SalesDirectorKPIsDashboard from '@/components/SalesDirectorKPIsDashboard';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
