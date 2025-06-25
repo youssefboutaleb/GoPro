@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
   const currentMonth = new Date().getMonth() + 1;
 
   // Generate month names for table headers
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
   // Fetch sales plans for multiple delegates
@@ -319,7 +320,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                   <h1 className="text-2xl font-bold text-gray-900">Indice de Retour</h1>
                   <p className="text-sm text-gray-600">
                     {supervisorName 
-                      ? `Return index analysis for ${supervisorName}'s team`
+                      ? `Return index analysis for ${supervisorName} team`
                       : profile?.role === 'Supervisor'
                       ? `Return index analysis for your supervised delegates`
                       : 'Return index analysis and visit effectiveness'
