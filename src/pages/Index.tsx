@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import RythmeRecrutement from '@/components/RythmeRecrutement';
 import ReturnIndexAnalysis from '@/components/ReturnIndexAnalysis';
 import AdminDashboard from '@/components/AdminDashboard';
+import SupervisorKPIsDashboard from '@/components/SupervisorKPIsDashboard';
 
 const Index = () => {
   const { user, profile, signOut, loading, signOutLoading } = useAuth();
@@ -198,6 +198,11 @@ const Index = () => {
     return <ReturnIndexAnalysis onBack={handleBackToDashboard} delegateIds={[user.id]} />;
   }
 
+  // Handle view routing for Supervisor KPIs
+  if (currentView === 'team-kpis' && profile?.role === 'Supervisor') {
+    return <SupervisorKPIsDashboard onBack={handleBackToDashboard} />;
+  }
+
   // Handle view routing for Supervisor role with individual delegate tabs
   if ((currentView === 'recruitment' || currentView === 'return-index') && profile?.role === 'Supervisor') {
     const Component = currentView === 'recruitment' ? RythmeRecrutement : ReturnIndexAnalysis;
@@ -359,9 +364,9 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content with the two cards */}
+      {/* Main Content with the cards */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 ${profile?.role === 'Supervisor' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6`}>
           {/* Indice de Retour Card */}
           <Card 
             className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
@@ -417,6 +422,31 @@ const Index = () => {
               <p className="text-gray-600">Cliquez pour accéder à l'analyse</p>
             </CardContent>
           </Card>
+
+          {/* Team KPIs Card - Only for Supervisors */}
+          {profile?.role === 'Supervisor' && (
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+              onClick={() => handleCardClick('team-kpis')}
+            >
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">KPIs d'Équipe</CardTitle>
+                    <CardDescription>
+                      Tableau de bord des performances globales de votre équipe
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Cliquez pour voir les indicateurs</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
