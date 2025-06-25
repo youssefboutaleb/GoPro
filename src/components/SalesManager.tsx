@@ -66,27 +66,39 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const { data: salesPlans = [] } = useQuery({
     queryKey: ['admin-sales-plans-with-details'],
     queryFn: async () => {
-      console.log('Fetching ALL sales plans for admin...');
+      console.log('Admin fetching ALL sales plans...');
       
-      // First get ALL sales plans - admin should see all
+      // Admin can see all sales plans due to updated RLS policies
       const { data: salesPlansData, error: salesPlansError } = await supabase
         .from('sales_plans')
         .select('*');
 
-      if (salesPlansError) throw salesPlansError;
+      if (salesPlansError) {
+        console.error('Error fetching sales plans:', salesPlansError);
+        throw salesPlansError;
+      }
 
       console.log('Fetched sales plans:', salesPlansData);
 
-      // Then get ALL related data - admin should see all profiles
+      // Admin can see all related data due to updated RLS policies
       const [profilesResult, productsResult, bricksResult] = await Promise.all([
         supabase.from('profiles').select('id, first_name, last_name'),
         supabase.from('products').select('id, name'),
         supabase.from('bricks').select('id, name')
       ]);
 
-      if (profilesResult.error) throw profilesResult.error;
-      if (productsResult.error) throw productsResult.error;
-      if (bricksResult.error) throw bricksResult.error;
+      if (profilesResult.error) {
+        console.error('Error fetching profiles:', profilesResult.error);
+        throw profilesResult.error;
+      }
+      if (productsResult.error) {
+        console.error('Error fetching products:', productsResult.error);
+        throw productsResult.error;
+      }
+      if (bricksResult.error) {
+        console.error('Error fetching bricks:', bricksResult.error);
+        throw bricksResult.error;
+      }
 
       console.log('Fetched related data:', { 
         profiles: profilesResult.data, 
@@ -117,7 +129,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const { data: salesData = [], isLoading } = useQuery({
     queryKey: ['admin-sales-data-with-plans', selectedYear],
     queryFn: async () => {
-      console.log('Fetching ALL sales data for admin...');
+      console.log('Admin fetching ALL sales data...');
       
       let query = supabase.from('sales').select('*');
       
@@ -127,7 +139,10 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
       const { data, error } = await query.order('year', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching sales data:', error);
+        throw error;
+      }
 
       console.log('Fetched sales data:', data);
 
@@ -146,7 +161,6 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     enabled: salesPlans.length > 0,
   });
 
-  // Create sales mutation
   const createSalesMutation = useMutation({
     mutationFn: async (salesData: { sales_plan_id: string; year: number; targets: number[]; achievements: number[] }) => {
       const { data, error } = await supabase
@@ -159,7 +173,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-data-with-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sales-data-with-plans'] });
       toast.success('Sales data created successfully');
       setIsDialogOpen(false);
       resetForm();
@@ -169,7 +183,6 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Update sales mutation
   const updateSalesMutation = useMutation({
     mutationFn: async ({ id, ...salesData }: { id: string; sales_plan_id: string; year: number; targets: number[]; achievements: number[] }) => {
       const { data, error } = await supabase
@@ -183,7 +196,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-data-with-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sales-data-with-plans'] });
       toast.success('Sales data updated successfully');
       setIsDialogOpen(false);
       resetForm();
@@ -193,7 +206,6 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     },
   });
 
-  // Delete sales mutation
   const deleteSalesMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -204,7 +216,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-data-with-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sales-data-with-plans'] });
       toast.success('Sales data deleted successfully');
     },
     onError: (error: any) => {
@@ -280,11 +292,11 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const getVisibleMonths = (year: number) => {
     if (year === currentYear) {
-      return currentMonth + 1; // Show up to current month
+      return currentMonth + 1;
     } else if (year < currentYear) {
-      return 12; // Show all months for past years
+      return 12;
     } else {
-      return 0; // Don't show future years
+      return 0;
     }
   };
 

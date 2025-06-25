@@ -34,7 +34,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
     try {
       console.log('Fetching ALL profiles for admin...');
       
-      // Fetch ALL profiles - admin should see everyone
+      // Admin can see all profiles due to updated RLS policies
       const { data: profilesData, error } = await supabase
         .from('profiles')
         .select('*')
@@ -141,12 +141,17 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     try {
+      console.log('Updating user role:', { userId, newRole });
+      
       const { error } = await supabase
         .from('profiles')
         .update({ role: newRole })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating user role:', error);
+        throw error;
+      }
 
       toast({
         title: "Succès",
@@ -297,89 +302,6 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
       </div>
     </div>
   );
-};
-
-const calculateDelegateMetrics = async (delegateId: string) => {
-  try {
-    // Get sales data for return index calculation
-    const { data: salesData } = await supabase
-      .from('sales')
-      .select(`
-        targets,
-        achievements,
-        year,
-        sales_plans!inner(delegate_id)
-      `)
-      .eq('sales_plans.delegate_id', delegateId)
-      .eq('year', new Date().getFullYear());
-
-    // Get visit data for recruitment rhythm
-    const { data: visitData } = await supabase
-      .from('visits')
-      .select(`
-        visit_date,
-        visit_plans!inner(delegate_id)
-      `)
-      .eq('visit_plans.delegate_id', delegateId)
-      .gte('visit_date', new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
-
-    let returnIndex = 0;
-    let recruitmentRhythm = 0;
-
-    // Calculate return index (achievement/target ratio)
-    if (salesData && salesData.length > 0) {
-      const currentMonth = new Date().getMonth();
-      let totalTargets = 0;
-      let totalAchievements = 0;
-
-      salesData.forEach(sale => {
-        for (let i = 0; i <= currentMonth; i++) {
-          totalTargets += sale.targets[i] || 0;
-          totalAchievements += sale.achievements[i] || 0;
-        }
-      });
-
-      returnIndex = totalTargets > 0 ? Math.round((totalAchievements / totalTargets) * 100) : 0;
-    }
-
-    // Calculate recruitment rhythm (visits per month)
-    if (visitData) {
-      const monthsElapsed = new Date().getMonth() + 1;
-      recruitmentRhythm = monthsElapsed > 0 ? Math.round(visitData.length / monthsElapsed) : 0;
-    }
-
-    return { returnIndex, recruitmentRhythm };
-  } catch (error) {
-    console.error('Error calculating metrics:', error);
-    return { returnIndex: 0, recruitmentRhythm: 0 };
-  }
-};
-
-const getRoleIcon = (role: string) => {
-  switch (role) {
-    case 'Admin':
-      return <Crown className="h-4 w-4" />;
-    case 'Sales Director':
-    case 'Marketing Manager':
-    case 'Supervisor':
-      return <Shield className="h-4 w-4" />;
-    default:
-      return <User className="h-4 w-4" />;
-  }
-};
-
-const getRoleColor = (role: string) => {
-  switch (role) {
-    case 'Admin':
-      return 'bg-purple-100 text-purple-800';
-    case 'Sales Director':
-    case 'Marketing Manager':
-      return 'bg-blue-100 text-blue-800';
-    case 'Supervisor':
-      return 'bg-green-100 text-green-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
 };
 
 export default UsersManager;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,35 +40,39 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
 
   const fetchData = async () => {
     try {
-      // Fetch sectors
+      console.log('Admin fetching sectors and bricks...');
+      
+      // Admin can see all sectors and bricks due to updated RLS policies
       const { data: sectorsData, error: sectorsError } = await supabase
         .from('sectors')
         .select('*')
         .order('name', { ascending: true });
 
-      if (sectorsError) throw sectorsError;
+      if (sectorsError) {
+        console.error('Error fetching sectors:', sectorsError);
+        throw sectorsError;
+      }
 
-      // Fetch bricks with sector information
       const { data: bricksData, error: bricksError } = await supabase
         .from('bricks')
         .select('*')
         .order('name', { ascending: true });
 
-      if (bricksError) throw bricksError;
+      if (bricksError) {
+        console.error('Error fetching bricks:', bricksError);
+        throw bricksError;
+      }
+
+      console.log('Fetched data:', { sectors: sectorsData, bricks: bricksData });
 
       // Get sector details for each brick
-      const bricksWithSectors = await Promise.all(
-        (bricksData || []).map(async (brick) => {
-          if (brick.sector_id) {
-            const sector = sectorsData?.find(s => s.id === brick.sector_id);
-            return {
-              ...brick,
-              sector: sector ? { name: sector.name } : null
-            };
-          }
-          return { ...brick, sector: null };
-        })
-      );
+      const bricksWithSectors = (bricksData || []).map((brick) => {
+        const sector = sectorsData?.find(s => s.id === brick.sector_id);
+        return {
+          ...brick,
+          sector: sector ? { name: sector.name } : null
+        };
+      });
 
       setSectors(sectorsData || []);
       setBricks(bricksWithSectors);
@@ -149,7 +154,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
           sector_id: formData.sector_id
         };
 
-        if (editingItem && 'id' in editingItem) {
+        if (editingItem && 'id' in editingItem && 'sector_id' in editingItem) {
           console.log('Updating brick with ID:', editingItem.id, 'Data:', submitData);
           const { error } = await supabase
             .from('bricks')
@@ -203,12 +208,17 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
   const handleDelete = async (type: 'sector' | 'brick', item: Sector | Brick) => {
     if (confirm(`Êtes-vous sûr de vouloir supprimer ce ${type === 'sector' ? 'secteur' : 'brique'} ?`)) {
       try {
+        console.log(`Admin deleting ${type}:`, item.id);
+        
         const { error } = await supabase
           .from(type === 'sector' ? 'sectors' : 'bricks')
           .delete()
           .eq('id', item.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error(`Error deleting ${type}:`, error);
+          throw error;
+        }
         
         toast({
           title: "Succès",
