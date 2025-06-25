@@ -9,6 +9,8 @@ import Auth from "./pages/Auth";
 import CreateTestUsersPage from "./pages/CreateTestUsers";
 import SalesDirectorKPIsDashboard from "./components/SalesDirectorKPIsDashboard";
 import VisitReport from "./components/VisitReport";
+import ReturnIndexAnalysis from "./components/ReturnIndexAnalysis";
+import RythmeRecrutement from "./components/RythmeRecrutement";
 import './i18n';
 
 const queryClient = new QueryClient();
@@ -35,6 +37,14 @@ function App() {
               <Route 
                 path="/delegate/visit-report" 
                 element={<VisitReport onBack={handleBack} />} 
+              />
+              <Route 
+                path="/delegate/return-index" 
+                element={<ReturnIndexAnalysis onBack={handleBack} />} 
+              />
+              <Route 
+                path="/delegate/recruitment-rate" 
+                element={<RythmeRecrutement onBack={handleBack} />} 
               />
             </Routes>
           </BrowserRouter>

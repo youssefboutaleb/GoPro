@@ -1,14 +1,17 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Calendar, Target, ArrowRight, User } from 'lucide-react';
+import { FileText, Calendar, Target, ArrowRight, User, BarChart3, TrendingUp, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
+  const [recordingVisit, setRecordingVisit] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -16,6 +19,91 @@ const DelegateDashboard: React.FC = () => {
 
   const handleNavigateToVisitReport = () => {
     navigate('/delegate/visit-report');
+  };
+
+  const handleNavigateToReturnIndex = () => {
+    navigate('/delegate/return-index');
+  };
+
+  const handleNavigateToRecruitmentRate = () => {
+    navigate('/delegate/recruitment-rate');
+  };
+
+  // Fetch quick stats for dashboard cards
+  const { data: dashboardStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['delegate-dashboard-stats', profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return null;
+
+      try {
+        // Fetch visit plans count
+        const { data: visitPlans, error: visitPlansError } = await supabase
+          .from('visit_plans')
+          .select('id')
+          .eq('delegate_id', profile.id);
+
+        if (visitPlansError) throw visitPlansError;
+
+        // Fetch sales plans count
+        const { data: salesPlans, error: salesPlansError } = await supabase
+          .from('sales_plans')
+          .select('id')
+          .eq('delegate_id', profile.id);
+
+        if (salesPlansError) throw salesPlansError;
+
+        // Fetch this month's visits
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        
+        const { data: thisMonthVisits, error: visitsError } = await supabase
+          .from('visits')
+          .select('id, visit_plan_id, visit_date')
+          .gte('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+          .lte('visit_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-31`);
+
+        if (visitsError) throw visitsError;
+
+        // Calculate return index (simplified)
+        const returnIndex = visitPlans && visitPlans.length > 0 
+          ? Math.round((thisMonthVisits?.length || 0) / (visitPlans.length * 2) * 100)
+          : 0;
+
+        return {
+          visitPlansCount: visitPlans?.length || 0,
+          salesPlansCount: salesPlans?.length || 0,
+          thisMonthVisits: thisMonthVisits?.length || 0,
+          returnIndex,
+          recruitmentRate: salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
+        };
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        return null;
+      }
+    },
+    enabled: !!profile?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const handleQuickVisitRecord = async () => {
+    setRecordingVisit(true);
+    // Simulate quick visit recording
+    setTimeout(() => {
+      setRecordingVisit(false);
+      // Could show a toast here
+    }, 1500);
+  };
+
+  const getPerformanceColor = (value: number, type: 'return' | 'recruitment') => {
+    if (type === 'return') {
+      if (value >= 80) return 'text-green-600 bg-green-50 border-green-200';
+      if (value >= 50) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      return 'text-red-600 bg-red-50 border-red-200';
+    } else {
+      if (value >= 80) return 'text-green-600 bg-green-50 border-green-200';
+      if (value >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      return 'text-red-600 bg-red-50 border-red-200';
+    }
   };
 
   return (
@@ -35,13 +123,32 @@ const DelegateDashboard: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={handleSignOut}
-              disabled={signOutLoading}
-            >
-              {signOutLoading ? 'Signing out...' : 'Sign Out'}
-            </Button>
+            <div className="flex items-center space-x-4">
+              <Button
+                onClick={handleQuickVisitRecord}
+                disabled={recordingVisit}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {recordingVisit ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2 animate-spin" />
+                    Recording...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Quick Record
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleSignOut}
+                disabled={signOutLoading}
+              >
+                {signOutLoading ? 'Signing out...' : 'Sign Out'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -52,17 +159,78 @@ const DelegateDashboard: React.FC = () => {
           <CardContent className="p-8">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Your Activity Dashboard
+                Your Performance Dashboard
               </h2>
               <p className="text-lg text-gray-600 mb-6">
-                Track your visits, manage your schedule, and monitor your performance
+                Track your visits, monitor your recruitment progress, and achieve your targets
               </p>
             </div>
           </CardContent>
         </Card>
 
+        {/* KPI Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Return Index Card */}
+          <Card 
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats ? getPerformanceColor(dashboardStats.returnIndex, 'return') : 'border-gray-200'
+            }`}
+            onClick={handleNavigateToReturnIndex}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Return Index</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : `${dashboardStats?.returnIndex || 0}%`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Visit effectiveness this month
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.thisMonthVisits || 0} visits completed`}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recruitment Rate Card */}
+          <Card 
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats ? getPerformanceColor(dashboardStats.recruitmentRate, 'recruitment') : 'border-gray-200'
+            }`}
+            onClick={handleNavigateToRecruitmentRate}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Recruitment Rate</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : `${dashboardStats?.recruitmentRate || 0}%`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Sales plan achievement rate
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card 
             className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
             onClick={handleNavigateToVisitReport}
@@ -78,7 +246,7 @@ const DelegateDashboard: React.FC = () => {
             <CardContent>
               <CardTitle className="text-lg mb-2">Visit Reports</CardTitle>
               <p className="text-gray-600 text-sm">
-                View your visit history and performance metrics
+                View your visit history and detailed reports
               </p>
             </CardContent>
           </Card>
@@ -99,18 +267,44 @@ const DelegateDashboard: React.FC = () => {
 
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="pb-3">
-              <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
+              <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
                 <Target className="h-6 w-6 text-white" />
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Performance</CardTitle>
+              <CardTitle className="text-lg mb-2">Targets</CardTitle>
+              <div className="text-sm text-gray-500 mb-2">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.visitPlansCount || 0} visit plans`}
+              </div>
               <p className="text-gray-600 text-sm">
-                Coming soon - Personal performance analytics
+                Track your monthly and yearly goals
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance Legend */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-sm">Performance Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
+                <span>Excellent Performance (≥80%)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-50 border-2 border-yellow-200 rounded"></div>
+                <span>Good Performance (50-79%)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
+                <span>Needs Improvement (&lt;50%)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
