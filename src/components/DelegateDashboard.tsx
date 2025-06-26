@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Calendar, Target, ArrowRight, User, BarChart3, TrendingUp, CheckCircle } from 'lucide-react';
+import { User, BarChart3, TrendingUp, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -12,15 +12,10 @@ import VisitPlansManagement from './VisitPlansManagement';
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
-  const [recordingVisit, setRecordingVisit] = useState(false);
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
-  };
-
-  const handleNavigateToVisitReport = () => {
-    navigate('/delegate/visit-report');
   };
 
   const handleNavigateToRecruitmentRate = () => {
@@ -98,15 +93,6 @@ const DelegateDashboard: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const handleQuickVisitRecord = async () => {
-    setRecordingVisit(true);
-    // Simulate quick visit recording
-    setTimeout(() => {
-      setRecordingVisit(false);
-      // Could show a toast here
-    }, 1500);
-  };
-
   const getPerformanceColor = (value: number, type: 'return' | 'recruitment') => {
     if (type === 'return') {
       if (value >= 80) return 'text-green-600 bg-green-50 border-green-200';
@@ -142,23 +128,6 @@ const DelegateDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button
-                onClick={handleQuickVisitRecord}
-                disabled={recordingVisit}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {recordingVisit ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2 animate-spin" />
-                    Recording...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Quick Record
-                  </>
-                )}
-              </Button>
               <Button 
                 variant="outline" 
                 onClick={handleSignOut}
@@ -172,20 +141,6 @@ const DelegateDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Welcome Section */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="p-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Your Performance Dashboard
-              </h2>
-              <p className="text-lg text-gray-600 mb-6">
-                Track your visits, monitor your recruitment progress, and achieve your targets
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* KPI Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Return Index Card */}
@@ -246,60 +201,6 @@ const DelegateDashboard: React.FC = () => {
               <div className="mt-3 text-xs text-gray-500">
                 {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card 
-            className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
-            onClick={handleNavigateToVisitReport}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
-                  <FileText className="h-6 w-6 text-white" />
-                </div>
-                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-2">Visit Reports</CardTitle>
-              <p className="text-gray-600 text-sm">
-                View your visit history and detailed reports
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <div className="p-2 bg-gradient-to-r from-green-600 to-green-700 rounded-lg">
-                <Calendar className="h-6 w-6 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-2">Schedule</CardTitle>
-              <p className="text-gray-600 text-sm">
-                Coming soon - Manage your visit schedule
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
-                <Target className="h-6 w-6 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-2">Targets</CardTitle>
-              <div className="text-sm text-gray-500 mb-2">
-                {statsLoading ? 'Loading...' : `${dashboardStats?.visitPlansCount || 0} visit plans`}
-              </div>
-              <p className="text-gray-600 text-sm">
-                Track your monthly and yearly goals
-              </p>
             </CardContent>
           </Card>
         </div>

@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, TrendingUp, Calendar, Target } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Calendar, Target, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,9 +19,11 @@ interface SalesPlanData {
   id: string;
   product_name: string;
   brick_name: string;
+  sector_name: string;
   targets: number[];
   achievements: number[];
   recruitment_rhythm: number;
+  achievement_percentage: number;
   row_color: 'red' | 'yellow' | 'green';
 }
 
@@ -31,6 +34,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedProduct, setSelectedProduct] = useState<string>('all');
+  const [selectedBrick, setSelectedBrick] = useState<string>('all');
+  const [selectedSector, setSelectedSector] = useState<string>('all');
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
@@ -114,23 +120,27 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     staleTime: 10 * 60 * 1000,
   });
 
-  // Fetch bricks separately
+  // Fetch bricks with sectors
   const { data: bricks = [], isLoading: bricksLoading } = useQuery({
-    queryKey: ['bricks'],
+    queryKey: ['bricks-with-sectors'],
     queryFn: async () => {
-      console.log('Fetching bricks');
+      console.log('Fetching bricks with sectors');
       
       try {
         const { data, error } = await supabase
           .from('bricks')
-          .select('id, name');
+          .select(`
+            id, 
+            name,
+            sectors(id, name)
+          `);
 
         if (error) {
           console.error('Bricks query error:', error);
           throw error;
         }
 
-        console.log('Bricks fetched:', data?.length || 0);
+        console.log('Bricks with sectors fetched:', data?.length || 0);
         return data || [];
       } catch (error) {
         console.error('Error in bricks query:', error);
@@ -220,6 +230,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
         const denominator = n > 0 ? (n * (n + 1)) / 2 : 1;
         const recruitmentRhythm = denominator > 0 ? Math.ceil((sumTargets - achievementsYTD) / denominator) : 0;
 
+        // Calculate achievement percentage: (Sum of achievementsYTD) / (sum of targets) * 100
+        const achievementPercentage = sumTargets > 0 ? Math.round((achievementsYTD / sumTargets) * 100) : 0;
+
         // Calculate sales percentage for color coding: (Sum of achievementsYTD)/(sum of targetsYTD) *100
         const salesPercentage = targetsYTD > 0 ? (achievementsYTD / targetsYTD) * 100 : 0;
 
@@ -235,9 +248,11 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           id: salesPlan.id,
           product_name: product.name,
           brick_name: brick.name,
+          sector_name: brick.sectors?.name || 'N/A',
           targets,
           achievements,
           recruitment_rhythm: recruitmentRhythm,
+          achievement_percentage: achievementPercentage,
           row_color: rowColor
         });
       }
@@ -248,6 +263,20 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     enabled: !salesPlansLoading && !productsLoading && !bricksLoading && !salesLoading,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Filter processed data based on selected filters
+  const filteredData = processedData.filter((item) => {
+    const productMatch = selectedProduct === 'all' || item.product_name === selectedProduct;
+    const brickMatch = selectedBrick === 'all' || item.brick_name === selectedBrick;
+    const sectorMatch = selectedSector === 'all' || item.sector_name === selectedSector;
+    
+    return productMatch && brickMatch && sectorMatch;
+  });
+
+  // Get unique values for filter options
+  const uniqueProducts = [...new Set(processedData.map(item => item.product_name))];
+  const uniqueBricks = [...new Set(processedData.map(item => item.brick_name))];
+  const uniqueSectors = [...new Set(processedData.map(item => item.sector_name))];
 
   const isLoading = salesPlansLoading || productsLoading || bricksLoading || salesLoading || isProcessing;
   const error = salesPlansError;
@@ -272,12 +301,23 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     return 'text-red-600 bg-red-100';
   };
 
+  const getAchievementPercentageColor = (percentage: number) => {
+    if (percentage >= 80) return 'text-green-600 bg-green-100';
+    if (percentage >= 50) return 'text-yellow-600 bg-yellow-100';
+    return 'text-red-600 bg-red-100';
+  };
+
   const getMonthHighlightClass = (monthIndex: number) => {
     // Highlight selected month and all preceding months
     if (monthIndex < selectedMonth) {
       return 'bg-blue-50 border-2 border-blue-200';
     }
     return '';
+  };
+
+  const calculateMonthlyPercentage = (achievement: number, target: number) => {
+    if (target === 0) return 0;
+    return Math.round((achievement / target) * 100);
   };
 
   if (isLoading) {
@@ -359,30 +399,107 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Filters Section */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mb-6">
+          <CardHeader>
+            <div className="flex items-center space-x-2">
+              <Filter className="h-5 w-5 text-gray-600" />
+              <CardTitle className="text-lg">Filters</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
+                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Products" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Products</SelectItem>
+                    {uniqueProducts.map((product) => (
+                      <SelectItem key={product} value={product}>
+                        {product}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Brick</label>
+                <Select value={selectedBrick} onValueChange={setSelectedBrick}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Bricks" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Bricks</SelectItem>
+                    {uniqueBricks.map((brick) => (
+                      <SelectItem key={brick} value={brick}>
+                        {brick}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
+                <Select value={selectedSector} onValueChange={setSelectedSector}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Sectors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sectors</SelectItem>
+                    {uniqueSectors.map((sector) => (
+                      <SelectItem key={sector} value={sector}>
+                        {sector}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="mt-4 text-sm text-gray-600">
+              Showing {filteredData.length} of {processedData.length} sales plans
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Sales Plans Table */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle>Sales Plans Analysis</CardTitle>
             <p className="text-sm text-gray-500">
-              Analyzing {effectiveDelegateIds.length} delegate(s) | Found {processedData.length} sales plans
+              Analyzing {effectiveDelegateIds.length} delegate(s) | Found {filteredData.length} sales plans
             </p>
           </CardHeader>
           <CardContent>
-            {processedData.length === 0 ? (
+            {filteredData.length === 0 ? (
               <div className="text-center py-8">
                 <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
                 <p className="text-gray-600">
-                  {supervisorName 
-                    ? `No sales plans found for ${supervisorName}.`
-                    : profile?.role === 'Supervisor' 
-                    ? 'No sales plans found for your supervised delegates.'
-                    : 'No sales plans found for your profile.'
+                  {processedData.length === 0 
+                    ? (supervisorName 
+                        ? `No sales plans found for ${supervisorName}.`
+                        : profile?.role === 'Supervisor' 
+                        ? 'No sales plans found for your supervised delegates.'
+                        : 'No sales plans found for your profile.')
+                    : 'No sales plans match the selected filters.'
                   }
                 </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Delegate IDs: {effectiveDelegateIds.join(', ')}
-                </p>
+                {processedData.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => {
+                      setSelectedProduct('all');
+                      setSelectedBrick('all');
+                      setSelectedSector('all');
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -391,6 +508,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Product Name</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Sector</th>
                       {displayMonths.map((month, index) => (
                         <th 
                           key={month} 
@@ -399,17 +517,21 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                           {month}
                         </th>
                       ))}
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Achievement %</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Recruitment Rhythm</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {processedData.map((plan) => (
+                    {filteredData.map((plan) => (
                       <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
                         <td className="py-4 px-4 font-medium">
                           {plan.product_name}
                         </td>
                         <td className="py-4 px-4">
                           {plan.brick_name}
+                        </td>
+                        <td className="py-4 px-4">
+                          {plan.sector_name}
                         </td>
                         {displayMonths.map((_, index) => (
                           <td 
@@ -418,9 +540,17 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                           >
                             <div className="text-sm">
                               <div className="font-medium">{plan.achievements[index] || 0} / {plan.targets[index] || 0}</div>
+                              <div className="text-xs text-gray-500">
+                                ({calculateMonthlyPercentage(plan.achievements[index] || 0, plan.targets[index] || 0)}%)
+                              </div>
                             </div>
                           </td>
                         ))}
+                        <td className="py-4 px-4 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAchievementPercentageColor(plan.achievement_percentage)}`}>
+                            {plan.achievement_percentage}%
+                          </span>
+                        </td>
                         <td className="py-4 px-4 text-center">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(plan.recruitment_rhythm)}`}>
                             {plan.recruitment_rhythm}
