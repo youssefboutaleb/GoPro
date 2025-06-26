@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +12,6 @@ interface VisitPlanData {
   id: string;
   doctor_name: string;
   brick_name: string;
-  specialty: string;
   visit_frequency: number;
   monthly_visits: number[];
   visits_today: number;
@@ -26,14 +26,10 @@ interface VisitPlanData {
 
 interface InteractiveVisitTableProps {
   delegateIds?: string[];
-  brickFilter?: string;
-  specialtyFilter?: string;
 }
 
 const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({ 
-  delegateIds = [],
-  brickFilter = 'all',
-  specialtyFilter = 'all'
+  delegateIds = [] 
 }) => {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -60,7 +56,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 
   // Fetch visit plans with doctors and bricks data
   const { data: visitPlansData = [], isLoading } = useQuery({
-    queryKey: ['interactive-visit-plans', effectiveDelegateIds.join(','), brickFilter, specialtyFilter],
+    queryKey: ['interactive-visit-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
       if (effectiveDelegateIds.length === 0) return [];
 
@@ -81,7 +77,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       const doctorIds = visitPlans?.map(p => p.doctor_id).filter(Boolean) || [];
       const { data: doctors, error: doctorsError } = await supabase
         .from('doctors')
-        .select('id, first_name, last_name, specialty, brick_id')
+        .select('id, first_name, last_name, brick_id')
         .in('id', doctorIds);
 
       if (doctorsError) {
@@ -123,10 +119,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         const brick = doctor ? bricks?.find(b => b.id === doctor.brick_id) : null;
 
         if (!doctor) continue;
-
-        // Apply filters
-        if (brickFilter !== 'all' && brick?.name !== brickFilter) continue;
-        if (specialtyFilter !== 'all' && doctor.specialty !== specialtyFilter) continue;
 
         const monthlyFrequency = visitPlan.visit_frequency === '1' ? 1 : 2;
         
@@ -173,7 +165,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           id: visitPlan.id,
           doctor_name: `${doctor.first_name} ${doctor.last_name}`,
           brick_name: brick?.name || 'Unknown Brick',
-          specialty: doctor.specialty || 'N/A',
           visit_frequency: monthlyFrequency,
           monthly_visits,
           visits_today: visitsToday,
@@ -382,7 +373,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-3 font-medium text-gray-700">Doctor</th>
                   <th className="text-left py-3 px-3 font-medium text-gray-700">Brick</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-700">Specialty</th>
                   <th className="text-center py-3 px-2 font-medium text-gray-700">Freq</th>
                   {/* Monthly columns up to current month */}
                   {monthNames.slice(0, currentMonth).map((month, index) => (
@@ -437,7 +427,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-3 text-gray-600">{plan.brick_name}</td>
-                    <td className="py-3 px-3 text-gray-600">{plan.specialty}</td>
                     <td className="py-3 px-2 text-center text-gray-700">
                       {plan.visit_frequency}x/month
                     </td>

@@ -4,72 +4,67 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users } from 'lucide-react';
 
-interface RecruitmentData {
+interface SalesPlanData {
   id: string;
-  delegate_name: string;
-  brick_name: string;
   product_name: string;
-  target: number;
-  achievement: number;
-  achievement_percentage: number;
-  monthly_targets: number[];
+  brick_name: string | null;
   monthly_achievements: number[];
+  monthly_targets: number[];
+  recruitment_rhythm: number;
+  row_color: 'red' | 'yellow' | 'green';
 }
 
 interface RecruitmentTableProps {
-  data: RecruitmentData[];
-  selectedMonth: number;
-  selectedYear: number;
-  isLoading: boolean;
+  salesPlansData: SalesPlanData[];
+  monthsElapsed: number;
 }
 
 const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
-  data,
-  selectedMonth,
-  selectedYear,
-  isLoading
+  salesPlansData,
+  monthsElapsed
 }) => {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const displayMonths = monthNames.slice(0, monthsElapsed);
+
+  const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
+    switch (color) {
+      case 'green':
+        return 'bg-green-50 border-l-4 border-l-green-500';
+      case 'yellow':
+        return 'bg-yellow-50 border-l-4 border-l-yellow-500';
+      case 'red':
+        return 'bg-red-50 border-l-4 border-l-red-500';
+      default:
+        return '';
+    }
+  };
+
   const getRecruitmentRhythmColor = (rhythm: number) => {
     if (rhythm >= 80) return 'text-green-600 bg-green-100';
     if (rhythm >= 50) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 
-  const getRowColorClass = (rhythm: number) => {
-    if (rhythm >= 80) return 'bg-green-50 border-l-4 border-l-green-500';
-    if (rhythm >= 50) return 'bg-yellow-50 border-l-4 border-l-yellow-500';
-    return 'bg-red-50 border-l-4 border-l-red-500';
+  const getMonthHighlightClass = (monthIndex: number) => {
+    // Highlight selected month and all preceding months
+    if (monthIndex < monthsElapsed) {
+      return 'bg-blue-50 border-2 border-blue-200';
+    }
+    return '';
   };
-
-  if (isLoading) {
-    return (
-      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle>Recruitment Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
       <CardHeader>
-        <CardTitle>Recruitment Analysis - {selectedMonth}/{selectedYear}</CardTitle>
+        <CardTitle>Sales Plans Analysis</CardTitle>
       </CardHeader>
       <CardContent>
-        {data.length === 0 ? (
+        {salesPlansData.length === 0 ? (
           <div className="text-center py-8">
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Plans Found</h3>
             <p className="text-gray-600">
-              No sales plans found for the selected criteria.
+              No sales plans found for your profile. Please contact your administrator.
             </p>
           </div>
         ) : (
@@ -77,35 +72,46 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Delegate</TableHead>
-                  <TableHead>Brick</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-center">Target</TableHead>
-                  <TableHead className="text-center">Achievement</TableHead>
+                  <TableHead>Product Name</TableHead>
+                  <TableHead>Brick Name</TableHead>
+                  {displayMonths.map((month, index) => (
+                    <TableHead 
+                      key={month} 
+                      className={`text-center min-w-[100px] ${getMonthHighlightClass(index)}`}
+                    >
+                      {month}
+                    </TableHead>
+                  ))}
                   <TableHead className="text-center">Recruitment Rhythm</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((item) => (
-                  <TableRow key={item.id} className={getRowColorClass(item.achievement_percentage)}>
+                {salesPlansData.map((plan) => (
+                  <TableRow key={plan.id} className={getRowColorClass(plan.row_color)}>
                     <TableCell className="font-medium">
-                      {item.delegate_name}
+                      {plan.product_name}
                     </TableCell>
                     <TableCell>
-                      {item.brick_name}
+                      {plan.brick_name || 'N/A'}
                     </TableCell>
-                    <TableCell>
-                      {item.product_name}
-                    </TableCell>
+                    {displayMonths.map((_, index) => (
+                      <TableCell 
+                        key={index} 
+                        className={`text-center ${getMonthHighlightClass(index)}`}
+                      >
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-green-600 font-medium">
+                            {plan.monthly_achievements[index] || 0}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            / {plan.monthly_targets[index] || 0}
+                          </span>
+                        </div>
+                      </TableCell>
+                    ))}
                     <TableCell className="text-center">
-                      {item.target}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {item.achievement}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(item.achievement_percentage)}`}>
-                        {item.achievement_percentage}%
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRhythmColor(plan.recruitment_rhythm)}`}>
+                        {plan.recruitment_rhythm}
                       </span>
                     </TableCell>
                   </TableRow>
