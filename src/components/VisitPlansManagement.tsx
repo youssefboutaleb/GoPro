@@ -13,13 +13,22 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface VisitPlansManagementProps {
   onBack: () => void;
+  delegateIds?: string[];
+  supervisorName?: string;
 }
 
-const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) => {
+const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ 
+  onBack, 
+  delegateIds = [], 
+  supervisorName 
+}) => {
   const { profile } = useAuth();
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
   const [showReturnIndexAnalysis, setShowReturnIndexAnalysis] = useState(false);
+
+  // Use provided delegateIds or fallback to current user
+  const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
 
   // Fetch bricks for filter
   const { data: bricks = [] } = useQuery({
@@ -62,7 +71,11 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) =
 
   // Show Return Index Analysis interface
   if (showReturnIndexAnalysis) {
-    return <ReturnIndexAnalysis onBack={() => setShowReturnIndexAnalysis(false)} />;
+    return <ReturnIndexAnalysis 
+      onBack={() => setShowReturnIndexAnalysis(false)} 
+      delegateIds={effectiveDelegateIds}
+      supervisorName={supervisorName}
+    />;
   }
 
   return (
@@ -87,7 +100,10 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) =
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Visit Plans Management</h1>
                   <p className="text-sm text-gray-600">
-                    Manage and track your visit plans
+                    {supervisorName 
+                      ? `Manage and track visit plans for ${supervisorName}'s team`
+                      : 'Manage and track your visit plans'
+                    }
                   </p>
                 </div>
               </div>
@@ -174,12 +190,15 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) =
           <CardHeader>
             <CardTitle className="text-xl">Interactive Visit Plans</CardTitle>
             <p className="text-sm text-gray-600">
-              Track your visits, record new visits by swiping right, and monitor your return index
+              {supervisorName 
+                ? `Track team visits, record new visits by swiping right, and monitor team return index`
+                : 'Track your visits, record new visits by swiping right, and monitor your return index'
+              }
             </p>
           </CardHeader>
           <CardContent>
             <InteractiveVisitTable 
-              delegateIds={profile?.id ? [profile.id] : []} 
+              delegateIds={effectiveDelegateIds} 
               brickFilter={selectedBrick}
               specialtyFilter={selectedSpecialty}
             />
