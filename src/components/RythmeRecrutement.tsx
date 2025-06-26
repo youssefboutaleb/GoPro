@@ -137,7 +137,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     },
   });
 
-  // Fetch sales plans data with proper relationship hints
+  // Fetch sales plans data with corrected relationship syntax
   const { data: salesPlansData = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
     queryKey: ['recruitment-rhythm-sales-plans', effectiveDelegateIds.join(','), selectedProduct, selectedBrick],
     queryFn: async () => {
@@ -156,8 +156,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             delegate_id,
             product_id,
             brick_id,
-            products!product_id(id, name),
-            bricks!brick_id(id, name)
+            products(id, name),
+            bricks(id, name)
           `)
           .in('delegate_id', effectiveDelegateIds);
 
