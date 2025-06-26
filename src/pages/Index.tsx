@@ -73,7 +73,13 @@ const Index = () => {
           />
         );
       case 'Sales Director':
-        return <SalesDirectorDashboard />;
+        return (
+          <SalesDirectorDashboard 
+            onSignOut={signOut}
+            signOutLoading={signOutLoading}
+            profile={profile}
+          />
+        );
       case 'Delegate':
         return <DelegateDashboard />;
       default:
