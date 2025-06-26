@@ -1,25 +1,19 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Users } from 'lucide-react';
 
 interface RecruitmentHeaderProps {
   onBack: () => void;
-  selectedMonth: string;
-  onMonthChange: (month: string) => void;
-  salesPlansCount: number;
+  supervisorName?: string;
+  isDelegateView: boolean;
 }
 
 const RecruitmentHeader: React.FC<RecruitmentHeaderProps> = ({
   onBack,
-  selectedMonth,
-  onMonthChange,
-  salesPlansCount
+  supervisorName,
+  isDelegateView
 }) => {
-  const currentMonth = new Date().getMonth() + 1;
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
   return (
     <div className="bg-white shadow-lg border-b border-blue-100">
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -33,28 +27,13 @@ const RecruitmentHeader: React.FC<RecruitmentHeaderProps> = ({
                 <Users className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement par Ventes</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {supervisorName ? `Recruitment Analysis - ${supervisorName}` : 'Rythme de Recrutement par Ventes'}
+                </h1>
                 <p className="text-sm text-gray-600">
-                  Tracking {salesPlansCount} sales plans
+                  {isDelegateView ? 'Personal recruitment tracking' : 'Team recruitment tracking'}
                 </p>
               </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">Month:</label>
-              <Select value={selectedMonth} onValueChange={onMonthChange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: currentMonth }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>
-                      {monthNames[i]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
