@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +32,12 @@ const Auth = () => {
       navigate('/', { replace: true });
     }
   }, [user, session, navigate]);
+
+  const handleQuickLogin = (quickEmail: string, quickPassword: string) => {
+    setEmail(quickEmail);
+    setPassword(quickPassword);
+    toast.success('Credentials filled automatically');
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,13 +138,58 @@ const Auth = () => {
                   </Button>
                 </form>
                 <div className="mt-4">
-                  <p className="text-sm text-blue-700">
-                    <strong>{t('auth:admin')} :</strong> admin@admin.com / adminadmin <br />
-                    <strong>{t('auth:user')}:</strong> medalia@protonmail.ch / dalidali <br />
-                    <strong>2 {t('auth:salesDirectors')}:</strong> director1@sales.com, director2@sales.com / 123456 <br />
-                    <strong>4 {t('auth:supervisors')}:</strong> supervisor1@sup.com, ... , supervisor4@sup.com / 123456 <br />
-                    <strong>10 {t('auth:delegates')}:</strong> delegate1@dlg.com, ..., delegate10@dlg.com / 123456
-                  </p>
+                  <p className="text-xs text-gray-600 mb-2">Click any user below to auto-fill credentials:</p>
+                  <div className="space-y-1">
+                    <div 
+                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors"
+                      onClick={() => handleQuickLogin('admin@admin.com', 'adminadmin')}
+                    >
+                      <span className="font-semibold text-blue-700">{t('auth:admin')}:</span> admin@admin.com / adminadmin
+                    </div>
+                    
+                    <div 
+                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors"
+                      onClick={() => handleQuickLogin('medalia@protonmail.ch', 'dalidali')}
+                    >
+                      <span className="font-semibold text-blue-700">{t('auth:user')}:</span> medalia@protonmail.ch / dalidali
+                    </div>
+                    
+                    <div className="text-sm text-blue-700 font-semibold">2 {t('auth:salesDirectors')}:</div>
+                    <div 
+                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
+                      onClick={() => handleQuickLogin('director1@sales.com', '123456')}
+                    >
+                      director1@sales.com / 123456
+                    </div>
+                    <div 
+                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
+                      onClick={() => handleQuickLogin('director2@sales.com', '123456')}
+                    >
+                      director2@sales.com / 123456
+                    </div>
+                    
+                    <div className="text-sm text-blue-700 font-semibold">4 {t('auth:supervisors')}:</div>
+                    {[1, 2, 3, 4].map(num => (
+                      <div 
+                        key={num}
+                        className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
+                        onClick={() => handleQuickLogin(`supervisor${num}@sup.com`, '123456')}
+                      >
+                        supervisor{num}@sup.com / 123456
+                      </div>
+                    ))}
+                    
+                    <div className="text-sm text-blue-700 font-semibold">10 {t('auth:delegates')}:</div>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <div 
+                        key={num}
+                        className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
+                        onClick={() => handleQuickLogin(`delegate${num}@dlg.com`, '123456')}
+                      >
+                        delegate{num}@dlg.com / 123456
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
               
