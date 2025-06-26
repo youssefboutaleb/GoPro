@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ interface RythmeRecrutementProps {
   onBack: () => void;
   delegateIds?: string[];
   supervisorName?: string;
+  showDelegateFilter?: boolean;
 }
 
 interface SalesPlanData {
@@ -20,6 +20,7 @@ interface SalesPlanData {
   product_name: string;
   brick_name: string;
   sector_name: string;
+  delegate_name?: string;
   targets: number[];
   achievements: number[];
   recruitment_rhythm: number;
@@ -30,13 +31,15 @@ interface SalesPlanData {
 const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ 
   onBack, 
   delegateIds = [], 
-  supervisorName 
+  supervisorName,
+  showDelegateFilter = false
 }) => {
   const { user, profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedProduct, setSelectedProduct] = useState<string>('all');
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedSector, setSelectedSector] = useState<string>('all');
+  const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
@@ -50,6 +53,23 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   // Generate month names for table headers
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
+
+  // Fetch delegate names for supervisor view
+  const { data: delegateNames = [], isLoading: delegateNamesLoading } = useQuery({
+    queryKey: ['delegate-names', effectiveDelegateIds],
+    queryFn: async () => {
+      if (!showDelegateFilter || effectiveDelegateIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', effectiveDelegateIds);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: showDelegateFilter && effectiveDelegateIds.length > 0,
+  });
 
   // Fetch sales plans for multiple delegates
   const { data: salesPlans = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
@@ -66,7 +86,13 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       try {
         const { data, error } = await supabase
           .from('sales_plans')
-          .select('id, product_id, brick_id, delegate_id')
+          .select(`
+            id, 
+            product_id, 
+            brick_id, 
+            delegate_id,
+            profiles!sales_plans_delegate_id_fkey(first_name, last_name)
+          `)
           .in('delegate_id', effectiveDelegateIds);
 
         if (error) {
@@ -244,11 +270,17 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           rowColor = 'yellow';
         }
 
+        // Get delegate name for supervisor view
+        const delegateName = showDelegateFilter 
+          ? `${salesPlan.profiles?.first_name || ''} ${salesPlan.profiles?.last_name || ''}`.trim()
+          : undefined;
+
         processed.push({
           id: salesPlan.id,
           product_name: product.name,
           brick_name: brick.name,
           sector_name: brick.sectors?.name || 'N/A',
+          delegate_name: delegateName,
           targets,
           achievements,
           recruitment_rhythm: recruitmentRhythm,
@@ -269,14 +301,16 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     const productMatch = selectedProduct === 'all' || item.product_name === selectedProduct;
     const brickMatch = selectedBrick === 'all' || item.brick_name === selectedBrick;
     const sectorMatch = selectedSector === 'all' || item.sector_name === selectedSector;
+    const delegateMatch = !showDelegateFilter || selectedDelegate === 'all' || item.delegate_name === selectedDelegate;
     
-    return productMatch && brickMatch && sectorMatch;
+    return productMatch && brickMatch && sectorMatch && delegateMatch;
   });
 
   // Get unique values for filter options
   const uniqueProducts = [...new Set(processedData.map(item => item.product_name))];
   const uniqueBricks = [...new Set(processedData.map(item => item.brick_name))];
   const uniqueSectors = [...new Set(processedData.map(item => item.sector_name))];
+  const uniqueDelegates = showDelegateFilter ? [...new Set(processedData.map(item => item.delegate_name).filter(Boolean))] : [];
 
   const isLoading = salesPlansLoading || productsLoading || bricksLoading || salesLoading || isProcessing;
   const error = salesPlansError;
@@ -408,7 +442,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 md:grid-cols-${showDelegateFilter ? '4' : '3'} gap-4`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -441,6 +475,24 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+              {showDelegateFilter && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delegate</label>
+                  <Select value={selectedDelegate} onValueChange={setSelectedDelegate}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Delegates" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Delegates</SelectItem>
+                      {uniqueDelegates.map((delegate) => (
+                        <SelectItem key={delegate} value={delegate!}>
+                          {delegate}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
                 <Select value={selectedSector} onValueChange={setSelectedSector}>
@@ -495,6 +547,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                       setSelectedProduct('all');
                       setSelectedBrick('all');
                       setSelectedSector('all');
+                      if (showDelegateFilter) setSelectedDelegate('all');
                     }}
                   >
                     Clear Filters
@@ -509,6 +562,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Product Name</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Sector</th>
+                      {showDelegateFilter && (
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Delegate</th>
+                      )}
                       {displayMonths.map((month, index) => (
                         <th 
                           key={month} 
@@ -533,6 +589,11 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                         <td className="py-4 px-4">
                           {plan.sector_name}
                         </td>
+                        {showDelegateFilter && (
+                          <td className="py-4 px-4">
+                            {plan.delegate_name || 'N/A'}
+                          </td>
+                        )}
                         {displayMonths.map((_, index) => (
                           <td 
                             key={index} 
