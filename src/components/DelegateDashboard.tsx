@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,18 +7,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import VisitPlansManagement from './VisitPlansManagement';
+import RythmeRecrutement from './RythmeRecrutement';
 
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
+  const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
   };
 
   const handleNavigateToRecruitmentRate = () => {
-    navigate('/delegate/recruitment-rate');
+    setShowRythmeRecrutement(true);
   };
 
   // Helper function to get the last day of a month
@@ -108,6 +109,11 @@ const DelegateDashboard: React.FC = () => {
   // Show Visit Plans Management interface
   if (showVisitPlansManagement) {
     return <VisitPlansManagement onBack={() => setShowVisitPlansManagement(false)} />;
+  }
+
+  // Show Rythme Recrutement interface
+  if (showRythmeRecrutement) {
+    return <RythmeRecrutement onBack={() => setShowRythmeRecrutement(false)} />;
   }
 
   return (

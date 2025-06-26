@@ -13,6 +13,7 @@ interface RythmeRecrutementProps {
   delegateIds?: string[];
   supervisorName?: string;
   showDelegateFilter?: boolean;
+  isDelegateView?: boolean;
 }
 
 interface SalesPlanData {
@@ -32,7 +33,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   onBack, 
   delegateIds = [], 
   supervisorName,
-  showDelegateFilter = false
+  showDelegateFilter = false,
+  isDelegateView = false
 }) => {
   const { user, profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -442,7 +444,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className={`grid grid-cols-1 md:grid-cols-${showDelegateFilter ? '4' : '3'} gap-4`}>
+            <div className={`grid grid-cols-1 md:grid-cols-${showDelegateFilter ? '3' : '2'} gap-4`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -493,22 +495,24 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   </Select>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
-                <Select value={selectedSector} onValueChange={setSelectedSector}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Sectors" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sectors</SelectItem>
-                    {uniqueSectors.map((sector) => (
-                      <SelectItem key={sector} value={sector}>
-                        {sector}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isDelegateView && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
+                  <Select value={selectedSector} onValueChange={setSelectedSector}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Sectors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sectors</SelectItem>
+                      {uniqueSectors.map((sector) => (
+                        <SelectItem key={sector} value={sector}>
+                          {sector}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <div className="mt-4 text-sm text-gray-600">
               Showing {filteredData.length} of {processedData.length} sales plans

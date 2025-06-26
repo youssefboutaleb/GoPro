@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, BarChart3, Filter } from 'lucide-react';
 import BreadcrumbNavigation from './common/BreadcrumbNavigation';
 import InteractiveVisitTable from './InteractiveVisitTable';
+import ReturnIndexAnalysis from './ReturnIndexAnalysis';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +19,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) =
   const { profile } = useAuth();
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+  const [showReturnIndexAnalysis, setShowReturnIndexAnalysis] = useState(false);
 
   // Fetch bricks for filter
   const { data: bricks = [] } = useQuery({
@@ -57,6 +59,11 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) =
     setSelectedBrick('all');
     setSelectedSpecialty('all');
   };
+
+  // Show Return Index Analysis interface
+  if (showReturnIndexAnalysis) {
+    return <ReturnIndexAnalysis onBack={() => setShowReturnIndexAnalysis(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -143,13 +150,22 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({ onBack }) =
               <div className="text-sm text-gray-600">
                 Filter visits by brick location and doctor specialty
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleClearFilters}
-              >
-                Clear Filters
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleClearFilters}
+                >
+                  Clear Filters
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowReturnIndexAnalysis(true)}
+                >
+                  Return Index Analysis
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
