@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Circle, Calendar, Target, TrendingUp, User } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { CheckCircle, Circle, Calendar, Target, TrendingUp, User, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,18 +23,22 @@ interface VisitPlanData {
   row_color: 'red' | 'yellow' | 'green';
   can_record_today: boolean;
   monthly_target_met: boolean;
+  delegate_id: string;
+  delegate_name: string;
 }
 
 interface InteractiveVisitTableProps {
   delegateIds?: string[];
   brickFilter?: string;
   specialtyFilter?: string;
+  showDelegateGrouping?: boolean;
 }
 
 const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({ 
   delegateIds = [],
   brickFilter = 'all',
-  specialtyFilter = 'all'
+  specialtyFilter = 'all',
+  showDelegateGrouping = false
 }) => {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -101,6 +106,17 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         throw bricksError;
       }
 
+      // Fetch delegate names
+      const { data: delegateProfiles, error: delegatesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', effectiveDelegateIds);
+
+      if (delegatesError) {
+        console.error('Delegates error:', delegatesError);
+        throw delegatesError;
+      }
+
       // Fetch visits for this year
       const visitPlanIds = visitPlans?.map(p => p.id) || [];
       const { data: visits, error: visitsError } = await supabase
@@ -121,8 +137,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       for (const visitPlan of visitPlans || []) {
         const doctor = doctors?.find(d => d.id === visitPlan.doctor_id);
         const brick = doctor ? bricks?.find(b => b.id === doctor.brick_id) : null;
+        const delegate = delegateProfiles?.find(d => d.id === visitPlan.delegate_id);
 
-        if (!doctor) continue;
+        if (!doctor || !delegate) continue;
 
         // Apply filters
         if (brickFilter !== 'all' && brick?.name !== brickFilter) continue;
@@ -183,7 +200,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           return_index: returnIndex,
           row_color: rowColor,
           can_record_today: canRecordToday,
-          monthly_target_met: monthlyTargetMet
+          monthly_target_met: monthlyTargetMet,
+          delegate_id: visitPlan.delegate_id,
+          delegate_name: `${delegate.first_name} ${delegate.last_name}`
         });
       }
 
@@ -193,6 +212,24 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     enabled: effectiveDelegateIds.length > 0,
     staleTime: 30 * 1000, // 30 seconds
   });
+
+  // Group data by delegate when showing grouping
+  const groupedData = React.useMemo(() => {
+    if (!showDelegateGrouping) {
+      return { 'all': visitPlansData };
+    }
+
+    const groups: { [key: string]: VisitPlanData[] } = {};
+    visitPlansData.forEach(plan => {
+      const key = `${plan.delegate_id}|${plan.delegate_name}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(plan);
+    });
+
+    return groups;
+  }, [visitPlansData, showDelegateGrouping]);
 
   // Mutation to record a visit
   const recordVisitMutation = useMutation({
@@ -340,6 +377,102 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     );
   }
 
+  const renderTable = (data: VisitPlanData[], delegateName?: string) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-3 px-3 font-medium text-gray-700">Doctor</th>
+            <th className="text-left py-3 px-3 font-medium text-gray-700">Brick</th>
+            <th className="text-left py-3 px-3 font-medium text-gray-700">Specialty</th>
+            <th className="text-center py-3 px-2 font-medium text-gray-700">Freq</th>
+            {/* Monthly columns up to current month */}
+            {monthNames.slice(0, currentMonth).map((month, index) => (
+              <th key={month} className="text-center py-3 px-2 font-medium text-gray-700 min-w-[40px]">
+                {month}
+              </th>
+            ))}
+            <th className="text-center py-3 px-3 font-medium text-gray-700">Remaining</th>
+            <th className="text-center py-3 px-3 font-medium text-gray-700">Total</th>
+            <th className="text-center py-3 px-3 font-medium text-gray-700">Expected</th>
+            <th className="text-center py-3 px-3 font-medium text-gray-700">Return Index</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((plan) => (
+            <tr 
+              key={plan.id} 
+              className={`relative ${getRowColorClass(plan.row_color)} ${
+                plan.can_record_today ? 'cursor-pointer hover:opacity-80' : 'opacity-60'
+              } transition-all duration-200 ${
+                recordingVisit === plan.id ? 'bg-blue-100' : ''
+              } ${
+                swipingRowId === plan.id ? 'transform scale-[0.99]' : ''
+              }`}
+              onTouchStart={(e) => handleTouchStart(e, plan.id)}
+              onTouchMove={(e) => handleTouchMove(e, plan.id)}
+              onTouchEnd={(e) => handleTouchEnd(e, plan)}
+            >
+              {/* Swipe feedback overlay */}
+              {swipeProgress[plan.id] > 0 && plan.can_record_today && (
+                <div 
+                  className="absolute inset-0 bg-green-100 flex items-center justify-center text-green-700 font-medium z-10 transition-opacity duration-200"
+                  style={{ 
+                    opacity: Math.min(swipeProgress[plan.id] / 100, 0.9),
+                    transform: `translateX(${Math.max(0, swipeProgress[plan.id] - 50)}px)`
+                  }}
+                >
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Record Visit
+                </div>
+              )}
+              
+              <td className="py-3 px-3">
+                <div className="flex items-center space-x-2">
+                  {plan.visits_today > 0 && (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  )}
+                  {plan.monthly_target_met && (
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                  )}
+                  <span className="font-medium text-gray-900">{plan.doctor_name}</span>
+                </div>
+              </td>
+              <td className="py-3 px-3 text-gray-600">{plan.brick_name}</td>
+              <td className="py-3 px-3 text-gray-600">{plan.specialty}</td>
+              <td className="py-3 px-2 text-center text-gray-700">
+                {plan.visit_frequency}x/month
+              </td>
+              {/* Monthly visit counts */}
+              {plan.monthly_visits.slice(0, currentMonth).map((count, index) => (
+                <td key={index} className="py-3 px-2 text-center text-gray-700">
+                  {count || '-'}
+                </td>
+              ))}
+              <td className="py-3 px-3 text-center text-gray-700">
+                {plan.remaining_this_month}
+              </td>
+              <td className="py-3 px-3 text-center font-medium text-gray-900">
+                {plan.total_visits}
+              </td>
+              <td className="py-3 px-3 text-center text-gray-700">
+                {plan.expected_visits}
+              </td>
+              <td className="py-3 px-3 text-center">
+                <span className={`font-medium ${
+                  plan.return_index >= 80 ? 'text-green-600' :
+                  plan.return_index >= 50 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {plan.return_index}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Summary KPI Cards */}
@@ -376,99 +509,35 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           <p className="text-sm text-gray-500">Swipe right on a row to record a visit</p>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-3 font-medium text-gray-700">Doctor</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-700">Brick</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-700">Specialty</th>
-                  <th className="text-center py-3 px-2 font-medium text-gray-700">Freq</th>
-                  {/* Monthly columns up to current month */}
-                  {monthNames.slice(0, currentMonth).map((month, index) => (
-                    <th key={month} className="text-center py-3 px-2 font-medium text-gray-700 min-w-[40px]">
-                      {month}
-                    </th>
-                  ))}
-                  <th className="text-center py-3 px-3 font-medium text-gray-700">Remaining</th>
-                  <th className="text-center py-3 px-3 font-medium text-gray-700">Total</th>
-                  <th className="text-center py-3 px-3 font-medium text-gray-700">Expected</th>
-                  <th className="text-center py-3 px-3 font-medium text-gray-700">Return Index</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visitPlansData.map((plan) => (
-                  <tr 
-                    key={plan.id} 
-                    className={`relative ${getRowColorClass(plan.row_color)} ${
-                      plan.can_record_today ? 'cursor-pointer hover:opacity-80' : 'opacity-60'
-                    } transition-all duration-200 ${
-                      recordingVisit === plan.id ? 'bg-blue-100' : ''
-                    } ${
-                      swipingRowId === plan.id ? 'transform scale-[0.99]' : ''
-                    }`}
-                    onTouchStart={(e) => handleTouchStart(e, plan.id)}
-                    onTouchMove={(e) => handleTouchMove(e, plan.id)}
-                    onTouchEnd={(e) => handleTouchEnd(e, plan)}
-                  >
-                    {/* Swipe feedback overlay */}
-                    {swipeProgress[plan.id] > 0 && plan.can_record_today && (
-                      <div 
-                        className="absolute inset-0 bg-green-100 flex items-center justify-center text-green-700 font-medium z-10 transition-opacity duration-200"
-                        style={{ 
-                          opacity: Math.min(swipeProgress[plan.id] / 100, 0.9),
-                          transform: `translateX(${Math.max(0, swipeProgress[plan.id] - 50)}px)`
-                        }}
-                      >
-                        <CheckCircle className="h-5 w-5 mr-2" />
-                        Record Visit
+          {showDelegateGrouping && Object.keys(groupedData).length > 1 ? (
+            <div className="space-y-8">
+              {Object.entries(groupedData).map(([key, data]) => {
+                const [delegateId, delegateName] = key.split('|');
+                return (
+                  <div key={key}>
+                    {/* Delegate Section Header */}
+                    <div className="mb-4">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div className="p-2 bg-blue-100 rounded-full">
+                          <Users className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{delegateName}</h3>
+                          <p className="text-sm text-gray-600">{data.length} visit plans</p>
+                        </div>
                       </div>
-                    )}
+                      <Separator />
+                    </div>
                     
-                    <td className="py-3 px-3">
-                      <div className="flex items-center space-x-2">
-                        {plan.visits_today > 0 && (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        )}
-                        {plan.monthly_target_met && (
-                          <CheckCircle className="h-4 w-4 text-blue-600" />
-                        )}
-                        <span className="font-medium text-gray-900">{plan.doctor_name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-gray-600">{plan.brick_name}</td>
-                    <td className="py-3 px-3 text-gray-600">{plan.specialty}</td>
-                    <td className="py-3 px-2 text-center text-gray-700">
-                      {plan.visit_frequency}x/month
-                    </td>
-                    {/* Monthly visit counts */}
-                    {plan.monthly_visits.slice(0, currentMonth).map((count, index) => (
-                      <td key={index} className="py-3 px-2 text-center text-gray-700">
-                        {count || '-'}
-                      </td>
-                    ))}
-                    <td className="py-3 px-3 text-center text-gray-700">
-                      {plan.remaining_this_month}
-                    </td>
-                    <td className="py-3 px-3 text-center font-medium text-gray-900">
-                      {plan.total_visits}
-                    </td>
-                    <td className="py-3 px-3 text-center text-gray-700">
-                      {plan.expected_visits}
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className={`font-medium ${
-                        plan.return_index >= 80 ? 'text-green-600' :
-                        plan.return_index >= 50 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {plan.return_index}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {/* Delegate's Table */}
+                    {renderTable(data, delegateName)}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            renderTable(visitPlansData)
+          )}
         </CardContent>
       </Card>
 

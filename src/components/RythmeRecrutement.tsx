@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, TrendingUp, Calendar, Filter, Target, Package, Building } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, TrendingUp, Calendar, Filter, Target, Package, Building, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +24,8 @@ interface RecruitmentData {
   actual_sales: number[];
   recruitment_rate: number;
   row_color: 'red' | 'yellow' | 'green';
+  delegate_id: string;
+  delegate_name: string;
 }
 
 interface RecruitmentHeaderProps {
@@ -221,6 +223,23 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     },
   });
 
+  // Fetch delegate profiles
+  const { data: delegateProfiles = [] } = useQuery({
+    queryKey: ['delegate-profiles-recruitment', effectiveDelegateIds.join(',')],
+    queryFn: async () => {
+      if (effectiveDelegateIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', effectiveDelegateIds);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: effectiveDelegateIds.length > 0,
+  });
+
   const salesPlanIds = salesPlansData.map(plan => plan.id);
 
   // Fetch sales data
@@ -247,7 +266,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 
   // Process data when all queries are complete - now with frontend joins
   const { data: processedData = [], isLoading: isProcessing } = useQuery({
-    queryKey: ['processed-recruitment-data', salesPlansData, salesData, allProducts, allBricks, selectedMonth, selectedProduct, selectedBrick],
+    queryKey: ['processed-recruitment-data', salesPlansData, salesData, allProducts, allBricks, delegateProfiles, selectedMonth, selectedProduct, selectedBrick],
     queryFn: async () => {
       console.log('Processing recruitment data...');
       
@@ -262,9 +281,10 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
         // Join product and brick data in JavaScript
         const product = allProducts.find(p => p.id === salesPlan.product_id);
         const brick = allBricks.find(b => b.id === salesPlan.brick_id);
+        const delegate = delegateProfiles.find(d => d.id === salesPlan.delegate_id);
 
-        if (!product || !brick) {
-          console.log('Missing product or brick data for sales plan:', salesPlan.id);
+        if (!product || !brick || !delegate) {
+          console.log('Missing product, brick, or delegate data for sales plan:', salesPlan.id);
           continue;
         }
 
@@ -315,16 +335,36 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           planned_sales,
           actual_sales,
           recruitment_rate: recruitmentRate,
-          row_color: rowColor
+          row_color: rowColor,
+          delegate_id: salesPlan.delegate_id,
+          delegate_name: `${delegate.first_name} ${delegate.last_name}`
         });
       }
 
       console.log('Processed recruitment data:', processed.length, 'items');
       return processed;
     },
-    enabled: !salesPlansLoading && !salesLoading && allProducts.length > 0 && allBricks.length > 0,
+    enabled: !salesPlansLoading && !salesLoading && allProducts.length > 0 && allBricks.length > 0 && delegateProfiles.length > 0,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Group data by delegate
+  const groupedData = React.useMemo(() => {
+    if (effectiveDelegateIds.length === 1) {
+      return { 'single': processedData };
+    }
+
+    const groups: { [key: string]: RecruitmentData[] } = {};
+    processedData.forEach(plan => {
+      const key = `${plan.delegate_id}|${plan.delegate_name}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(plan);
+    });
+
+    return groups;
+  }, [processedData, effectiveDelegateIds]);
 
   const isLoading = salesPlansLoading || salesLoading || isProcessing;
   const error = salesPlansError;
@@ -367,6 +407,57 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     }
     return '';
   };
+
+  const renderTable = (data: RecruitmentData[], delegateName?: string) => (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+            {displayMonths.map((month, index) => (
+              <th 
+                key={month} 
+                className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
+              >
+                {month}
+              </th>
+            ))}
+            <th className="text-center py-3 px-4 font-medium text-gray-700">Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((plan) => (
+            <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
+              <td className="py-4 px-4 font-medium">
+                {plan.product_name}
+              </td>
+              <td className="py-4 px-4">
+                {plan.brick_name}
+              </td>
+              {displayMonths.map((_, index) => (
+                <td 
+                  key={index} 
+                  className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
+                >
+                  <div className="text-sm">
+                    <div className="font-medium">
+                      {Math.round(plan.actual_sales[index] || 0).toLocaleString()} / {Math.round(plan.planned_sales[index] || 0).toLocaleString()}
+                    </div>
+                  </div>
+                </td>
+              ))}
+              <td className="py-4 px-4 text-center">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRateColor(plan.recruitment_rate)}`}>
+                  {plan.recruitment_rate}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -567,53 +658,36 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-                      {displayMonths.map((month, index) => (
-                        <th 
-                          key={month} 
-                          className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
-                        >
-                          {month}
-                        </th>
-                      ))}
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {processedData.map((plan) => (
-                      <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
-                        <td className="py-4 px-4 font-medium">
-                          {plan.product_name}
-                        </td>
-                        <td className="py-4 px-4">
-                          {plan.brick_name}
-                        </td>
-                        {displayMonths.map((_, index) => (
-                          <td 
-                            key={index} 
-                            className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
-                          >
-                            <div className="text-sm">
-                              <div className="font-medium">
-                                {Math.round(plan.actual_sales[index] || 0).toLocaleString()} / {Math.round(plan.planned_sales[index] || 0).toLocaleString()}
+              <div>
+                {effectiveDelegateIds.length > 1 && Object.keys(groupedData).length > 1 ? (
+                  <div className="space-y-8">
+                    {Object.entries(groupedData).map(([key, data]) => {
+                      const [delegateId, delegateName] = key.split('|');
+                      return (
+                        <div key={key}>
+                          {/* Delegate Section Header */}
+                          <div className="mb-4">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className="p-2 bg-purple-100 rounded-full">
+                                <Users className="h-5 w-5 text-purple-600" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-gray-900">{delegateName}</h3>
+                                <p className="text-sm text-gray-600">{data.length} sales plans</p>
                               </div>
                             </div>
-                          </td>
-                        ))}
-                        <td className="py-4 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRateColor(plan.recruitment_rate)}`}>
-                            {plan.recruitment_rate}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <Separator />
+                          </div>
+                          
+                          {/* Delegate's Table */}
+                          {renderTable(data, delegateName)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  renderTable(processedData)
+                )}
               </div>
             )}
           </CardContent>

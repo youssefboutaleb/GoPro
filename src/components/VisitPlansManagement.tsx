@@ -242,6 +242,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
               delegateIds={filteredDelegateIds} 
               brickFilter={selectedBrick}
               specialtyFilter={selectedSpecialty}
+              showDelegateGrouping={filteredDelegateIds.length > 1}
             />
           </CardContent>
         </Card>
