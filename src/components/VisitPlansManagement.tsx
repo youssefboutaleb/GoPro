@@ -25,10 +25,29 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
   const { profile } = useAuth();
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+  const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
   const [showReturnIndexAnalysis, setShowReturnIndexAnalysis] = useState(false);
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
+
+  // Fetch delegates for filter
+  const { data: delegates = [] } = useQuery({
+    queryKey: ['delegates-for-filter', effectiveDelegateIds.join(',')],
+    queryFn: async () => {
+      if (effectiveDelegateIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', effectiveDelegateIds)
+        .eq('role', 'Delegate');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: effectiveDelegateIds.length > 0,
+  });
 
   // Fetch bricks for filter
   const { data: bricks = [] } = useQuery({
@@ -67,13 +86,19 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
   const handleClearFilters = () => {
     setSelectedBrick('all');
     setSelectedSpecialty('all');
+    setSelectedDelegate('all');
   };
+
+  // Calculate filtered delegate IDs for the table
+  const filteredDelegateIds = selectedDelegate === 'all' 
+    ? effectiveDelegateIds 
+    : [selectedDelegate];
 
   // Show Return Index Analysis interface
   if (showReturnIndexAnalysis) {
     return <ReturnIndexAnalysis 
       onBack={() => setShowReturnIndexAnalysis(false)} 
-      delegateIds={effectiveDelegateIds}
+      delegateIds={filteredDelegateIds}
       supervisorName={supervisorName}
     />;
   }
@@ -128,7 +153,23 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Delegate</label>
+                <Select value={selectedDelegate} onValueChange={setSelectedDelegate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Delegates" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Delegates</SelectItem>
+                    {delegates.map((delegate) => (
+                      <SelectItem key={delegate.id} value={delegate.id}>
+                        {delegate.first_name} {delegate.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Brick</label>
                 <Select value={selectedBrick} onValueChange={setSelectedBrick}>
@@ -164,7 +205,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Filter visits by brick location and doctor specialty
+                Filter visits by delegate, brick location and doctor specialty
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
@@ -198,7 +239,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
           </CardHeader>
           <CardContent>
             <InteractiveVisitTable 
-              delegateIds={effectiveDelegateIds} 
+              delegateIds={filteredDelegateIds} 
               brickFilter={selectedBrick}
               specialtyFilter={selectedSpecialty}
             />

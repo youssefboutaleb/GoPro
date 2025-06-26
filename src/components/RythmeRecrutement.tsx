@@ -95,9 +95,15 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedProduct, setSelectedProduct] = useState<string>('all');
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
+  const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
   // Use provided delegateIds or fallback to current user
-  const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
+  const baseDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
+  
+  // Calculate effective delegate IDs based on delegate filter
+  const effectiveDelegateIds = selectedDelegate === 'all' 
+    ? baseDelegateIds 
+    : [selectedDelegate];
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -110,6 +116,24 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const getMonthNames = () => {
     return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   };
+
+  // Fetch delegates for filter
+  const { data: delegates = [] } = useQuery({
+    queryKey: ['delegates-for-filter-recruitment', baseDelegateIds.join(',')],
+    queryFn: async () => {
+      if (baseDelegateIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', baseDelegateIds)
+        .eq('role', 'Delegate');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: baseDelegateIds.length > 0,
+  });
 
   // Fetch products for filter
   const { data: products = [] } = useQuery({
@@ -315,6 +339,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const handleClearFilters = () => {
     setSelectedProduct('all');
     setSelectedBrick('all');
+    setSelectedDelegate('all');
   };
 
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
@@ -410,7 +435,23 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Delegate</label>
+                <Select value={selectedDelegate} onValueChange={setSelectedDelegate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Delegates" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Delegates</SelectItem>
+                    {delegates.map((delegate) => (
+                      <SelectItem key={delegate.id} value={delegate.id}>
+                        {delegate.first_name} {delegate.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -446,7 +487,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Filter recruitment data by product and brick location
+                Filter recruitment data by delegate, product and brick location
               </div>
               <Button 
                 variant="outline" 
