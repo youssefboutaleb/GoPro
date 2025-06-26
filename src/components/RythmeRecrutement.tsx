@@ -137,9 +137,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     },
   });
 
-  // Fetch sales plans data with explicit foreign key hints
+  // Fetch sales plans data separately (no joins)
   const { data: salesPlansData = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
-    queryKey: ['recruitment-rhythm-sales-plans', effectiveDelegateIds.join(','), selectedProduct, selectedBrick],
+    queryKey: ['recruitment-rhythm-sales-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
       console.log('Fetching sales plans for recruitment rhythm:', effectiveDelegateIds);
       
@@ -149,27 +149,10 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       }
 
       try {
-        let query = supabase
+        const { data, error } = await supabase
           .from('sales_plans')
-          .select(`
-            id,
-            delegate_id,
-            product_id,
-            brick_id,
-            products!product_id(id, name),
-            bricks!brick_id(id, name)
-          `)
+          .select('id, delegate_id, product_id, brick_id')
           .in('delegate_id', effectiveDelegateIds);
-
-        if (selectedProduct !== 'all') {
-          query = query.eq('products.name', selectedProduct);
-        }
-
-        if (selectedBrick !== 'all') {
-          query = query.eq('bricks.name', selectedBrick);
-        }
-
-        const { data, error } = await query;
 
         if (error) {
           console.error('Sales plans query error for recruitment rhythm:', error);
@@ -186,6 +169,32 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     enabled: effectiveDelegateIds.length > 0,
     retry: 2,
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch all products separately
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ['all-products-recruitment'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name');
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch all bricks separately
+  const { data: allBricks = [] } = useQuery({
+    queryKey: ['all-bricks-recruitment'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bricks')
+        .select('id, name');
+
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const salesPlanIds = salesPlansData.map(plan => plan.id);
@@ -212,25 +221,35 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     enabled: salesPlanIds.length > 0,
   });
 
-  // Process data when all queries are complete
+  // Process data when all queries are complete - now with frontend joins
   const { data: processedData = [], isLoading: isProcessing } = useQuery({
-    queryKey: ['processed-recruitment-data', salesPlansData, salesData, selectedMonth],
+    queryKey: ['processed-recruitment-data', salesPlansData, salesData, allProducts, allBricks, selectedMonth, selectedProduct, selectedBrick],
     queryFn: async () => {
       console.log('Processing recruitment data...');
       
-      if (!salesPlansData.length) {
-        console.log('Missing sales plans data for processing');
+      if (!salesPlansData.length || !allProducts.length || !allBricks.length) {
+        console.log('Missing data for processing');
         return [];
       }
 
       const processed: RecruitmentData[] = [];
 
       for (const salesPlan of salesPlansData) {
-        const product = salesPlan.products;
-        const brick = salesPlan.bricks;
+        // Join product and brick data in JavaScript
+        const product = allProducts.find(p => p.id === salesPlan.product_id);
+        const brick = allBricks.find(b => b.id === salesPlan.brick_id);
 
         if (!product || !brick) {
           console.log('Missing product or brick data for sales plan:', salesPlan.id);
+          continue;
+        }
+
+        // Apply filters
+        if (selectedProduct !== 'all' && product.name !== selectedProduct) {
+          continue;
+        }
+
+        if (selectedBrick !== 'all' && brick.name !== selectedBrick) {
           continue;
         }
 
@@ -279,7 +298,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       console.log('Processed recruitment data:', processed.length, 'items');
       return processed;
     },
-    enabled: !salesPlansLoading && !salesLoading,
+    enabled: !salesPlansLoading && !salesLoading && allProducts.length > 0 && allBricks.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
