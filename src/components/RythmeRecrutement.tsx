@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ interface RythmeRecrutementProps {
   onBack: () => void;
   delegateIds?: string[];
   supervisorName?: string;
+  isDelegateView?: boolean;
 }
 
 interface SalesPlanData {
@@ -30,7 +30,8 @@ interface SalesPlanData {
 const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({ 
   onBack, 
   delegateIds = [], 
-  supervisorName 
+  supervisorName,
+  isDelegateView = false
 }) => {
   const { user, profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -51,7 +52,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch sales plans for multiple delegates
+  // Fetch sales plans with separate queries to avoid relationship conflicts
   const { data: salesPlans = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
     queryKey: ['sales-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
@@ -270,7 +271,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     const brickMatch = selectedBrick === 'all' || item.brick_name === selectedBrick;
     const sectorMatch = selectedSector === 'all' || item.sector_name === selectedSector;
     
-    return productMatch && brickMatch && sectorMatch;
+    return productMatch && brickMatch && (!isDelegateView ? sectorMatch : true);
   });
 
   // Get unique values for filter options
@@ -408,7 +409,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 md:grid-cols-${isDelegateView ? '2' : '3'} gap-4`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -441,22 +442,24 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
-                <Select value={selectedSector} onValueChange={setSelectedSector}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Sectors" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sectors</SelectItem>
-                    {uniqueSectors.map((sector) => (
-                      <SelectItem key={sector} value={sector}>
-                        {sector}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isDelegateView && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sector</label>
+                  <Select value={selectedSector} onValueChange={setSelectedSector}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Sectors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sectors</SelectItem>
+                      {uniqueSectors.map((sector) => (
+                        <SelectItem key={sector} value={sector}>
+                          {sector}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <div className="mt-4 text-sm text-gray-600">
               Showing {filteredData.length} of {processedData.length} sales plans
@@ -494,7 +497,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                     onClick={() => {
                       setSelectedProduct('all');
                       setSelectedBrick('all');
-                      setSelectedSector('all');
+                      if (!isDelegateView) {
+                        setSelectedSector('all');
+                      }
                     }}
                   >
                     Clear Filters
@@ -508,7 +513,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Product Name</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Sector</th>
+                      {!isDelegateView && (
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Sector</th>
+                      )}
                       {displayMonths.map((month, index) => (
                         <th 
                           key={month} 
@@ -530,9 +537,11 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                         <td className="py-4 px-4">
                           {plan.brick_name}
                         </td>
-                        <td className="py-4 px-4">
-                          {plan.sector_name}
-                        </td>
+                        {!isDelegateView && (
+                          <td className="py-4 px-4">
+                            {plan.sector_name}
+                          </td>
+                        )}
                         {displayMonths.map((_, index) => (
                           <td 
                             key={index} 

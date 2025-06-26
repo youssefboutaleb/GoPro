@@ -1,8 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Circle, Calendar, Target, TrendingUp, User } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, Circle, Calendar, Target, TrendingUp, User, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +12,7 @@ interface VisitPlanData {
   id: string;
   doctor_name: string;
   brick_name: string;
+  doctor_specialty: string;
   visit_frequency: number;
   monthly_visits: number[];
   visits_today: number;
@@ -38,6 +39,10 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [recordingVisit, setRecordingVisit] = useState<string | null>(null);
   const [swipeProgress, setSwipeProgress] = useState<{ [key: string]: number }>({});
+
+  // Filter states
+  const [selectedBrick, setSelectedBrick] = useState<string>('all');
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [user?.id].filter(Boolean);
@@ -77,7 +82,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       const doctorIds = visitPlans?.map(p => p.doctor_id).filter(Boolean) || [];
       const { data: doctors, error: doctorsError } = await supabase
         .from('doctors')
-        .select('id, first_name, last_name, brick_id')
+        .select('id, first_name, last_name, specialty, brick_id')
         .in('id', doctorIds);
 
       if (doctorsError) {
@@ -165,6 +170,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           id: visitPlan.id,
           doctor_name: `${doctor.first_name} ${doctor.last_name}`,
           brick_name: brick?.name || 'Unknown Brick',
+          doctor_specialty: doctor.specialty || 'Not specified',
           visit_frequency: monthlyFrequency,
           monthly_visits,
           visits_today: visitsToday,
@@ -184,6 +190,18 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     enabled: effectiveDelegateIds.length > 0,
     staleTime: 30 * 1000, // 30 seconds
   });
+
+  // Filter the data based on selected filters
+  const filteredData = visitPlansData.filter((plan) => {
+    const brickMatch = selectedBrick === 'all' || plan.brick_name === selectedBrick;
+    const specialtyMatch = selectedSpecialty === 'all' || plan.doctor_specialty === selectedSpecialty;
+    
+    return brickMatch && specialtyMatch;
+  });
+
+  // Get unique values for filter options
+  const uniqueBricks = [...new Set(visitPlansData.map(plan => plan.brick_name))];
+  const uniqueSpecialties = [...new Set(visitPlansData.map(plan => plan.doctor_specialty))];
 
   // Mutation to record a visit
   const recordVisitMutation = useMutation({
@@ -313,11 +331,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     }
   };
 
-  // Calculate summary stats
-  const totalVisitPlans = visitPlansData.length;
-  const totalVisits = visitPlansData.reduce((sum, plan) => sum + plan.total_visits, 0);
+  // Calculate summary stats using filtered data
+  const totalVisitPlans = filteredData.length;
+  const totalVisits = filteredData.reduce((sum, plan) => sum + plan.total_visits, 0);
   const averageReturnIndex = totalVisitPlans > 0 
-    ? Math.round(visitPlansData.reduce((sum, plan) => sum + plan.return_index, 0) / totalVisitPlans)
+    ? Math.round(filteredData.reduce((sum, plan) => sum + plan.return_index, 0) / totalVisitPlans)
     : 0;
 
   if (isLoading) {
@@ -333,6 +351,55 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Filter Section */}
+      <Card className="bg-white border border-gray-200">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Filter className="h-5 w-5 text-gray-600" />
+            <CardTitle className="text-lg">Filters</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Brick</label>
+              <Select value={selectedBrick} onValueChange={setSelectedBrick}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Bricks" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Bricks</SelectItem>
+                  {uniqueBricks.map((brick) => (
+                    <SelectItem key={brick} value={brick}>
+                      {brick}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
+              <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Specialties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Specialties</SelectItem>
+                  {uniqueSpecialties.map((specialty) => (
+                    <SelectItem key={specialty} value={specialty}>
+                      {specialty}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-4 text-sm text-gray-600">
+            Showing {filteredData.length} of {visitPlansData.length} visit plans
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-white border border-gray-200">
@@ -373,6 +440,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-3 font-medium text-gray-700">Doctor</th>
                   <th className="text-left py-3 px-3 font-medium text-gray-700">Brick</th>
+                  <th className="text-left py-3 px-3 font-medium text-gray-700">Specialty</th>
                   <th className="text-center py-3 px-2 font-medium text-gray-700">Freq</th>
                   {/* Monthly columns up to current month */}
                   {monthNames.slice(0, currentMonth).map((month, index) => (
@@ -387,7 +455,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {visitPlansData.map((plan) => (
+                {filteredData.map((plan) => (
                   <tr 
                     key={plan.id} 
                     className={`relative ${getRowColorClass(plan.row_color)} ${
@@ -427,6 +495,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-3 text-gray-600">{plan.brick_name}</td>
+                    <td className="py-3 px-3 text-gray-600">{plan.doctor_specialty}</td>
                     <td className="py-3 px-2 text-center text-gray-700">
                       {plan.visit_frequency}x/month
                     </td>

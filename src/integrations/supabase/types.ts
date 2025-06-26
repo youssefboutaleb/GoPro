@@ -98,6 +98,7 @@ export type Database = {
           id: string
           last_name: string
           role: Database["public"]["Enums"]["role_type"]
+          sector_id: string | null
           supervisor_id: string | null
         }
         Insert: {
@@ -106,6 +107,7 @@ export type Database = {
           id: string
           last_name: string
           role: Database["public"]["Enums"]["role_type"]
+          sector_id?: string | null
           supervisor_id?: string | null
         }
         Update: {
@@ -114,9 +116,17 @@ export type Database = {
           id?: string
           last_name?: string
           role?: Database["public"]["Enums"]["role_type"]
+          sector_id?: string | null
           supervisor_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_supervisor_id_fkey"
             columns: ["supervisor_id"]
