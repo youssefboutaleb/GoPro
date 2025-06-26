@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,8 @@ interface RecruitmentData {
   row_color: 'red' | 'yellow' | 'green';
   delegate_id: string;
   delegate_name: string;
+  supervisor_id?: string;
+  supervisor_name?: string;
 }
 
 interface RecruitmentHeaderProps {
@@ -61,7 +64,7 @@ const RecruitmentHeader: React.FC<RecruitmentHeaderProps> = ({
                 <h1 className="text-2xl font-bold text-gray-900">Rythme de Recrutement</h1>
                 <p className="text-sm text-gray-600">
                   {supervisorName 
-                    ? `Sales performance analysis for ${supervisorName}'s team`
+                    ? `Sales performance analysis for ${supervisorName}`
                     : 'Sales performance and recruitment rhythm analysis'
                   }
                 </p>
@@ -98,15 +101,14 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const [selectedProduct, setSelectedProduct] = useState<string>('all');
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
+  const [selectedSupervisor, setSelectedSupervisor] = useState<string>('all');
 
   // Use provided delegateIds or fallback to current user
   const baseDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
   
-  // Calculate effective delegate IDs based on delegate filter
-  const effectiveDelegateIds = selectedDelegate === 'all' 
-    ? baseDelegateIds 
-    : [selectedDelegate];
-
+  // Check if this is a Sales Director view
+  const isSalesDirectorView = profile?.role === 'Sales Director' && delegateIds.length > 0;
+  
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -119,18 +121,61 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   };
 
-  // Fetch delegates for filter
-  const { data: delegates = [] } = useQuery({
-    queryKey: ['delegates-for-filter-recruitment', baseDelegateIds.join(',')],
+  // Fetch supervisors for Sales Director filtering
+  const { data: supervisors = [] } = useQuery({
+    queryKey: ['supervisors-for-filter-recruitment', profile?.id],
     queryFn: async () => {
-      if (baseDelegateIds.length === 0) return [];
+      if (!isSalesDirectorView || !profile?.id) return [];
       
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
+        .eq('supervisor_id', profile.id)
+        .eq('role', 'Supervisor');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSalesDirectorView,
+  });
+
+  // Calculate effective delegate IDs based on filters
+  const getEffectiveDelegateIds = () => {
+    let filtered = baseDelegateIds;
+    
+    if (selectedSupervisor !== 'all') {
+      // Filter to only delegates under the selected supervisor
+      filtered = delegates
+        .filter(d => d.supervisor_id === selectedSupervisor)
+        .map(d => d.id);
+    }
+    
+    if (selectedDelegate !== 'all') {
+      filtered = [selectedDelegate];
+    }
+    
+    return filtered;
+  };
+
+  const effectiveDelegateIds = getEffectiveDelegateIds();
+
+  // Fetch delegates with supervisor filtering
+  const { data: delegates = [] } = useQuery({
+    queryKey: ['delegates-for-filter-recruitment', baseDelegateIds.join(','), selectedSupervisor],
+    queryFn: async () => {
+      if (baseDelegateIds.length === 0) return [];
+      
+      let query = supabase
+        .from('profiles')
+        .select('id, first_name, last_name, supervisor_id')
         .in('id', baseDelegateIds)
         .eq('role', 'Delegate');
 
+      if (selectedSupervisor !== 'all') {
+        query = query.eq('supervisor_id', selectedSupervisor);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -163,7 +208,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     },
   });
 
-  // Fetch sales plans data separately (no joins)
+  // Fetch sales plans data
   const { data: salesPlansData = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
     queryKey: ['recruitment-rhythm-sales-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
@@ -223,7 +268,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     },
   });
 
-  // Fetch delegate profiles
+  // Fetch delegate profiles with supervisor info
   const { data: delegateProfiles = [] } = useQuery({
     queryKey: ['delegate-profiles-recruitment', effectiveDelegateIds.join(',')],
     queryFn: async () => {
@@ -231,13 +276,33 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, supervisor_id')
         .in('id', effectiveDelegateIds);
 
       if (error) throw error;
       return data || [];
     },
     enabled: effectiveDelegateIds.length > 0,
+  });
+
+  // Fetch supervisor profiles for grouping
+  const { data: supervisorProfiles = [] } = useQuery({
+    queryKey: ['supervisor-profiles-recruitment', delegateProfiles],
+    queryFn: async () => {
+      if (!isSalesDirectorView || delegateProfiles.length === 0) return [];
+      
+      const supervisorIds = [...new Set(delegateProfiles.map(d => d.supervisor_id).filter(Boolean))];
+      if (supervisorIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', supervisorIds);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSalesDirectorView && delegateProfiles.length > 0,
   });
 
   const salesPlanIds = salesPlansData.map(plan => plan.id);
@@ -264,9 +329,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     enabled: salesPlanIds.length > 0,
   });
 
-  // Process data when all queries are complete - now with frontend joins
+  // Process data when all queries are complete
   const { data: processedData = [], isLoading: isProcessing } = useQuery({
-    queryKey: ['processed-recruitment-data', salesPlansData, salesData, allProducts, allBricks, delegateProfiles, selectedMonth, selectedProduct, selectedBrick],
+    queryKey: ['processed-recruitment-data', salesPlansData, salesData, allProducts, allBricks, delegateProfiles, supervisorProfiles, selectedMonth, selectedProduct, selectedBrick],
     queryFn: async () => {
       console.log('Processing recruitment data...');
       
@@ -278,10 +343,12 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       const processed: RecruitmentData[] = [];
 
       for (const salesPlan of salesPlansData) {
-        // Join product and brick data in JavaScript
         const product = allProducts.find(p => p.id === salesPlan.product_id);
         const brick = allBricks.find(b => b.id === salesPlan.brick_id);
         const delegate = delegateProfiles.find(d => d.id === salesPlan.delegate_id);
+        const supervisor = isSalesDirectorView 
+          ? supervisorProfiles.find(s => s.id === delegate?.supervisor_id)
+          : null;
 
         if (!product || !brick || !delegate) {
           console.log('Missing product, brick, or delegate data for sales plan:', salesPlan.id);
@@ -297,10 +364,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           continue;
         }
 
-        // Find sales data for this plan
         const planSales = salesData.filter(s => s.sales_plan_id === salesPlan.id);
         
-        // Use targets and achievements arrays from sales data
         let planned_sales = Array(12).fill(0);
         let actual_sales = Array(12).fill(0);
 
@@ -310,7 +375,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           actual_sales = salesRecord.achievements || Array(12).fill(0);
         }
 
-        // Calculate recruitment rate up to selected month
         let totalPlanned = 0;
         let totalActual = 0;
 
@@ -337,7 +401,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           recruitment_rate: recruitmentRate,
           row_color: rowColor,
           delegate_id: salesPlan.delegate_id,
-          delegate_name: `${delegate.first_name} ${delegate.last_name}`
+          delegate_name: `${delegate.first_name} ${delegate.last_name}`,
+          supervisor_id: delegate.supervisor_id,
+          supervisor_name: supervisor ? `${supervisor.first_name} ${supervisor.last_name}` : undefined
         });
       }
 
@@ -348,23 +414,43 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     staleTime: 5 * 60 * 1000,
   });
 
-  // Group data by delegate
+  // Group data by supervisor and delegate
   const groupedData = React.useMemo(() => {
-    if (effectiveDelegateIds.length === 1) {
-      return { 'single': processedData };
+    if (isSalesDirectorView && selectedSupervisor === 'all') {
+      // Group by supervisor first, then by delegate within each supervisor
+      const supervisorGroups: { [key: string]: { [key: string]: RecruitmentData[] } } = {};
+      
+      processedData.forEach(plan => {
+        const supervisorKey = plan.supervisor_id 
+          ? `${plan.supervisor_id}|${plan.supervisor_name || 'Unknown Supervisor'}`
+          : 'unknown|No Supervisor';
+        const delegateKey = `${plan.delegate_id}|${plan.delegate_name}`;
+        
+        if (!supervisorGroups[supervisorKey]) {
+          supervisorGroups[supervisorKey] = {};
+        }
+        if (!supervisorGroups[supervisorKey][delegateKey]) {
+          supervisorGroups[supervisorKey][delegateKey] = [];
+        }
+        supervisorGroups[supervisorKey][delegateKey].push(plan);
+      });
+      
+      return supervisorGroups;
+    } else if (effectiveDelegateIds.length > 1) {
+      // Group by delegate only
+      const groups: { [key: string]: RecruitmentData[] } = {};
+      processedData.forEach(plan => {
+        const key = `${plan.delegate_id}|${plan.delegate_name}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(plan);
+      });
+      return { 'single': groups };
     }
-
-    const groups: { [key: string]: RecruitmentData[] } = {};
-    processedData.forEach(plan => {
-      const key = `${plan.delegate_id}|${plan.delegate_name}`;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(plan);
-    });
-
-    return groups;
-  }, [processedData, effectiveDelegateIds]);
+    
+    return { 'single': { 'all': processedData } };
+  }, [processedData, effectiveDelegateIds, isSalesDirectorView, selectedSupervisor]);
 
   const isLoading = salesPlansLoading || salesLoading || isProcessing;
   const error = salesPlansError;
@@ -380,6 +466,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     setSelectedProduct('all');
     setSelectedBrick('all');
     setSelectedDelegate('all');
+    setSelectedSupervisor('all');
   };
 
   const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
@@ -509,7 +596,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900">Team Recruitment Analysis</h3>
                   <p className="text-gray-600 mt-2">
-                    Analyzing recruitment rhythm for {supervisorName}'s team
+                    Analyzing recruitment rhythm for {supervisorName}
                   </p>
                 </div>
               </CardContent>
@@ -526,7 +613,27 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Supervisor Filter - only show for Sales Director */}
+              {isSalesDirectorView && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Supervisor</label>
+                  <Select value={selectedSupervisor} onValueChange={setSelectedSupervisor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Supervisors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Supervisors</SelectItem>
+                      {supervisors.map((supervisor) => (
+                        <SelectItem key={supervisor.id} value={supervisor.id}>
+                          {supervisor.first_name} {supervisor.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Delegate</label>
                 <Select value={selectedDelegate} onValueChange={setSelectedDelegate}>
@@ -543,6 +650,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
                 <Select value={selectedProduct} onValueChange={setSelectedProduct}>
@@ -559,6 +667,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Brick</label>
                 <Select value={selectedBrick} onValueChange={setSelectedBrick}>
@@ -578,7 +687,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Filter recruitment data by delegate, product and brick location
+                Filter recruitment data by {isSalesDirectorView ? 'supervisor, ' : ''}delegate, product and brick location
               </div>
               <Button 
                 variant="outline" 
@@ -659,13 +768,58 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
               </div>
             ) : (
               <div>
-                {effectiveDelegateIds.length > 1 && Object.keys(groupedData).length > 1 ? (
+                {isSalesDirectorView && selectedSupervisor === 'all' && Object.keys(groupedData).length > 1 ? (
                   <div className="space-y-8">
-                    {Object.entries(groupedData).map(([key, data]) => {
+                    {(Object.entries(groupedData) as [string, { [key: string]: RecruitmentData[] }][]).map(([supervisorKey, delegateGroups]) => {
+                      const [supervisorId, supervisorName] = supervisorKey.split('|');
+                      const totalDelegates = Object.keys(delegateGroups).length;
+                      
+                      return (
+                        <div key={supervisorKey}>
+                          {/* Supervisor Section Header */}
+                          <div className="mb-6">
+                            <div className="flex items-center space-x-3 mb-4">
+                              <div className="p-2 bg-purple-100 rounded-full">
+                                <Building className="h-6 w-6 text-purple-600" />
+                              </div>
+                              <div>
+                                <h3 className="text-xl font-semibold text-gray-900">{supervisorName}</h3>
+                                <p className="text-sm text-gray-600">{totalDelegates} delegate{totalDelegates !== 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                            <Separator className="mb-4" />
+                          </div>
+                          
+                          {/* Delegates within this Supervisor */}
+                          <div className="space-y-6 ml-8">
+                            {Object.entries(delegateGroups).map(([delegateKey, data]) => {
+                              const [delegateId, delegateName] = delegateKey.split('|');
+                              return (
+                                <div key={delegateKey}>
+                                  <div className="flex items-center space-x-3 mb-3">
+                                    <div className="p-1 bg-blue-100 rounded-full">
+                                      <Users className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div>
+                                      <h4 className="text-lg font-medium text-gray-800">{delegateName}</h4>
+                                      <p className="text-xs text-gray-500">{data.length} sales plans</p>
+                                    </div>
+                                  </div>
+                                  {renderTable(data, delegateName)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : effectiveDelegateIds.length > 1 && Object.keys(groupedData.single || {}).length > 1 ? (
+                  <div className="space-y-8">
+                    {Object.entries(groupedData.single || {}).map(([key, data]) => {
                       const [delegateId, delegateName] = key.split('|');
                       return (
                         <div key={key}>
-                          {/* Delegate Section Header */}
                           <div className="mb-4">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="p-2 bg-purple-100 rounded-full">
@@ -678,8 +832,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
                             </div>
                             <Separator />
                           </div>
-                          
-                          {/* Delegate's Table */}
                           {renderTable(data, delegateName)}
                         </div>
                       );

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Circle, Calendar, Target, TrendingUp, User, Users } from 'lucide-react';
+import { CheckCircle, Circle, Calendar, Target, TrendingUp, User, Users, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +25,8 @@ interface VisitPlanData {
   monthly_target_met: boolean;
   delegate_id: string;
   delegate_name: string;
+  supervisor_id?: string;
+  supervisor_name?: string;
 }
 
 interface InteractiveVisitTableProps {
@@ -32,13 +34,15 @@ interface InteractiveVisitTableProps {
   brickFilter?: string;
   specialtyFilter?: string;
   showDelegateGrouping?: boolean;
+  showSupervisorGrouping?: boolean;
 }
 
 const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({ 
   delegateIds = [],
   brickFilter = 'all',
   specialtyFilter = 'all',
-  showDelegateGrouping = false
+  showDelegateGrouping = false,
+  showSupervisorGrouping = false
 }) => {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -63,7 +67,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     return new Date(year, month, 0).getDate();
   };
 
-  // Fetch visit plans with doctors and bricks data
+  // Fetch visit plans with doctors, bricks, and supervisor data
   const { data: visitPlansData = [], isLoading } = useQuery({
     queryKey: ['interactive-visit-plans', effectiveDelegateIds.join(','), brickFilter, specialtyFilter],
     queryFn: async () => {
@@ -106,15 +110,33 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         throw bricksError;
       }
 
-      // Fetch delegate names
+      // Fetch delegate profiles with supervisor info
       const { data: delegateProfiles, error: delegatesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, supervisor_id')
         .in('id', effectiveDelegateIds);
 
       if (delegatesError) {
         console.error('Delegates error:', delegatesError);
         throw delegatesError;
+      }
+
+      // Fetch supervisor profiles if needed
+      let supervisorProfiles: any[] = [];
+      if (showSupervisorGrouping) {
+        const supervisorIds = [...new Set(delegateProfiles?.map(d => d.supervisor_id).filter(Boolean))];
+        if (supervisorIds.length > 0) {
+          const { data: supervisors, error: supervisorsError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', supervisorIds);
+
+          if (supervisorsError) {
+            console.error('Supervisors error:', supervisorsError);
+            throw supervisorsError;
+          }
+          supervisorProfiles = supervisors || [];
+        }
       }
 
       // Fetch visits for this year
@@ -138,6 +160,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         const doctor = doctors?.find(d => d.id === visitPlan.doctor_id);
         const brick = doctor ? bricks?.find(b => b.id === doctor.brick_id) : null;
         const delegate = delegateProfiles?.find(d => d.id === visitPlan.delegate_id);
+        const supervisor = showSupervisorGrouping 
+          ? supervisorProfiles?.find(s => s.id === delegate?.supervisor_id)
+          : null;
 
         if (!doctor || !delegate) continue;
 
@@ -202,7 +227,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           can_record_today: canRecordToday,
           monthly_target_met: monthlyTargetMet,
           delegate_id: visitPlan.delegate_id,
-          delegate_name: `${delegate.first_name} ${delegate.last_name}`
+          delegate_name: `${delegate.first_name} ${delegate.last_name}`,
+          supervisor_id: delegate.supervisor_id,
+          supervisor_name: supervisor ? `${supervisor.first_name} ${supervisor.last_name}` : undefined
         });
       }
 
@@ -213,23 +240,43 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     staleTime: 30 * 1000, // 30 seconds
   });
 
-  // Group data by delegate when showing grouping
+  // Group data by supervisor and delegate when showing grouping
   const groupedData = React.useMemo(() => {
-    if (!showDelegateGrouping) {
-      return { 'all': visitPlansData };
+    if (showSupervisorGrouping) {
+      // Group by supervisor first, then by delegate within each supervisor
+      const supervisorGroups: { [key: string]: { [key: string]: VisitPlanData[] } } = {};
+      
+      visitPlansData.forEach(plan => {
+        const supervisorKey = plan.supervisor_id 
+          ? `${plan.supervisor_id}|${plan.supervisor_name || 'Unknown Supervisor'}`
+          : 'unknown|No Supervisor';
+        const delegateKey = `${plan.delegate_id}|${plan.delegate_name}`;
+        
+        if (!supervisorGroups[supervisorKey]) {
+          supervisorGroups[supervisorKey] = {};
+        }
+        if (!supervisorGroups[supervisorKey][delegateKey]) {
+          supervisorGroups[supervisorKey][delegateKey] = [];
+        }
+        supervisorGroups[supervisorKey][delegateKey].push(plan);
+      });
+      
+      return supervisorGroups;
+    } else if (showDelegateGrouping) {
+      // Group by delegate only
+      const groups: { [key: string]: VisitPlanData[] } = {};
+      visitPlansData.forEach(plan => {
+        const key = `${plan.delegate_id}|${plan.delegate_name}`;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(plan);
+      });
+      return { 'single': groups };
     }
-
-    const groups: { [key: string]: VisitPlanData[] } = {};
-    visitPlansData.forEach(plan => {
-      const key = `${plan.delegate_id}|${plan.delegate_name}`;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(plan);
-    });
-
-    return groups;
-  }, [visitPlansData, showDelegateGrouping]);
+    
+    return { 'single': { 'all': visitPlansData } };
+  }, [visitPlansData, showDelegateGrouping, showSupervisorGrouping]);
 
   // Mutation to record a visit
   const recordVisitMutation = useMutation({
@@ -254,7 +301,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       return data;
     },
     onSuccess: (data, visitPlanId) => {
-      // Find the doctor name for the toast
       const visitPlan = visitPlansData.find(plan => plan.id === visitPlanId);
       const doctorName = visitPlan?.doctor_name || 'Doctor';
       
@@ -263,7 +309,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         description: `Successfully recorded visit for ${doctorName}`,
       });
       
-      // Refresh the data
       queryClient.invalidateQueries({ queryKey: ['interactive-visit-plans'] });
       queryClient.invalidateQueries({ queryKey: ['delegate-dashboard-stats'] });
     },
@@ -296,7 +341,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     const deltaX = touch.clientX - touchStart.x;
     const deltaY = Math.abs(touch.clientY - touchStart.y);
 
-    // Calculate swipe progress (0-100)
     if (deltaX > 0 && deltaY < 30) {
       const progress = Math.min(Math.max((deltaX / 100) * 100, 0), 100);
       setSwipeProgress({ ...swipeProgress, [rowId]: progress });
@@ -310,14 +354,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     const deltaX = touch.clientX - touchStart.x;
     const deltaY = Math.abs(touch.clientY - touchStart.y);
 
-    // Check if it's a horizontal swipe (not vertical scroll)
     if (Math.abs(deltaX) > 50 && deltaY < 30) {
       if (deltaX > 0 && visitPlan.can_record_today) {
-        // Swipe right to record visit
         console.log('Swipe detected for visit plan:', visitPlan.id);
         handleRecordVisit(visitPlan.id);
       } else if (deltaX > 0 && !visitPlan.can_record_today) {
-        // Show feedback for why they can't record
         toast({
           title: "Cannot Record Visit",
           description: visitPlan.visits_today > 0 
@@ -334,7 +375,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   };
 
   const handleRecordVisit = async (visitPlanId: string) => {
-    if (recordingVisit) return; // Prevent duplicate recordings
+    if (recordingVisit) return;
     
     setRecordingVisit(visitPlanId);
     try {
@@ -386,7 +427,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             <th className="text-left py-3 px-3 font-medium text-gray-700">Brick</th>
             <th className="text-left py-3 px-3 font-medium text-gray-700">Specialty</th>
             <th className="text-center py-3 px-2 font-medium text-gray-700">Freq</th>
-            {/* Monthly columns up to current month */}
             {monthNames.slice(0, currentMonth).map((month, index) => (
               <th key={month} className="text-center py-3 px-2 font-medium text-gray-700 min-w-[40px]">
                 {month}
@@ -443,7 +483,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               <td className="py-3 px-2 text-center text-gray-700">
                 {plan.visit_frequency}x/month
               </td>
-              {/* Monthly visit counts */}
               {plan.monthly_visits.slice(0, currentMonth).map((count, index) => (
                 <td key={index} className="py-3 px-2 text-center text-gray-700">
                   {count || '-'}
@@ -509,13 +548,58 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           <p className="text-sm text-gray-500">Swipe right on a row to record a visit</p>
         </CardHeader>
         <CardContent>
-          {showDelegateGrouping && Object.keys(groupedData).length > 1 ? (
+          {showSupervisorGrouping && Object.keys(groupedData).length > 1 ? (
             <div className="space-y-8">
-              {Object.entries(groupedData).map(([key, data]) => {
+              {Object.entries(groupedData).map(([supervisorKey, delegateGroups]) => {
+                const [supervisorId, supervisorName] = supervisorKey.split('|');
+                const totalDelegates = Object.keys(delegateGroups).length;
+                
+                return (
+                  <div key={supervisorKey}>
+                    {/* Supervisor Section Header */}
+                    <div className="mb-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-purple-100 rounded-full">
+                          <Building className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold text-gray-900">{supervisorName}</h3>
+                          <p className="text-sm text-gray-600">{totalDelegates} delegate{totalDelegates !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                      <Separator className="mb-4" />
+                    </div>
+                    
+                    {/* Delegates within this Supervisor */}
+                    <div className="space-y-6 ml-8">
+                      {Object.entries(delegateGroups).map(([delegateKey, data]) => {
+                        const [delegateId, delegateName] = delegateKey.split('|');
+                        return (
+                          <div key={delegateKey}>
+                            <div className="flex items-center space-x-3 mb-3">
+                              <div className="p-1 bg-blue-100 rounded-full">
+                                <Users className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div>
+                                <h4 className="text-lg font-medium text-gray-800">{delegateName}</h4>
+                                <p className="text-xs text-gray-500">{data.length} visit plans</p>
+                              </div>
+                            </div>
+                            {renderTable(data, delegateName)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : showDelegateGrouping && Object.keys(groupedData.single || {}).length > 1 ? (
+            <div className="space-y-8">
+              {Object.entries(groupedData.single || {}).map(([key, data]) => {
                 const [delegateId, delegateName] = key.split('|');
                 return (
                   <div key={key}>
-                    {/* Delegate Section Header */}
                     <div className="mb-4">
                       <div className="flex items-center space-x-3 mb-2">
                         <div className="p-2 bg-blue-100 rounded-full">
@@ -528,8 +612,6 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                       </div>
                       <Separator />
                     </div>
-                    
-                    {/* Delegate's Table */}
                     {renderTable(data, delegateName)}
                   </div>
                 );

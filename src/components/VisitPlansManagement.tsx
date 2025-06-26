@@ -26,23 +26,51 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
+  const [selectedSupervisor, setSelectedSupervisor] = useState<string>('all');
   const [showReturnIndexAnalysis, setShowReturnIndexAnalysis] = useState(false);
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
 
-  // Fetch delegates for filter
-  const { data: delegates = [] } = useQuery({
-    queryKey: ['delegates-for-filter', effectiveDelegateIds.join(',')],
+  // Check if this is a Sales Director view (multiple supervisors)
+  const isSalesDirectorView = profile?.role === 'Sales Director' && delegateIds.length > 0;
+
+  // Fetch supervisors for Sales Director filtering
+  const { data: supervisors = [] } = useQuery({
+    queryKey: ['supervisors-for-filter', profile?.id],
     queryFn: async () => {
-      if (effectiveDelegateIds.length === 0) return [];
+      if (!isSalesDirectorView || !profile?.id) return [];
       
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
+        .eq('supervisor_id', profile.id)
+        .eq('role', 'Supervisor');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSalesDirectorView,
+  });
+
+  // Fetch delegates with supervisor filtering
+  const { data: delegates = [] } = useQuery({
+    queryKey: ['delegates-for-filter-visits', effectiveDelegateIds.join(','), selectedSupervisor],
+    queryFn: async () => {
+      if (effectiveDelegateIds.length === 0) return [];
+      
+      let query = supabase
+        .from('profiles')
+        .select('id, first_name, last_name, supervisor_id')
         .in('id', effectiveDelegateIds)
         .eq('role', 'Delegate');
 
+      // If a specific supervisor is selected, filter delegates by that supervisor
+      if (selectedSupervisor !== 'all') {
+        query = query.eq('supervisor_id', selectedSupervisor);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -87,12 +115,30 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
     setSelectedBrick('all');
     setSelectedSpecialty('all');
     setSelectedDelegate('all');
+    setSelectedSupervisor('all');
   };
 
   // Calculate filtered delegate IDs for the table
-  const filteredDelegateIds = selectedDelegate === 'all' 
-    ? effectiveDelegateIds 
-    : [selectedDelegate];
+  const getFilteredDelegateIds = () => {
+    let filtered = effectiveDelegateIds;
+    
+    // Filter by supervisor if selected
+    if (selectedSupervisor !== 'all') {
+      const supervisorDelegates = delegates
+        .filter(d => d.supervisor_id === selectedSupervisor)
+        .map(d => d.id);
+      filtered = filtered.filter(id => supervisorDelegates.includes(id));
+    }
+    
+    // Filter by specific delegate if selected
+    if (selectedDelegate !== 'all') {
+      filtered = [selectedDelegate];
+    }
+    
+    return filtered;
+  };
+
+  const filteredDelegateIds = getFilteredDelegateIds();
 
   // Show Return Index Analysis interface
   if (showReturnIndexAnalysis) {
@@ -126,7 +172,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
                   <h1 className="text-2xl font-bold text-gray-900">Visit Plans Management</h1>
                   <p className="text-sm text-gray-600">
                     {supervisorName 
-                      ? `Manage and track visit plans for ${supervisorName}'s team`
+                      ? `Manage and track visit plans for ${supervisorName}`
                       : 'Manage and track your visit plans'
                     }
                   </p>
@@ -153,7 +199,27 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Supervisor Filter - only show for Sales Director */}
+              {isSalesDirectorView && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Supervisor</label>
+                  <Select value={selectedSupervisor} onValueChange={setSelectedSupervisor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Supervisors" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Supervisors</SelectItem>
+                      {supervisors.map((supervisor) => (
+                        <SelectItem key={supervisor.id} value={supervisor.id}>
+                          {supervisor.first_name} {supervisor.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Delegate</label>
                 <Select value={selectedDelegate} onValueChange={setSelectedDelegate}>
@@ -170,6 +236,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Brick</label>
                 <Select value={selectedBrick} onValueChange={setSelectedBrick}>
@@ -186,6 +253,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
                 <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
@@ -205,7 +273,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Filter visits by delegate, brick location and doctor specialty
+                Filter visits by {isSalesDirectorView ? 'supervisor, ' : ''}delegate, brick location and doctor specialty
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
@@ -243,6 +311,7 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
               brickFilter={selectedBrick}
               specialtyFilter={selectedSpecialty}
               showDelegateGrouping={filteredDelegateIds.length > 1}
+              showSupervisorGrouping={isSalesDirectorView && selectedSupervisor === 'all'}
             />
           </CardContent>
         </Card>
