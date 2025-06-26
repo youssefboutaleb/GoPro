@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -137,59 +139,86 @@ const Auth = () => {
                     {loading ? t('auth:signingIn') : t('auth:signIn')}
                   </Button>
                 </form>
+                
                 <div className="mt-4">
-                  <p className="text-xs text-gray-600 mb-2">Click any user below to auto-fill credentials:</p>
-                  <div className="space-y-1">
-                    <div 
-                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors"
-                      onClick={() => handleQuickLogin('admin@admin.com', 'adminadmin')}
-                    >
-                      <span className="font-semibold text-blue-700">{t('auth:admin')}:</span> admin@admin.com / adminadmin
-                    </div>
-                    
-                    <div 
-                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors"
-                      onClick={() => handleQuickLogin('medalia@protonmail.ch', 'dalidali')}
-                    >
-                      <span className="font-semibold text-blue-700">{t('auth:user')}:</span> medalia@protonmail.ch / dalidali
-                    </div>
-                    
-                    <div className="text-sm text-blue-700 font-semibold">2 {t('auth:salesDirectors')}:</div>
-                    <div 
-                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
-                      onClick={() => handleQuickLogin('director1@sales.com', '123456')}
-                    >
-                      director1@sales.com / 123456
-                    </div>
-                    <div 
-                      className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
-                      onClick={() => handleQuickLogin('director2@sales.com', '123456')}
-                    >
-                      director2@sales.com / 123456
-                    </div>
-                    
-                    <div className="text-sm text-blue-700 font-semibold">4 {t('auth:supervisors')}:</div>
-                    {[1, 2, 3, 4].map(num => (
-                      <div 
-                        key={num}
-                        className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
-                        onClick={() => handleQuickLogin(`supervisor${num}@sup.com`, '123456')}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Quick Login (Test Users) <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 bg-white border shadow-lg z-50">
+                      <DropdownMenuLabel className="text-blue-700 font-semibold">
+                        {t('auth:admin')}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem 
+                        onClick={() => handleQuickLogin('admin@admin.com', 'adminadmin')}
+                        className="cursor-pointer"
                       >
-                        supervisor{num}@sup.com / 123456
-                      </div>
-                    ))}
-                    
-                    <div className="text-sm text-blue-700 font-semibold">10 {t('auth:delegates')}:</div>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <div 
-                        key={num}
-                        className="text-sm cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors ml-2"
-                        onClick={() => handleQuickLogin(`delegate${num}@dlg.com`, '123456')}
+                        Admin User
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-blue-700 font-semibold">
+                        Regular {t('auth:user')}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem 
+                        onClick={() => handleQuickLogin('medalia@protonmail.ch', 'dalidali')}
+                        className="cursor-pointer"
                       >
-                        delegate{num}@dlg.com / 123456
-                      </div>
-                    ))}
-                  </div>
+                        Test User
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-blue-700 font-semibold">
+                        {t('auth:salesDirectors')}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem 
+                        onClick={() => handleQuickLogin('director1@sales.com', '123456')}
+                        className="cursor-pointer"
+                      >
+                        Director 1
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleQuickLogin('director2@sales.com', '123456')}
+                        className="cursor-pointer"
+                      >
+                        Director 2
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-blue-700 font-semibold">
+                        {t('auth:supervisors')}
+                      </DropdownMenuLabel>
+                      {[1, 2, 3, 4].map(num => (
+                        <DropdownMenuItem 
+                          key={num}
+                          onClick={() => handleQuickLogin(`supervisor${num}@sup.com`, '123456')}
+                          className="cursor-pointer"
+                        >
+                          Supervisor {num}
+                        </DropdownMenuItem>
+                      ))}
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-blue-700 font-semibold">
+                        {t('auth:delegates')}
+                      </DropdownMenuLabel>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                        <DropdownMenuItem 
+                          key={num}
+                          onClick={() => handleQuickLogin(`delegate${num}@dlg.com`, '123456')}
+                          className="cursor-pointer"
+                        >
+                          Delegate {num}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </TabsContent>
               
