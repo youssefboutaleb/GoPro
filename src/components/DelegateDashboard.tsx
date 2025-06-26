@@ -11,7 +11,7 @@ import ReturnIndexAnalysis from './ReturnIndexAnalysis';
 import VisitPlansManagement from './VisitPlansManagement';
 
 const DelegateDashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, signOut, signOutLoading } = useAuth();
   const [activeView, setActiveView] = useState<'dashboard' | 'recruitment' | 'return-index' | 'visit-plans'>('dashboard');
 
   const currentYear = new Date().getFullYear();
@@ -156,6 +156,10 @@ const DelegateDashboard = () => {
 
   const isLoading = salesPlansLoading || visitPlansLoading || salesDataLoading || visitsDataLoading;
 
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   if (activeView === 'recruitment') {
     return (
       <RythmeRecrutement 
@@ -209,9 +213,18 @@ const DelegateDashboard = () => {
                 <p className="text-sm text-gray-600">Delegate Dashboard - Track your performance</p>
               </div>
             </div>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-              Delegate
-            </Badge>
+            <div className="flex items-center space-x-4">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                Delegate
+              </Badge>
+              <Button 
+                variant="outline" 
+                onClick={handleSignOut}
+                disabled={signOutLoading}
+              >
+                {signOutLoading ? 'Signing out...' : 'Sign Out'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
