@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import SupervisorSalesKPIs from './supervisor/SupervisorSalesKPIs';
 import SupervisorVisitKPIs from './supervisor/SupervisorVisitKPIs';
 import SupervisorTeamOverview from './supervisor/SupervisorTeamOverview';
+import SupervisorTeamReturnIndex from './SupervisorTeamReturnIndex';
+import RythmeRecrutement from './RythmeRecrutement';
 import BreadcrumbNavigation from './common/BreadcrumbNavigation';
 import SearchBar from './common/SearchBar';
 import FloatingActionButton from './common/FloatingActionButton';
@@ -24,6 +26,8 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showTeamReturnIndex, setShowTeamReturnIndex] = useState(false);
+  const [showRecruitmentRhythm, setShowRecruitmentRhythm] = useState(false);
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -98,6 +102,28 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
     { label: 'Team Management', onClick: onBack },
     { label: 'Team KPIs' }
   ];
+
+  // Show Team Return Index Dashboard
+  if (showTeamReturnIndex) {
+    return (
+      <SupervisorTeamReturnIndex
+        onBack={() => setShowTeamReturnIndex(false)}
+        delegateIds={delegateIds}
+      />
+    );
+  }
+
+  // Show Recruitment Rhythm with supervisor filters
+  if (showRecruitmentRhythm) {
+    return (
+      <RythmeRecrutement
+        onBack={() => setShowRecruitmentRhythm(false)}
+        delegateIds={delegateIds}
+        supervisorName={`${profile?.first_name} ${profile?.last_name}`}
+        showDelegateFilter={true}
+      />
+    );
+  }
 
   if (delegatesLoading) {
     return (
@@ -182,6 +208,55 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
               selectedMonth={selectedMonth}
               supervisedDelegates={filteredDelegates.length > 0 ? filteredDelegates : supervisedDelegates}
             />
+
+            {/* Navigation Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Team Return Index Dashboard Card */}
+              <Card 
+                className="bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border-indigo-200"
+                onClick={() => setShowTeamReturnIndex(true)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                      <BarChart3 className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardTitle className="text-lg mb-2">Team Return Index Dashboard</CardTitle>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Comprehensive visit effectiveness analysis for your team
+                  </p>
+                  <div className="text-xs text-blue-600 font-medium">
+                    Click to view detailed analysis →
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recruitment Rhythm Card */}
+              <Card 
+                className="bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group border-purple-200"
+                onClick={() => setShowRecruitmentRhythm(true)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
+                      <TrendingUp className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardTitle className="text-lg mb-2">Recruitment Rhythm</CardTitle>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Sales performance and recruitment analysis with advanced filters
+                  </p>
+                  <div className="text-xs text-purple-600 font-medium">
+                    Click to view recruitment analysis →
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Sales Performance KPIs */}
             <SupervisorSalesKPIs 
