@@ -61,30 +61,44 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
         ? delegateIds 
         : [selectedDelegate];
 
+      // First fetch visit plans
       const { data: visitPlans, error: visitPlansError } = await supabase
         .from('visit_plans')
-        .select(`
-          id,
-          visit_frequency,
-          delegate_id,
-          doctors!visit_plans_doctor_id_fkey(
-            id,
-            first_name,
-            last_name,
-            specialty,
-            bricks!doctors_brick_id_fkey(
-              id,
-              name
-            )
-          ),
-          profiles!visit_plans_delegate_id_fkey(
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, visit_frequency, delegate_id, doctor_id')
         .in('delegate_id', effectiveDelegateIds);
 
       if (visitPlansError) throw visitPlansError;
+
+      if (!visitPlans || visitPlans.length === 0) return [];
+
+      // Get unique doctor IDs
+      const doctorIds = [...new Set(visitPlans.map(vp => vp.doctor_id).filter(Boolean))];
+      
+      // Fetch doctors with bricks
+      const { data: doctors, error: doctorsError } = await supabase
+        .from('doctors')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          specialty,
+          brick_id,
+          bricks!doctors_brick_id_fkey(
+            id,
+            name
+          )
+        `)
+        .in('id', doctorIds);
+
+      if (doctorsError) throw doctorsError;
+
+      // Get delegate names
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', effectiveDelegateIds);
+
+      if (profilesError) throw profilesError;
 
       // Get visits for this month
       const currentDate = new Date();
@@ -94,9 +108,11 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
       const lastDayOfMonth = new Date(currentYear, currentMonth, 0).getDate();
       const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
 
+      const visitPlanIds = visitPlans.map(vp => vp.id);
       const { data: visits, error: visitsError } = await supabase
         .from('visits')
         .select('id, visit_plan_id, visit_date')
+        .in('visit_plan_id', visitPlanIds)
         .gte('visit_date', startDate)
         .lte('visit_date', endDate);
 
@@ -105,8 +121,11 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
       // Process data
       const processed: VisitPlanData[] = [];
 
-      for (const plan of visitPlans || []) {
-        if (!plan.doctors) continue;
+      for (const plan of visitPlans) {
+        const doctor = doctors?.find(d => d.id === plan.doctor_id);
+        const delegate = profiles?.find(p => p.id === plan.delegate_id);
+        
+        if (!doctor || !delegate) continue;
 
         const planVisits = visits?.filter(v => v.visit_plan_id === plan.id) || [];
         const frequency = parseInt(plan.visit_frequency);
@@ -130,10 +149,10 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
 
         processed.push({
           id: plan.id,
-          doctor_name: `${plan.doctors.first_name} ${plan.doctors.last_name}`,
-          brick_name: plan.doctors.bricks?.name || 'N/A',
-          specialty: plan.doctors.specialty || 'N/A',
-          delegate_name: `${plan.profiles?.first_name || ''} ${plan.profiles?.last_name || ''}`.trim(),
+          doctor_name: `${doctor.first_name} ${doctor.last_name}`,
+          brick_name: doctor.bricks?.name || 'N/A',
+          specialty: doctor.specialty || 'N/A',
+          delegate_name: `${delegate.first_name} ${delegate.last_name}`,
           visit_frequency: plan.visit_frequency,
           last_visit_date: lastVisit?.visit_date || null,
           next_planned_visit: 'TBD', // This would need more complex logic
