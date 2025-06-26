@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,7 +119,6 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
         onBack={() => setShowRecruitmentRhythm(false)}
         delegateIds={delegateIds}
         supervisorName={`${profile?.first_name} ${profile?.last_name}`}
-        showDelegateFilter={true}
       />
     );
   }

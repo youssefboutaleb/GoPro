@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -136,7 +137,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     },
   });
 
-  // Fetch sales plans data
+  // Fetch sales plans data with proper relationship hints
   const { data: salesPlansData = [], isLoading: salesPlansLoading, error: salesPlansError } = useQuery({
     queryKey: ['recruitment-rhythm-sales-plans', effectiveDelegateIds.join(','), selectedProduct, selectedBrick],
     queryFn: async () => {
@@ -155,8 +156,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             delegate_id,
             product_id,
             brick_id,
-            products!inner(id, name),
-            bricks!inner(id, name)
+            products!product_id(id, name),
+            bricks!brick_id(id, name)
           `)
           .in('delegate_id', effectiveDelegateIds);
 
@@ -233,20 +234,18 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           continue;
         }
 
-        // Calculate planned sales per month (simplified - could be based on actual plan data)
-        const monthlyPlannedSales = 10000; // Placeholder value
-        const planned_sales = Array(12).fill(monthlyPlannedSales);
-
-        // Calculate actual sales per month
-        const actual_sales = Array(12).fill(0);
+        // Find sales data for this plan
         const planSales = salesData.filter(s => s.sales_plan_id === salesPlan.id);
         
-        planSales.forEach(sale => {
-          const monthIndex = sale.month - 1;
-          if (monthIndex >= 0 && monthIndex < 12) {
-            actual_sales[monthIndex] += sale.amount || 0;
-          }
-        });
+        // Use targets and achievements arrays from sales data
+        let planned_sales = Array(12).fill(0);
+        let actual_sales = Array(12).fill(0);
+
+        if (planSales.length > 0) {
+          const salesRecord = planSales[0];
+          planned_sales = salesRecord.targets || Array(12).fill(0);
+          actual_sales = salesRecord.achievements || Array(12).fill(0);
+        }
 
         // Calculate recruitment rate up to selected month
         let totalPlanned = 0;
