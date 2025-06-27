@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,6 +6,9 @@ import SupervisorKPIsDashboard from './SupervisorKPIsDashboard';
 import SupervisorTeamReturnIndex from './SupervisorTeamReturnIndex';
 import ActionPlanList from './action-plans/ActionPlanList';
 import { Profile } from '@/types/auth';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SupervisorDashboardProps {
   onSignOut: () => Promise<{ error: any }>;
@@ -15,7 +17,34 @@ interface SupervisorDashboardProps {
 }
 
 const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, signOutLoading, profile }) => {
+  const { profile: authProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('kpis');
+
+  // Fetch supervised delegates to pass to components
+  const { data: supervisedDelegates = [] } = useQuery({
+    queryKey: ['supervised-delegates', authProfile?.id],
+    queryFn: async () => {
+      if (!authProfile?.id || authProfile.role !== 'Supervisor') {
+        return [];
+      }
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, supervisor_id, role')
+        .eq('supervisor_id', authProfile.id)
+        .eq('role', 'Delegate');
+
+      if (error) {
+        console.error('Error fetching supervised delegates:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: !!authProfile?.id && authProfile?.role === 'Supervisor',
+  });
+
+  const delegateIds = supervisedDelegates.map(d => d.id);
 
   const handleSignOut = async () => {
     const { error } = await onSignOut();
@@ -63,11 +92,14 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
           </TabsList>
 
           <TabsContent value="kpis">
-            <SupervisorKPIsDashboard />
+            <SupervisorKPIsDashboard onBack={() => setActiveTab('kpis')} />
           </TabsContent>
 
           <TabsContent value="team">
-            <SupervisorTeamReturnIndex />
+            <SupervisorTeamReturnIndex 
+              onBack={() => setActiveTab('team')} 
+              delegateIds={delegateIds}
+            />
           </TabsContent>
 
           <TabsContent value="action-plans">

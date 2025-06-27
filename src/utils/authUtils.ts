@@ -65,7 +65,7 @@ export const signIn = async (email: string, password: string) => {
       console.log('✅ Sign in API call successful');
     }
 
-    return { error };
+    return { error: error || null };
   } catch (error) {
     console.error('💥 Sign in exception:', error);
     return { error };
@@ -94,9 +94,29 @@ export const signUp = async (email: string, password: string, firstName?: string
       console.log('✅ Sign up API call successful');
     }
 
-    return { error };
+    return { error: error || null };
   } catch (error) {
     console.error('💥 Sign up exception:', error);
+    return { error };
+  }
+};
+
+export const signOut = async () => {
+  try {
+    console.log('🚪 Attempting sign out');
+    
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error('❌ Sign out error:', error);
+    } else {
+      console.log('✅ Sign out successful');
+      clearAllSessionData();
+    }
+
+    return { error: error || null };
+  } catch (error) {
+    console.error('💥 Sign out exception:', error);
     return { error };
   }
 };

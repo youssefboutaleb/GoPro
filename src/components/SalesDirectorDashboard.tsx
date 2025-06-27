@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -63,11 +62,11 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
           </TabsList>
 
           <TabsContent value="kpis">
-            <SalesDirectorKPIsDashboard />
+            <SalesDirectorKPIsDashboard onBack={() => setActiveTab('kpis')} />
           </TabsContent>
 
           <TabsContent value="analysis">
-            <ReturnIndexAnalysis />
+            <ReturnIndexAnalysis onBack={() => setActiveTab('analysis')} />
           </TabsContent>
 
           <TabsContent value="action-plans">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -198,23 +197,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
           </TabsContent>
 
           <TabsContent value="users">
-            <UsersManager />
+            <UsersManager onBack={() => setActiveTab('overview')} />
           </TabsContent>
 
           <TabsContent value="sectors">
-            <SectorsBricksManager />
+            <SectorsBricksManager onBack={() => setActiveTab('overview')} />
           </TabsContent>
 
           <TabsContent value="doctors">
-            <DoctorsManager />
+            <DoctorsManager onBack={() => setActiveTab('overview')} />
           </TabsContent>
 
           <TabsContent value="visits">
-            <VisitsManager />
+            <VisitsManager onBack={() => setActiveTab('overview')} />
           </TabsContent>
 
           <TabsContent value="reports">
-            <ReportsManager />
+            <ReportsManager onBack={() => setActiveTab('overview')} />
           </TabsContent>
 
           <TabsContent value="action-plans">
