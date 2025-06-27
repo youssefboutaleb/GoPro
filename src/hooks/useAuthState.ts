@@ -150,7 +150,7 @@ export const useAuthState = () => {
     };
   }, []);
 
-  const signOut = async () => {
+  const signOut = async (): Promise<{ error: any }> => {
     if (signOutLoading) {
       console.log('⏳ Sign out already in progress');
       return { error: null };
@@ -179,7 +179,7 @@ export const useAuthState = () => {
         window.location.href = '/auth';
       }, 100);
       
-      return { error: null };
+      return { error: error || null };
     } catch (error) {
       console.error('💥 Sign out exception:', error);
       clearAllSessionData();
@@ -193,7 +193,7 @@ export const useAuthState = () => {
         window.location.href = '/auth';
       }, 100);
       
-      return { error };
+      return { error: error || null };
     }
   };
 
