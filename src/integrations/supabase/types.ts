@@ -9,6 +9,60 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      action_plans: {
+        Row: {
+          created_at: string
+          created_by: string
+          date: string
+          description: string | null
+          id: string
+          is_executed: boolean | null
+          location: string
+          marketing_manager_status: string | null
+          sales_director_status: string | null
+          supervisor_status: string | null
+          targeted_bricks: string[] | null
+          targeted_doctors: string[] | null
+          targeted_products: string[] | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          date: string
+          description?: string | null
+          id?: string
+          is_executed?: boolean | null
+          location: string
+          marketing_manager_status?: string | null
+          sales_director_status?: string | null
+          supervisor_status?: string | null
+          targeted_bricks?: string[] | null
+          targeted_doctors?: string[] | null
+          targeted_products?: string[] | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          date?: string
+          description?: string | null
+          id?: string
+          is_executed?: boolean | null
+          location?: string
+          marketing_manager_status?: string | null
+          sales_director_status?: string | null
+          supervisor_status?: string | null
+          targeted_bricks?: string[] | null
+          targeted_doctors?: string[] | null
+          targeted_products?: string[] | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bricks: {
         Row: {
           id: string
