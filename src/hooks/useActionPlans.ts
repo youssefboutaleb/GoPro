@@ -45,13 +45,16 @@ export const useActionPlans = (statusFilter?: string) => {
       }
 
       console.log('✅ Action plans fetched successfully:', data?.length || 0, 'plans');
-      return data as (ActionPlan & {
-        created_by_profile: {
-          first_name: string;
-          last_name: string;
-          role: string;
-        };
-      })[];
+      
+      // Transform data to ensure proper typing
+      return data?.map(plan => ({
+        ...plan,
+        created_by_profile: plan.created_by_profile ? {
+          first_name: plan.created_by_profile.first_name || '',
+          last_name: plan.created_by_profile.last_name || '',
+          role: plan.created_by_profile.role || '',
+        } : null
+      })) || [];
     },
   });
 

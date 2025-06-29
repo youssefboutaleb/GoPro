@@ -11,7 +11,7 @@ import SalesDirectorKPIsDashboard from "./components/SalesDirectorKPIsDashboard"
 import VisitReport from "./components/VisitReport";
 import ReturnIndexAnalysis from "./components/ReturnIndexAnalysis";
 import RythmeRecrutement from "./components/RythmeRecrutement";
-import ActionPlansList from "./components/action-plans/ActionPlansList";
+import { ActionPlansList } from "./components/action-plans/ActionPlansList";
 import './i18n';
 
 const queryClient = new QueryClient();

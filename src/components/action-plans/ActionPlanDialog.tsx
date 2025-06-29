@@ -71,8 +71,12 @@ export const ActionPlanDialog = ({
       return;
     }
 
+    // Ensure required fields are present and properly typed
     const actionPlanData = {
-      ...data,
+      type: data.type,
+      date: data.date, // This is required and guaranteed by schema
+      location: data.location, // This is required and guaranteed by schema
+      description: data.description || null,
       created_by: profile.id,
       // Convert empty arrays to null for database storage
       targeted_delegates: data.targeted_delegates?.length ? data.targeted_delegates : null,

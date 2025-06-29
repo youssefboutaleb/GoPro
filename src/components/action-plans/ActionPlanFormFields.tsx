@@ -7,7 +7,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MultiSelect } from './MultiSelect';
+import MultiSelect from './MultiSelect';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfilesForActionPlans } from '@/hooks/useProfilesForActionPlans';
@@ -165,12 +165,13 @@ export const ActionPlanFormFields = ({ form }: ActionPlanFormFieldsProps) => {
               <FormControl>
                 <MultiSelect
                   options={profilesData.delegates.map(d => ({
-                    value: d.id,
+                    id: d.id,
                     label: `${d.first_name} ${d.last_name}`
                   }))}
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder={t('common.selectDelegates')}
+                  label=""
                 />
               </FormControl>
               <FormMessage />
@@ -192,12 +193,13 @@ export const ActionPlanFormFields = ({ form }: ActionPlanFormFieldsProps) => {
               <FormControl>
                 <MultiSelect
                   options={profilesData.supervisors.map(s => ({
-                    value: s.id,
+                    id: s.id,
                     label: `${s.first_name} ${s.last_name}`
                   }))}
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder={t('common.selectSupervisors')}
+                  label=""
                 />
               </FormControl>
               <FormMessage />
@@ -219,12 +221,13 @@ export const ActionPlanFormFields = ({ form }: ActionPlanFormFieldsProps) => {
               <FormControl>
                 <MultiSelect
                   options={profilesData.salesDirectors.map(sd => ({
-                    value: sd.id,
+                    id: sd.id,
                     label: `${sd.first_name} ${sd.last_name}`
                   }))}
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder={t('common.selectSalesDirectors')}
+                  label=""
                 />
               </FormControl>
               <FormMessage />
@@ -245,10 +248,11 @@ export const ActionPlanFormFields = ({ form }: ActionPlanFormFieldsProps) => {
               </FormLabel>
               <FormControl>
                 <MultiSelect
-                  options={products.map(p => ({ value: p.id, label: p.name }))}
+                  options={products.map(p => ({ id: p.id, label: p.name }))}
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder={t('common.selectProducts')}
+                  label=""
                 />
               </FormControl>
               <FormMessage />
@@ -269,10 +273,11 @@ export const ActionPlanFormFields = ({ form }: ActionPlanFormFieldsProps) => {
               </FormLabel>
               <FormControl>
                 <MultiSelect
-                  options={bricks.map(b => ({ value: b.id, label: b.name }))}
+                  options={bricks.map(b => ({ id: b.id, label: b.name }))}
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder={t('common.selectBricks')}
+                  label=""
                 />
               </FormControl>
               <FormMessage />
@@ -294,12 +299,13 @@ export const ActionPlanFormFields = ({ form }: ActionPlanFormFieldsProps) => {
               <FormControl>
                 <MultiSelect
                   options={doctors.map(d => ({
-                    value: d.id,
+                    id: d.id,
                     label: `${d.first_name} ${d.last_name}`
                   }))}
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder={t('common.selectDoctors')}
+                  label=""
                 />
               </FormControl>
               <FormMessage />
