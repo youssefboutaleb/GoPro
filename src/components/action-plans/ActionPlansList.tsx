@@ -108,50 +108,70 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     queryFn: async () => {
       if (!user || !profile) return [];
       
-      console.log('Fetching action plans for profile:', profile);
+      console.log('=== ACTION PLANS FETCH START ===');
+      console.log('Current user profile:', {
+        id: profile.id,
+        role: profile.role,
+        supervisorId: profile.supervisor_id
+      });
       
-      // Let RLS policies handle access control
-      let query = supabase
+      // Fetch action plans - let RLS handle access control
+      const { data: actionPlansData, error: plansError } = await supabase
         .from('action_plans')
         .select('*')
         .order('created_at', { ascending: false });
-
-      const { data: actionPlansData, error } = await query;
       
-      if (error) {
-        console.error('Error fetching action plans:', error);
-        throw error;
+      if (plansError) {
+        console.error('Error fetching action plans:', plansError);
+        throw plansError;
       }
       
-      console.log('Raw action plans data:', actionPlansData);
+      console.log(`Found ${actionPlansData?.length || 0} action plans:`, actionPlansData);
       
       if (!actionPlansData || actionPlansData.length === 0) {
-        console.log('No action plans found');
+        console.log('No action plans found, returning empty array');
         return [];
       }
 
       // Get unique creator IDs
       const creatorIds = [...new Set(actionPlansData.map(plan => plan.created_by))];
-      console.log('Creator IDs found:', creatorIds);
+      console.log('Unique creator IDs to fetch:', creatorIds);
       
-      // Fetch creator profiles separately with better error handling
+      // Test: Can we access profiles at all?
+      console.log('=== TESTING PROFILES ACCESS ===');
+      const { data: allProfiles, error: allProfilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, role, supervisor_id');
+      
+      console.log('All accessible profiles:', allProfiles);
+      if (allProfilesError) {
+        console.error('Error accessing profiles table:', allProfilesError);
+      }
+      
+      // Fetch creator profiles
+      console.log('=== FETCHING CREATOR PROFILES ===');
       const { data: creatorsData, error: creatorsError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, role')
+        .select('id, first_name, last_name, role, supervisor_id')
         .in('id', creatorIds);
 
       if (creatorsError) {
-        console.error('Error fetching creators:', creatorsError);
-        // Continue without creator data rather than failing completely
+        console.error('Error fetching creator profiles:', creatorsError);
+        console.error('Creator IDs that failed:', creatorIds);
+      } else {
+        console.log('Successfully fetched creator profiles:', creatorsData);
+        console.log('Creators fetched vs requested:', {
+          requested: creatorIds.length,
+          fetched: creatorsData?.length || 0,
+          missing: creatorIds.filter(id => !creatorsData?.find(c => c.id === id))
+        });
       }
-
-      console.log('Creators data fetched:', creatorsData);
 
       // Create a map of creators for easy lookup
       const creatorsMap = new Map();
       if (creatorsData) {
         creatorsData.forEach(creator => {
-          console.log(`Mapping creator ${creator.id} (${creator.first_name} ${creator.last_name}) with role ${creator.role}`);
+          console.log(`Mapping creator: ${creator.id} -> ${creator.first_name} ${creator.last_name} (${creator.role})`);
           creatorsMap.set(creator.id, creator);
         });
       }
@@ -159,7 +179,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       // Transform the data to match our ActionPlan type
       const transformedData: ActionPlan[] = actionPlansData.map(plan => {
         const creator = creatorsMap.get(plan.created_by);
-        console.log(`Plan ${plan.id} created by ${plan.created_by}, mapped creator:`, creator);
+        console.log(`Plan ${plan.id}:`, {
+          createdBy: plan.created_by,
+          location: plan.location,
+          hasCreator: !!creator,
+          creatorRole: creator?.role,
+          creatorName: creator ? `${creator.first_name} ${creator.last_name}` : 'NOT FOUND',
+          targetedDelegates: plan.targeted_delegates
+        });
         
         return {
           ...plan,
@@ -167,7 +194,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         };
       });
       
-      console.log('Final transformed action plans:', transformedData);
+      console.log('=== FINAL TRANSFORMATION COMPLETE ===');
+      console.log('Transformed plans summary:', transformedData.map(p => ({
+        id: p.id,
+        location: p.location,
+        createdBy: p.created_by,
+        hasCreator: !!p.creator,
+        creatorRole: p.creator?.role
+      })));
       
       return transformedData;
     },
@@ -237,29 +271,33 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   // Helper functions for categorization
   const isOwnPlan = (plan: ActionPlan) => {
     const result = plan.created_by === profile?.id;
-    console.log(`Plan ${plan.id} is own plan:`, result, `(created_by: ${plan.created_by}, profile.id: ${profile?.id})`);
+    console.log(`Plan ${plan.id} (${plan.location}) is own plan:`, result);
     return result;
   };
   
   const isDelegatePlan = (plan: ActionPlan) => delegateIds.includes(plan.created_by) || allDelegateIds.includes(plan.created_by);
   const isSupervisorPlan = (plan: ActionPlan) => supervisorIds.includes(plan.created_by);
 
-  // Updated helper functions for delegate-specific categorization with better debugging
+  // Updated helper functions for delegate-specific categorization with detailed debugging
   const isSupervisorPlanForDelegate = (plan: ActionPlan) => {
     if (profile?.role !== 'Delegate') return false;
     
     const isFromSupervisor = plan.creator?.role === 'Supervisor';
     const targetsDelegate = plan.targeted_delegates?.includes(profile.id) || false;
     
-    console.log(`Plan ${plan.id} supervisor check:`, {
-      isFromSupervisor,
-      targetsDelegate,
+    console.log(`=== SUPERVISOR PLAN CHECK for ${plan.id} (${plan.location}) ===`, {
+      planId: plan.id,
+      location: plan.location,
+      createdBy: plan.created_by,
+      hasCreator: !!plan.creator,
       creatorRole: plan.creator?.role,
       creatorId: plan.creator?.id,
-      creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'Unknown',
+      creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'NO CREATOR DATA',
+      isFromSupervisor,
       targetedDelegates: plan.targeted_delegates,
-      profileId: profile.id,
-      result: isFromSupervisor && targetsDelegate
+      currentDelegateId: profile.id,
+      targetsDelegate,
+      finalResult: isFromSupervisor && targetsDelegate
     });
     
     return isFromSupervisor && targetsDelegate;
@@ -271,15 +309,19 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     const isFromSalesDirector = plan.creator?.role === 'Sales Director';
     const targetsDelegate = plan.targeted_delegates?.includes(profile.id) || false;
     
-    console.log(`Plan ${plan.id} sales director check:`, {
-      isFromSalesDirector,
-      targetsDelegate,
+    console.log(`=== SALES DIRECTOR PLAN CHECK for ${plan.id} (${plan.location}) ===`, {
+      planId: plan.id,
+      location: plan.location,
+      createdBy: plan.created_by,
+      hasCreator: !!plan.creator,
       creatorRole: plan.creator?.role,
       creatorId: plan.creator?.id,
-      creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'Unknown',
+      creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'NO CREATOR DATA',
+      isFromSalesDirector,
       targetedDelegates: plan.targeted_delegates,
-      profileId: profile.id,
-      result: isFromSalesDirector && targetsDelegate
+      currentDelegateId: profile.id,
+      targetsDelegate,
+      finalResult: isFromSalesDirector && targetsDelegate
     });
     
     return isFromSalesDirector && targetsDelegate;
@@ -356,7 +398,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     return matchesSearch && matchesType && matchesStatus && matchesCreator;
   }) || [];
 
-  // Group plans by category for better organization with debugging
+  // Group plans by category for better organization with detailed debugging
   const groupedPlans = {
     own: filteredActionPlans.filter(isOwnPlan),
     delegate: filteredActionPlans.filter(isDelegatePlan),
@@ -366,11 +408,30 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     salesDirectorInvolvingMe: filteredActionPlans.filter(isSalesDirectorPlanForDelegate)
   };
 
-  console.log('Final grouped plans for delegate:', groupedPlans);
-  console.log('Summary counts:', {
-    own: groupedPlans.own.length,
-    supervisorInvolvingMe: groupedPlans.supervisorInvolvingMe.length,
-    salesDirectorInvolvingMe: groupedPlans.salesDirectorInvolvingMe.length
+  console.log('=== FINAL GROUPING RESULTS ===');
+  console.log('Grouped plans for delegate:', {
+    own: {
+      count: groupedPlans.own.length,
+      plans: groupedPlans.own.map(p => ({ id: p.id, location: p.location }))
+    },
+    supervisorInvolvingMe: {
+      count: groupedPlans.supervisorInvolvingMe.length,
+      plans: groupedPlans.supervisorInvolvingMe.map(p => ({ 
+        id: p.id, 
+        location: p.location, 
+        creatorRole: p.creator?.role,
+        creatorName: p.creator ? `${p.creator.first_name} ${p.creator.last_name}` : 'NO CREATOR'
+      }))
+    },
+    salesDirectorInvolvingMe: {
+      count: groupedPlans.salesDirectorInvolvingMe.length,
+      plans: groupedPlans.salesDirectorInvolvingMe.map(p => ({ 
+        id: p.id, 
+        location: p.location, 
+        creatorRole: p.creator?.role,
+        creatorName: p.creator ? `${p.creator.first_name} ${p.creator.last_name}` : 'NO CREATOR'
+      }))
+    }
   });
 
   const handleEdit = (actionPlan: ActionPlan) => {
