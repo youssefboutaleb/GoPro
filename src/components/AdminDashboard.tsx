@@ -1,225 +1,216 @@
+
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, Building2, UserCheck, FileText, Calendar, ClipboardList } from 'lucide-react';
-import UsersManager from './admin/UsersManager';
-import SectorsBricksManager from './admin/SectorsBricksManager';
-import DoctorsManager from './admin/DoctorsManager';
-import ReportsManager from './admin/ReportsManager';
-import VisitsManager from './admin/VisitsManager';
-import ActionPlanList from './action-plans/ActionPlanList';
+import { Button } from '@/components/ui/button';
+import { Settings, Building, UserCheck, Calendar, Package, TrendingUp, Users, ArrowLeft } from 'lucide-react';
 import { Profile } from '@/types/auth';
+import DoctorsManager from '@/components/admin/DoctorsManager';
+import UsersManager from '@/components/admin/UsersManager';
+import VisitsManager from '@/components/admin/VisitsManager';
+import SectorsBricksManager from '@/components/admin/SectorsBricksManager';
+import ReportsManager from '@/components/admin/ReportsManager';
+import ProductsManager from '@/components/ProductsManager';
+import SalesManager from '@/components/SalesManager';
 
 interface AdminDashboardProps {
-  onSignOut: () => Promise<{ error: any }>;
+  onSignOut: () => void;
   signOutLoading: boolean;
   profile: Profile;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoading, profile }) => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const { t } = useTranslation(['admin', 'common']);
+  const [currentSection, setCurrentSection] = useState<string>('dashboard');
 
-  const handleSignOut = async () => {
-    const { error } = await onSignOut();
-    if (error) {
-      console.error('Sign out error:', error);
-    }
+  const handleSectionClick = (section: string) => {
+    setCurrentSection(section);
   };
 
+  const handleBackToDashboard = () => {
+    setCurrentSection('dashboard');
+  };
+
+  // Render specific management components
+  if (currentSection === 'profiles') {
+    return <UsersManager onBack={handleBackToDashboard} />;
+  }
+
+  if (currentSection === 'sectors-bricks') {
+    return <SectorsBricksManager onBack={handleBackToDashboard} />;
+  }
+
+  if (currentSection === 'doctors') {
+    return <DoctorsManager onBack={handleBackToDashboard} />;
+  }
+
+  if (currentSection === 'visits') {
+    return <VisitsManager onBack={handleBackToDashboard} />;
+  }
+
+  if (currentSection === 'products') {
+    return <ProductsManager onBack={handleBackToDashboard} />;
+  }
+
+  if (currentSection === 'sales') {
+    return <SalesManager onBack={handleBackToDashboard} />;
+  }
+
+  // Main Admin Dashboard
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Header */}
+      <div className="bg-white shadow-lg border-b border-blue-100">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {profile.first_name}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('admin:adminDashboard')}</h1>
+              <p className="text-lg text-gray-600 mt-1">
+                {t('common:welcome')}, {profile.first_name} {profile.last_name} ({t('admin:administrator')})
+              </p>
             </div>
             <Button 
               variant="outline" 
-              onClick={handleSignOut}
+              onClick={onSignOut}
               disabled={signOutLoading}
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              {signOutLoading ? 'Signing out...' : 'Sign Out'}
+              {signOutLoading ? t('common:signingOut') : t('common:signOut')}
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="sectors">Sectors</TabsTrigger>
-            <TabsTrigger value="doctors">Doctors</TabsTrigger>
-            <TabsTrigger value="visits">Visits</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="action-plans">Action Plans</TabsTrigger>
-          </TabsList>
+      {/* Admin Management Cards */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          
+          {/* Profiles Management */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleSectionClick('profiles')}
+          >
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{t('admin:profilesManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageUsers')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">{t('admin:clickToManageProfiles')}</p>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <Users className="w-4 h-4 mr-2" />
-                    User Management
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Manage user accounts, roles, and permissions across the system.
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setActiveTab('users')}
-                  >
-                    Manage Users
-                  </Button>
-                </CardContent>
-              </Card>
+          {/* Sectors and Bricks Management */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleSectionClick('sectors-bricks')}
+          >
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <Building className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{t('admin:sectorsAndBricks')}</CardTitle>
+                  <CardDescription>{t('admin:manageSectorsBricks')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">{t('admin:clickToManageSectorsBricks')}</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Territory Management
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Configure sectors, bricks, and territorial organization.
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setActiveTab('sectors')}
-                  >
-                    Manage Territories
-                  </Button>
-                </CardContent>
-              </Card>
+          {/* Doctors Management */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleSectionClick('doctors')}
+          >
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <UserCheck className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{t('admin:doctorsManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageDoctors')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">{t('admin:clickToManageDoctors')}</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    Doctor Management
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Manage doctor profiles, specialties, and assignments.
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setActiveTab('doctors')}
-                  >
-                    Manage Doctors
-                  </Button>
-                </CardContent>
-              </Card>
+          {/* Visits Management */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleSectionClick('visits')}
+          >
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <Calendar className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{t('admin:visitsManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageVisits')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">{t('admin:clickToManageVisits')}</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Visit Management
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Monitor and manage visit schedules and reports.
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setActiveTab('visits')}
-                  >
-                    Manage Visits
-                  </Button>
-                </CardContent>
-              </Card>
+          {/* Products Management */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleSectionClick('products')}
+          >
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-red-100 rounded-lg">
+                  <Package className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{t('admin:productsManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageProducts')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">{t('admin:clickToManageProducts')}</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <ClipboardList className="w-4 h-4 mr-2" />
-                    Action Plans
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Create and manage action plans with approval workflows.
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setActiveTab('action-plans')}
-                  >
-                    Manage Action Plans
-                  </Button>
-                </CardContent>
-              </Card>
+          {/* Sales Management */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
+            onClick={() => handleSectionClick('sales')}
+          >
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-100 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{t('admin:salesManagement')}</CardTitle>
+                  <CardDescription>{t('admin:manageSales')}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">{t('admin:clickToManageSales')}</p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Reports & Analytics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    Generate comprehensive reports and analytics.
-                  </CardDescription>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setActiveTab('reports')}
-                  >
-                    View Reports
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="users">
-            <UsersManager onBack={() => setActiveTab('overview')} />
-          </TabsContent>
-
-          <TabsContent value="sectors">
-            <SectorsBricksManager onBack={() => setActiveTab('overview')} />
-          </TabsContent>
-
-          <TabsContent value="doctors">
-            <DoctorsManager onBack={() => setActiveTab('overview')} />
-          </TabsContent>
-
-          <TabsContent value="visits">
-            <VisitsManager onBack={() => setActiveTab('overview')} />
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <ReportsManager onBack={() => setActiveTab('overview')} />
-          </TabsContent>
-
-          <TabsContent value="action-plans">
-            <ActionPlanList />
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
     </div>
   );

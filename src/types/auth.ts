@@ -10,7 +10,7 @@ export interface AuthContextType {
   session: Session | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
-  signOut: () => Promise<{ error: any }>;
+  signOut: () => Promise<{ error?: any }>;
   loading: boolean;
   profileLoading: boolean;
   signOutLoading: boolean;
