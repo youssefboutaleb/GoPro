@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +71,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         .from('action_plans')
         .select(`
           *,
-          creator:profiles!action_plans_created_by_fkey(
+          profiles!action_plans_created_by_fkey (
             id,
             first_name,
             last_name,
@@ -99,7 +98,19 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       const { data, error } = await query;
       
       if (error) throw error;
-      return data as ActionPlan[];
+      
+      // Transform the data to match our ActionPlan type
+      const transformedData: ActionPlan[] = (data || []).map(plan => ({
+        ...plan,
+        creator: plan.profiles ? {
+          id: plan.profiles.id,
+          first_name: plan.profiles.first_name,
+          last_name: plan.profiles.last_name,
+          role: plan.profiles.role,
+        } : undefined
+      }));
+      
+      return transformedData;
     },
     enabled: !!user && !!profile,
   });
