@@ -6,101 +6,109 @@ import { Badge } from '@/components/ui/badge';
 import { Users, MapPin, Stethoscope, Package } from 'lucide-react';
 
 interface TargetedEntitiesProps {
-  targetedProducts?: string[];
-  targetedBricks?: string[];
-  targetedDoctors?: string[];
-  targetedDelegates?: string[];
-  targetedSupervisors?: string[];
-  targetedSalesDirectors?: string[];
+  targetedProducts?: string[] | null;
+  targetedBricks?: string[] | null;
+  targetedDoctors?: string[] | null;
+  targetedDelegates?: string[] | null;
+  targetedSupervisors?: string[] | null;
+  targetedSalesDirectors?: string[] | null;
 }
 
 const TargetedEntities: React.FC<TargetedEntitiesProps> = ({
-  targetedProducts = [],
-  targetedBricks = [],
-  targetedDoctors = [],
-  targetedDelegates = [],
-  targetedSupervisors = [],
-  targetedSalesDirectors = []
+  targetedProducts = null,
+  targetedBricks = null,
+  targetedDoctors = null,
+  targetedDelegates = null,
+  targetedSupervisors = null,
+  targetedSalesDirectors = null
 }) => {
+  // Safely handle null values by converting to empty arrays
+  const safeProducts = targetedProducts ?? [];
+  const safeBricks = targetedBricks ?? [];
+  const safeDoctors = targetedDoctors ?? [];
+  const safeDelegates = targetedDelegates ?? [];
+  const safeSupervisors = targetedSupervisors ?? [];
+  const safeSalesDirectors = targetedSalesDirectors ?? [];
+
   const { data: productNames } = useQuery({
-    queryKey: ['product-names', targetedProducts],
+    queryKey: ['product-names', safeProducts],
     queryFn: async () => {
-      if (targetedProducts.length === 0) return [];
+      if (safeProducts.length === 0) return [];
       const { data, error } = await supabase
         .from('products')
         .select('id, name')
-        .in('id', targetedProducts);
+        .in('id', safeProducts);
       if (error) throw error;
       return data;
     },
-    enabled: targetedProducts.length > 0
+    enabled: safeProducts.length > 0
   });
 
   const { data: brickNames } = useQuery({
-    queryKey: ['brick-names', targetedBricks],
+    queryKey: ['brick-names', safeBricks],
     queryFn: async () => {
-      if (targetedBricks.length === 0) return [];
+      if (safeBricks.length === 0) return [];
       const { data, error } = await supabase
         .from('bricks')
         .select('id, name')
-        .in('id', targetedBricks);
+        .in('id', safeBricks);
       if (error) throw error;
       return data;
     },
-    enabled: targetedBricks.length > 0
+    enabled: safeBricks.length > 0
   });
 
   const { data: doctorNames } = useQuery({
-    queryKey: ['doctor-names', targetedDoctors],
+    queryKey: ['doctor-names', safeDoctors],
     queryFn: async () => {
-      if (targetedDoctors.length === 0) return [];
+      if (safeDoctors.length === 0) return [];
       const { data, error } = await supabase
         .from('doctors')
         .select('id, first_name, last_name')
-        .in('id', targetedDoctors);
+        .in('id', safeDoctors);
       if (error) throw error;
       return data;
     },
-    enabled: targetedDoctors.length > 0
+    enabled: safeDoctors.length > 0
   });
 
   const { data: delegateNames } = useQuery({
-    queryKey: ['delegate-names', targetedDelegates],
+    queryKey: ['delegate-names', safeDelegates],
     queryFn: async () => {
-      if (targetedDelegates.length === 0) return [];
+      if (safeDelegates.length === 0) return [];
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
-        .in('id', targetedDelegates);
+        .in('id', safeDelegates);
       if (error) throw error;
       return data;
     },
-    enabled: targetedDelegates.length > 0
+    enabled: safeDelegates.length > 0
   });
 
-  const totalPeople = targetedDelegates.length + targetedSupervisors.length + targetedSalesDirectors.length;
+  const totalPeople = safeDelegates.length + safeSupervisors.length + safeSalesDirectors.length;
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        {targetedProducts.length > 0 && (
+        {safeProducts.length > 0 && (
           <Badge variant="outline" className="text-xs">
             <Package className="w-3 h-3 mr-1" />
-            {targetedProducts.length} Product{targetedProducts.length > 1 ? 's' : ''}
+            {safeProducts.length} Product{safeProducts.length > 1 ? 's' : ''}
           </Badge>
         )}
         
-        {targetedBricks.length > 0 && (
+        {safeBricks.length > 0 && (
           <Badge variant="outline" className="text-xs">
             <MapPin className="w-3 h-3 mr-1" />
-            {targetedBricks.length} Brick{targetedBricks.length > 1 ? 's' : ''}
+            {safeBricks.length} Brick{safeBricks.length > 1 ? 's' : ''}
           </Badge>
         )}
         
-        {targetedDoctors.length > 0 && (
+        {safeDoctors.length > 0 && (
           <Badge variant="outline" className="text-xs">
             <Stethoscope className="w-3 h-3 mr-1" />
-            {targetedDoctors.length} Doctor{targetedDoctors.length > 1 ? 's' : ''}
+            {safeDoctors.length} Doctor{safeDoctors.length > 1 ? 's' : ''}
           </Badge>
         )}
         
