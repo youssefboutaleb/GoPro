@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -25,6 +26,7 @@ import { Separator } from '@/components/ui/separator';
 
 type ActionPlan = Database['public']['Tables']['action_plans']['Row'];
 type ActionTypes = Database['public']['Enums']['action_types'];
+type ActionStatus = Database['public']['Enums']['action_status'];
 
 interface ActionPlanDialogProps {
   open: boolean;
@@ -178,8 +180,8 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
         targeted_supervisors: formData.targeted_supervisors,
         targeted_sales_directors: formData.targeted_sales_directors,
         created_by: user.id,
-        // Auto-approve if the creator is a supervisor
-        supervisor_status: profile?.role === 'Supervisor' ? 'Approved' : 'Pending',
+        // Auto-approve if the creator is a supervisor - properly typed as ActionStatus
+        supervisor_status: (profile?.role === 'Supervisor' ? 'Approved' : 'Pending') as ActionStatus,
       };
 
       if (actionPlan) {
@@ -187,7 +189,7 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
         const updateData = {
           ...actionPlanData,
           supervisor_status: (profile?.role === 'Supervisor' && actionPlan.created_by === user.id) 
-            ? 'Approved' 
+            ? 'Approved' as ActionStatus
             : actionPlan.supervisor_status, // Keep existing status for other cases
         };
         
@@ -197,9 +199,10 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
           .eq('id', actionPlan.id);
         if (error) throw error;
       } else {
+        // Fixed: Pass single object instead of array
         const { error } = await supabase
           .from('action_plans')
-          .insert([actionPlanData]);
+          .insert(actionPlanData);
         if (error) throw error;
       }
 
