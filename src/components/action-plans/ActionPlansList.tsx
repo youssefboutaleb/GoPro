@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -187,15 +188,15 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         // Add supervisor plans targeting this delegate
         if (delegateHierarchy?.supervisor) {
           console.log('Adding supervisor condition for:', delegateHierarchy.supervisor.id);
-          // Try alternative syntax: use array containment with @> operator
-          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.[${profile.id}])`);
+          // Use correct PostgREST array containment syntax
+          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.@>.["${profile.id}"])`);
         }
         
         // Add sales director plans targeting this delegate
         if (delegateHierarchy?.salesDirector) {
           console.log('Adding sales director condition for:', delegateHierarchy.salesDirector.id);
-          // Try alternative syntax: use array containment with @> operator
-          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.[${profile.id}])`);
+          // Use correct PostgREST array containment syntax
+          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.@>.["${profile.id}"])`);
         }
         
         const orCondition = conditions.join(',');
