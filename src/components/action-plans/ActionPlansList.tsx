@@ -99,7 +99,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     enabled: supervisedSupervisors.length > 0,
   });
 
-  // Fixed delegate hierarchy query
+  // Fixed delegate hierarchy query with proper error handling
   const { data: delegateHierarchy } = useQuery({
     queryKey: ['delegate-hierarchy', profile?.id],
     queryFn: async () => {
@@ -122,7 +122,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
             .from('profiles')
             .select('id, first_name, last_name, role, supervisor_id')
             .eq('id', profile.supervisor_id)
-            .single();
+            .maybeSingle(); // Changed from .single() to .maybeSingle()
 
           if (supervisorError) {
             console.error('Error fetching supervisor:', supervisorError);
@@ -137,7 +137,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                 .from('profiles')
                 .select('id, first_name, last_name, role')
                 .eq('id', supervisorData.supervisor_id)
-                .single();
+                .maybeSingle(); // Changed from .single() to .maybeSingle()
 
               if (salesDirectorError) {
                 console.error('Error fetching sales director:', salesDirectorError);
@@ -167,9 +167,9 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const supervisorIds = supervisedSupervisors.map(s => s.id);
   const allDelegateIds = allDelegates.map(d => d.id);
 
-  // Fixed action plans query with proper dependency on delegateHierarchy
+  // Fixed action plans query with corrected PostgREST syntax
   const { data: actionPlans, isLoading } = useQuery({
-    queryKey: ['action-plans', user?.id, profile?.role, delegateHierarchy],
+    queryKey: ['action-plans', user?.id, profile?.role, delegateHierarchy?.supervisor?.id, delegateHierarchy?.salesDirector?.id],
     queryFn: async () => {
       if (!user || !profile) {
         console.log('No user or profile, returning empty array');
@@ -215,7 +215,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         
         // Add supervisor plans targeting this delegate
         if (delegateHierarchy?.supervisor?.id) {
-          const supervisorCondition = `and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`;
+          // Fixed PostgREST syntax for UUID array containment
+          const supervisorCondition = `and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{${profile.id}})`;
           conditions.push(supervisorCondition);
           console.log('Added supervisor condition:', supervisorCondition);
         } else {
@@ -224,7 +225,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         
         // Add sales director plans targeting this delegate
         if (delegateHierarchy?.salesDirector?.id) {
-          const salesDirectorCondition = `and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`;
+          // Fixed PostgREST syntax for UUID array containment
+          const salesDirectorCondition = `and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{${profile.id}})`;
           conditions.push(salesDirectorCondition);
           console.log('Added sales director condition:', salesDirectorCondition);
         } else {
@@ -291,7 +293,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       console.log('Final transformed data:', transformedData);
       return transformedData;
     },
-    enabled: !!user && !!profile && (profile.role !== 'Delegate' || !!delegateHierarchy),
+    enabled: !!user && !!profile && (profile.role !== 'Delegate' || delegateHierarchy !== undefined),
   });
 
   // Mutation for updating supervisor status to Approved
