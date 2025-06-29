@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, ArrowLeft, Users, User, UserCheck, Building, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Users, User, UserCheck, Building } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -112,20 +112,22 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   
   const handleApprove = async (planId: string) => {
     if (!window.confirm('Are you sure you want to approve this action plan?')) return;
-    if (profile?.role === 'Sales Director') {
-      approveSalesDirectorPlanMutation.mutate(planId);
-    } else {
-      approvePlanMutation.mutate(planId);
-    }
+    approvePlanMutation.mutate(planId);
   };
 
   const handleReject = async (planId: string) => {
     if (!window.confirm('Are you sure you want to reject this action plan?')) return;
-    if (profile?.role === 'Sales Director') {
-      rejectSalesDirectorPlanMutation.mutate(planId);
-    } else {
-      rejectPlanMutation.mutate(planId);
-    }
+    rejectPlanMutation.mutate(planId);
+  };
+
+  const handleSalesDirectorApprove = async (planId: string) => {
+    if (!window.confirm('Are you sure you want to approve this action plan?')) return;
+    approveSalesDirectorPlanMutation.mutate(planId);
+  };
+
+  const handleSalesDirectorReject = async (planId: string) => {
+    if (!window.confirm('Are you sure you want to reject this action plan?')) return;
+    rejectSalesDirectorPlanMutation.mutate(planId);
   };
 
   const filteredActionPlans = actionPlans?.filter(plan => {
@@ -161,12 +163,10 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       switch (filterCreator) {
         case 'me':
           return isOwnPlan(plan);
-        case 'involving_me':
-          return groupedPlans.involvingMe.includes(plan);
-        case 'delegate_plans':
-          return groupedPlans.delegatePlans.includes(plan);
-        case 'supervisor_plans':
-          return groupedPlans.supervisorPlans.includes(plan);
+        case 'supervisor_involving_me':
+          return groupedPlans.supervisorInvolvingMe.includes(plan);
+        case 'sales_director_involving_me':
+          return groupedPlans.salesDirectorInvolvingMe.includes(plan);
         default:
           return true;
       }
@@ -216,7 +216,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     );
   }
 
-  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string, sectionType?: 'delegate' | 'supervisor') => {
+  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string) => {
     if (plans.length === 0) return null;
 
     return (
@@ -227,34 +227,24 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
           <span className="text-sm text-gray-500">({plans.length})</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.map((actionPlan) => {
-            // Determine if this plan needs approval from current user based on actual status
-            let needsApproval = false;
-            
-            if (profile?.role === 'Supervisor' && sectionType === 'delegate') {
-              // Supervisor can approve delegate plans if supervisor_status is pending
-              needsApproval = actionPlan.supervisor_status === 'Pending';
-            } else if (profile?.role === 'Sales Director' && (sectionType === 'supervisor' || sectionType === 'delegate')) {
-              // Sales Director can approve supervisor/delegate plans if sales_director_status is pending
-              needsApproval = actionPlan.sales_director_status === 'Pending';
-            }
-
-            return (
-              <ActionPlanCard
-                key={actionPlan.id}
-                actionPlan={actionPlan}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                canEdit={isOwnPlan(actionPlan)}
-                canDelete={isOwnPlan(actionPlan)}
-                canApprove={needsApproval}
-                creator={actionPlan.creator}
-                userRole={profile?.role}
-              />
-            );
-          })}
+          {plans.map((actionPlan) => (
+            <ActionPlanCard
+              key={actionPlan.id}
+              actionPlan={actionPlan}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onApprove={profile?.role === 'Supervisor' ? handleApprove : handleSalesDirectorApprove}
+              onReject={profile?.role === 'Supervisor' ? handleReject : handleSalesDirectorReject}
+              canEdit={isOwnPlan(actionPlan)}
+              canDelete={isOwnPlan(actionPlan)}
+              canApprove={
+                (profile?.role === 'Supervisor' && groupedPlans.delegate.includes(actionPlan)) ||
+                (profile?.role === 'Sales Director' && (groupedPlans.supervisor.includes(actionPlan) || groupedPlans.delegate.includes(actionPlan)))
+              }
+              creator={actionPlan.creator}
+              userRole={profile?.role}
+            />
+          ))}
         </div>
       </div>
     );
@@ -270,7 +260,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       case 'Supervisor':
         return {
           title: 'Action Plans',
-          subtitle: 'Manage your action plans and approve delegate submissions'
+          subtitle: 'Manage your action plans and approve team submissions'
         };
       case 'Delegate':
         return {
@@ -359,123 +349,24 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                 </SelectContent>
               </Select>
 
-              <Select value={filterCreator} onValueChange={setFilterCreator}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Plans</SelectItem>
-                  <SelectItem value="me">My Plans</SelectItem>
-                  {profile?.role !== 'Delegate' && (
-                    <SelectItem value="involving_me">Plans Involving Me</SelectItem>
-                  )}
-                  {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
-                    <SelectItem value="delegate_plans">Delegate Plans</SelectItem>
-                  )}
-                  {profile?.role === 'Sales Director' && (
-                    <SelectItem value="supervisor_plans">Supervisor Plans</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              {profile?.role === 'Delegate' && (
+                <Select value={filterCreator} onValueChange={setFilterCreator}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by creator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Plans</SelectItem>
+                    <SelectItem value="me">My Plans</SelectItem>
+                    <SelectItem value="supervisor_involving_me">Supervisor Plans Involving Me</SelectItem>
+                    <SelectItem value="sales_director_involving_me">Sales Director Plans Involving Me</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Summary Cards for Supervisor */}
-        {profile?.role === 'Supervisor' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600">My Plans</p>
-                    <p className="text-2xl font-bold text-blue-900">{groupedPlans.own.length}</p>
-                  </div>
-                  <User className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-purple-50 border-purple-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-purple-600">Plans Involving Me</p>
-                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.involvingMe.length}</p>
-                  </div>
-                  <AlertCircle className="h-8 w-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-600">Delegate Plans</p>
-                    <p className="text-2xl font-bold text-green-900">{groupedPlans.delegatePlans.length}</p>
-                  </div>
-                  <UserCheck className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Summary Cards for Sales Director */}
-        {profile?.role === 'Sales Director' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-600">My Plans</p>
-                    <p className="text-2xl font-bold text-blue-900">{groupedPlans.own.length}</p>
-                  </div>
-                  <User className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-purple-50 border-purple-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-purple-600">Plans Involving Me</p>
-                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.involvingMe.length}</p>
-                  </div>
-                  <AlertCircle className="h-8 w-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-orange-50 border-orange-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-orange-600">Supervisor Plans</p>
-                    <p className="text-2xl font-bold text-orange-900">{groupedPlans.supervisorPlans.length}</p>
-                  </div>
-                  <Building className="h-8 w-8 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-green-600">Delegate Plans</p>
-                    <p className="text-2xl font-bold text-green-900">{groupedPlans.delegatePlans.length}</p>
-                  </div>
-                  <UserCheck className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Summary Cards for Delegate (keep existing) */}
+        {/* Summary Cards for Delegate */}
         {profile?.role === 'Delegate' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="bg-blue-50 border-blue-200">
@@ -495,7 +386,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-purple-600">Supervisor Plans Involving Me</p>
-                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.involvingMe.length}</p>
+                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.supervisorInvolvingMe.length}</p>
                   </div>
                   <Building className="h-8 w-8 text-purple-600" />
                 </div>
@@ -507,7 +398,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-green-600">Sales Director Plans Involving Me</p>
-                    <p className="text-2xl font-bold text-green-900">{groupedPlans.delegatePlans.length}</p>
+                    <p className="text-2xl font-bold text-green-900">{groupedPlans.salesDirectorInvolvingMe.length}</p>
                   </div>
                   <Users className="h-8 w-8 text-green-600" />
                 </div>
@@ -519,7 +410,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         {/* Action Plans Sections */}
         {filteredActionPlans.length > 0 ? (
           <div className="space-y-8">
-            {profile?.role === 'Supervisor' ? (
+            {profile?.role === 'Delegate' ? (
               <>
                 {renderPlanSection(
                   "My Action Plans", 
@@ -528,50 +419,19 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                   "No action plans created by you"
                 )}
                 {renderPlanSection(
-                  "Plans Involving Me", 
-                  groupedPlans.involvingMe, 
-                  <AlertCircle className="h-5 w-5 text-purple-600" />,
-                  "No plans from sales directors involving you"
+                  "Supervisor Plans Involving Me", 
+                  groupedPlans.supervisorInvolvingMe, 
+                  <Building className="h-5 w-5 text-purple-600" />,
+                  "No action plans from your supervisor involving you"
                 )}
                 {renderPlanSection(
-                  "Delegate Plans", 
-                  groupedPlans.delegatePlans, 
-                  <UserCheck className="h-5 w-5 text-green-600" />,
-                  "No plans from your delegates",
-                  'delegate'
-                )}
-              </>
-            ) : profile?.role === 'Sales Director' ? (
-              <>
-                {renderPlanSection(
-                  "My Action Plans", 
-                  groupedPlans.own, 
-                  <User className="h-5 w-5 text-blue-600" />,
-                  "No action plans created by you"
-                )}
-                {renderPlanSection(
-                  "Plans Involving Me", 
-                  groupedPlans.involvingMe, 
-                  <AlertCircle className="h-5 w-5 text-purple-600" />,
-                  "No plans from marketing managers involving you"
-                )}
-                {renderPlanSection(
-                  "Supervisor Plans", 
-                  groupedPlans.supervisorPlans, 
-                  <Building className="h-5 w-5 text-orange-600" />,
-                  "No plans from your supervisors",
-                  'supervisor'
-                )}
-                {renderPlanSection(
-                  "Delegate Plans", 
-                  groupedPlans.delegatePlans, 
-                  <UserCheck className="h-5 w-5 text-green-600" />,
-                  "No plans from delegates",
-                  'delegate'
+                  "Sales Director Plans Involving Me", 
+                  groupedPlans.salesDirectorInvolvingMe, 
+                  <Users className="h-5 w-5 text-green-600" />,
+                  "No action plans from your sales director involving you"
                 )}
               </>
             ) : (
-              // Default view for other roles
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredActionPlans.map((actionPlan) => (
                   <ActionPlanCard
