@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -40,7 +39,7 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
   actionPlan,
   onSave
 }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     type: 'Staff' as ActionTypes,
     date: '',
@@ -179,12 +178,22 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
         targeted_supervisors: formData.targeted_supervisors,
         targeted_sales_directors: formData.targeted_sales_directors,
         created_by: user.id,
+        // Auto-approve if the creator is a supervisor
+        supervisor_status: profile?.role === 'Supervisor' ? 'Approved' : 'Pending',
       };
 
       if (actionPlan) {
+        // When editing, only auto-approve if it's the supervisor's own plan
+        const updateData = {
+          ...actionPlanData,
+          supervisor_status: (profile?.role === 'Supervisor' && actionPlan.created_by === user.id) 
+            ? 'Approved' 
+            : actionPlan.supervisor_status, // Keep existing status for other cases
+        };
+        
         const { error } = await supabase
           .from('action_plans')
-          .update(actionPlanData)
+          .update(updateData)
           .eq('id', actionPlan.id);
         if (error) throw error;
       } else {

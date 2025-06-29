@@ -21,7 +21,8 @@ interface ActionPlanCardProps {
   actionPlan: ActionPlan;
   onEdit: (actionPlan: ActionPlan) => void;
   onDelete: (id: string) => void;
-  onApprovalToggle?: (id: string, currentStatus: string) => void;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
   canEdit?: boolean;
   canDelete?: boolean;
   canApprove?: boolean;
@@ -32,7 +33,8 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
   actionPlan,
   onEdit,
   onDelete,
-  onApprovalToggle,
+  onApprove,
+  onReject,
   canEdit = true,
   canDelete = true,
   canApprove = false,
@@ -135,8 +137,9 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
                 <Button
                   variant={actionPlan.supervisor_status === 'Approved' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => onApprovalToggle?.(actionPlan.id, actionPlan.supervisor_status)}
+                  onClick={() => onApprove?.(actionPlan.id)}
                   className="h-8 px-2 text-xs"
+                  disabled={actionPlan.supervisor_status === 'Approved'}
                 >
                   <Check className="w-3 h-3 mr-1" />
                   {actionPlan.supervisor_status === 'Approved' ? 'Approved' : 'Approve'}
@@ -144,8 +147,9 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
                 <Button
                   variant={actionPlan.supervisor_status === 'Rejected' ? 'destructive' : 'outline'}
                   size="sm"
-                  onClick={() => onApprovalToggle?.(actionPlan.id, actionPlan.supervisor_status)}
+                  onClick={() => onReject?.(actionPlan.id)}
                   className="h-8 px-2 text-xs"
+                  disabled={actionPlan.supervisor_status === 'Rejected'}
                 >
                   <X className="w-3 h-3 mr-1" />
                   {actionPlan.supervisor_status === 'Rejected' ? 'Rejected' : 'Reject'}

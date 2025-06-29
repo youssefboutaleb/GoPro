@@ -128,12 +128,27 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     enabled: !!user && !!profile,
   });
 
-  // Mutation for updating supervisor status
-  const updateSupervisorStatusMutation = useMutation({
-    mutationFn: async ({ planId, status }: { planId: string; status: 'Approved' | 'Rejected' }) => {
+  // Mutation for updating supervisor status to Approved
+  const approvePlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
       const { error } = await supabase
         .from('action_plans')
-        .update({ supervisor_status: status })
+        .update({ supervisor_status: 'Approved' })
+        .eq('id', planId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['action-plans'] });
+    },
+  });
+
+  // Mutation for updating supervisor status to Rejected
+  const rejectPlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const { error } = await supabase
+        .from('action_plans')
+        .update({ supervisor_status: 'Rejected' })
         .eq('id', planId);
       
       if (error) throw error;
@@ -148,11 +163,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const isDelegatePlan = (plan: ActionPlan) => delegateIds.includes(plan.created_by);
   const isSalesDirectorPlan = (plan: ActionPlan) => plan.created_by === profile?.supervisor_id;
 
-  const handleApprovalToggle = async (planId: string, currentStatus: string) => {
-    if (!window.confirm('Are you sure you want to change the approval status?')) return;
-    
-    const newStatus = currentStatus === 'Approved' ? 'Rejected' : 'Approved';
-    updateSupervisorStatusMutation.mutate({ planId, status: newStatus });
+  const handleApprove = async (planId: string) => {
+    if (!window.confirm('Are you sure you want to approve this action plan?')) return;
+    approvePlanMutation.mutate(planId);
+  };
+
+  const handleReject = async (planId: string) => {
+    if (!window.confirm('Are you sure you want to reject this action plan?')) return;
+    rejectPlanMutation.mutate(planId);
   };
 
   const filteredActionPlans = actionPlans?.filter(plan => {
@@ -265,7 +283,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
               actionPlan={actionPlan}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onApprovalToggle={handleApprovalToggle}
+              onApprove={handleApprove}
+              onReject={handleReject}
               canEdit={isOwnPlan(actionPlan)}
               canDelete={isOwnPlan(actionPlan)}
               canApprove={isDelegatePlan(actionPlan) && profile?.role === 'Supervisor'}
@@ -442,6 +461,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                     actionPlan={actionPlan}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
                     creator={actionPlan.creator}
                   />
                 ))}
