@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, ArrowLeft, Users, User, UserCheck, Building } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Users, User, UserCheck, Building, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -112,22 +111,20 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   
   const handleApprove = async (planId: string) => {
     if (!window.confirm('Are you sure you want to approve this action plan?')) return;
-    approvePlanMutation.mutate(planId);
+    if (profile?.role === 'Sales Director') {
+      approveSalesDirectorPlanMutation.mutate(planId);
+    } else {
+      approvePlanMutation.mutate(planId);
+    }
   };
 
   const handleReject = async (planId: string) => {
     if (!window.confirm('Are you sure you want to reject this action plan?')) return;
-    rejectPlanMutation.mutate(planId);
-  };
-
-  const handleSalesDirectorApprove = async (planId: string) => {
-    if (!window.confirm('Are you sure you want to approve this action plan?')) return;
-    approveSalesDirectorPlanMutation.mutate(planId);
-  };
-
-  const handleSalesDirectorReject = async (planId: string) => {
-    if (!window.confirm('Are you sure you want to reject this action plan?')) return;
-    rejectSalesDirectorPlanMutation.mutate(planId);
+    if (profile?.role === 'Sales Director') {
+      rejectSalesDirectorPlanMutation.mutate(planId);
+    } else {
+      rejectPlanMutation.mutate(planId);
+    }
   };
 
   const filteredActionPlans = actionPlans?.filter(plan => {
@@ -163,10 +160,12 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       switch (filterCreator) {
         case 'me':
           return isOwnPlan(plan);
-        case 'supervisor_involving_me':
-          return groupedPlans.supervisorInvolvingMe.includes(plan);
-        case 'sales_director_involving_me':
-          return groupedPlans.salesDirectorInvolvingMe.includes(plan);
+        case 'needing_approval':
+          return groupedPlans.needingMyApproval.includes(plan);
+        case 'involving_me':
+          return groupedPlans.involvingMe.includes(plan) || 
+                 groupedPlans.supervisorInvolvingMe.includes(plan) || 
+                 groupedPlans.salesDirectorInvolvingMe.includes(plan);
         default:
           return true;
       }
@@ -216,7 +215,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     );
   }
 
-  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string) => {
+  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string, showApprovalButtons = false) => {
     if (plans.length === 0) return null;
 
     return (
@@ -233,14 +232,11 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
               actionPlan={actionPlan}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onApprove={profile?.role === 'Supervisor' ? handleApprove : handleSalesDirectorApprove}
-              onReject={profile?.role === 'Supervisor' ? handleReject : handleSalesDirectorReject}
+              onApprove={handleApprove}
+              onReject={handleReject}
               canEdit={isOwnPlan(actionPlan)}
               canDelete={isOwnPlan(actionPlan)}
-              canApprove={
-                (profile?.role === 'Supervisor' && groupedPlans.delegate.includes(actionPlan)) ||
-                (profile?.role === 'Sales Director' && (groupedPlans.supervisor.includes(actionPlan) || groupedPlans.delegate.includes(actionPlan)))
-              }
+              canApprove={showApprovalButtons}
               creator={actionPlan.creator}
               userRole={profile?.role}
             />
@@ -260,7 +256,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       case 'Supervisor':
         return {
           title: 'Action Plans',
-          subtitle: 'Manage your action plans and approve team submissions'
+          subtitle: 'Manage your action plans and approve delegate submissions'
         };
       case 'Delegate':
         return {
@@ -349,24 +345,81 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                 </SelectContent>
               </Select>
 
-              {profile?.role === 'Delegate' && (
-                <Select value={filterCreator} onValueChange={setFilterCreator}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by creator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Plans</SelectItem>
-                    <SelectItem value="me">My Plans</SelectItem>
-                    <SelectItem value="supervisor_involving_me">Supervisor Plans Involving Me</SelectItem>
-                    <SelectItem value="sales_director_involving_me">Sales Director Plans Involving Me</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+              <Select value={filterCreator} onValueChange={setFilterCreator}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Plans</SelectItem>
+                  <SelectItem value="me">My Plans</SelectItem>
+                  {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
+                    <SelectItem value="needing_approval">Needing My Approval</SelectItem>
+                  )}
+                  {profile?.role !== 'Admin' && (
+                    <SelectItem value="involving_me">Plans Involving Me</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
 
-        {/* Summary Cards for Delegate */}
+        {/* Summary Cards for Supervisor and Sales Director */}
+        {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600">My Plans</p>
+                    <p className="text-2xl font-bold text-blue-900">{groupedPlans.own.length}</p>
+                  </div>
+                  <User className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-orange-50 border-orange-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-orange-600">Needing My Approval</p>
+                    <p className="text-2xl font-bold text-orange-900">{groupedPlans.needingMyApproval.length}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-purple-50 border-purple-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-600">Plans Involving Me</p>
+                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.involvingMe.length}</p>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Team Plans</p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {groupedPlans.delegate.length + groupedPlans.supervisor.length}
+                    </p>
+                  </div>
+                  <Users className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Summary Cards for Delegate (keep existing) */}
         {profile?.role === 'Delegate' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="bg-blue-50 border-blue-200">
@@ -429,6 +482,62 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                   groupedPlans.salesDirectorInvolvingMe, 
                   <Users className="h-5 w-5 text-green-600" />,
                   "No action plans from your sales director involving you"
+                )}
+              </>
+            ) : profile?.role === 'Supervisor' ? (
+              <>
+                {renderPlanSection(
+                  "My Action Plans", 
+                  groupedPlans.own, 
+                  <User className="h-5 w-5 text-blue-600" />,
+                  "No action plans created by you"
+                )}
+                {renderPlanSection(
+                  "Plans Needing My Approval", 
+                  groupedPlans.needingMyApproval, 
+                  <Clock className="h-5 w-5 text-orange-600" />,
+                  "No plans needing your approval",
+                  true
+                )}
+                {renderPlanSection(
+                  "Plans Involving Me", 
+                  groupedPlans.involvingMe, 
+                  <AlertCircle className="h-5 w-5 text-purple-600" />,
+                  "No plans from sales director involving you"
+                )}
+                {renderPlanSection(
+                  "Delegate Plans", 
+                  groupedPlans.delegate, 
+                  <UserCheck className="h-5 w-5 text-green-600" />,
+                  "No plans from your delegates"
+                )}
+              </>
+            ) : profile?.role === 'Sales Director' ? (
+              <>
+                {renderPlanSection(
+                  "My Action Plans", 
+                  groupedPlans.own, 
+                  <User className="h-5 w-5 text-blue-600" />,
+                  "No action plans created by you"
+                )}
+                {renderPlanSection(
+                  "Plans Needing My Approval", 
+                  groupedPlans.needingMyApproval, 
+                  <Clock className="h-5 w-5 text-orange-600" />,
+                  "No plans needing your approval",
+                  true
+                )}
+                {renderPlanSection(
+                  "Supervisor Plans", 
+                  groupedPlans.supervisor, 
+                  <Building className="h-5 w-5 text-purple-600" />,
+                  "No plans from your supervisors"
+                )}
+                {renderPlanSection(
+                  "Delegate Plans", 
+                  groupedPlans.delegate, 
+                  <UserCheck className="h-5 w-5 text-green-600" />,
+                  "No plans from delegates"
                 )}
               </>
             ) : (
