@@ -99,49 +99,65 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     enabled: supervisedSupervisors.length > 0,
   });
 
-  // Fetch supervisor and sales director info for delegate
+  // Fixed delegate hierarchy query
   const { data: delegateHierarchy } = useQuery({
     queryKey: ['delegate-hierarchy', profile?.id],
     queryFn: async () => {
       if (!profile?.id || profile.role !== 'Delegate') {
+        console.log('Not a delegate or no profile, skipping hierarchy fetch');
         return { supervisor: null, salesDirector: null };
       }
 
-      console.log('Fetching delegate hierarchy for:', profile.id);
+      console.log('Fetching delegate hierarchy for delegate:', profile.id);
+      console.log('Delegate supervisor_id:', profile.supervisor_id);
 
       let supervisor = null;
       let salesDirector = null;
 
-      // Get supervisor info
-      if (profile.supervisor_id) {
-        const { data: supervisorData, error: supervisorError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, role, supervisor_id')
-          .eq('id', profile.supervisor_id)
-          .single();
+      try {
+        // Get supervisor info if supervisor_id exists
+        if (profile.supervisor_id) {
+          console.log('Fetching supervisor with ID:', profile.supervisor_id);
+          const { data: supervisorData, error: supervisorError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, role, supervisor_id')
+            .eq('id', profile.supervisor_id)
+            .single();
 
-        if (!supervisorError && supervisorData) {
-          supervisor = supervisorData;
-          console.log('Found supervisor:', supervisor);
+          if (supervisorError) {
+            console.error('Error fetching supervisor:', supervisorError);
+          } else if (supervisorData) {
+            supervisor = supervisorData;
+            console.log('Successfully fetched supervisor:', supervisor);
 
-          // Get sales director info (supervisor's supervisor)
-          if (supervisorData.supervisor_id) {
-            const { data: salesDirectorData, error: salesDirectorError } = await supabase
-              .from('profiles')
-              .select('id, first_name, last_name, role')
-              .eq('id', supervisorData.supervisor_id)
-              .single();
+            // Get sales director info (supervisor's supervisor)
+            if (supervisorData.supervisor_id) {
+              console.log('Fetching sales director with ID:', supervisorData.supervisor_id);
+              const { data: salesDirectorData, error: salesDirectorError } = await supabase
+                .from('profiles')
+                .select('id, first_name, last_name, role')
+                .eq('id', supervisorData.supervisor_id)
+                .single();
 
-            if (!salesDirectorError && salesDirectorData) {
-              salesDirector = salesDirectorData;
-              console.log('Found sales director:', salesDirector);
+              if (salesDirectorError) {
+                console.error('Error fetching sales director:', salesDirectorError);
+              } else if (salesDirectorData) {
+                salesDirector = salesDirectorData;
+                console.log('Successfully fetched sales director:', salesDirector);
+              }
+            } else {
+              console.log('Supervisor has no supervisor_id (no sales director above)');
             }
           }
+        } else {
+          console.log('Delegate has no supervisor_id');
         }
+      } catch (error) {
+        console.error('Exception in delegate hierarchy fetch:', error);
       }
 
       const result = { supervisor, salesDirector };
-      console.log('Delegate hierarchy result:', result);
+      console.log('Final delegate hierarchy result:', result);
       return result;
     },
     enabled: !!profile?.id && profile?.role === 'Delegate',
@@ -151,10 +167,16 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const supervisorIds = supervisedSupervisors.map(s => s.id);
   const allDelegateIds = allDelegates.map(d => d.id);
 
+  // Fixed action plans query with proper dependency on delegateHierarchy
   const { data: actionPlans, isLoading } = useQuery({
-    queryKey: ['action-plans', user?.id, profile?.role],
+    queryKey: ['action-plans', user?.id, profile?.role, delegateHierarchy],
     queryFn: async () => {
-      if (!user || !profile) return [];
+      if (!user || !profile) {
+        console.log('No user or profile, returning empty array');
+        return [];
+      }
+      
+      console.log('Starting action plans fetch for:', profile.role, profile.id);
       
       let query = supabase
         .from('action_plans')
@@ -172,47 +194,53 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         if (profile.supervisor_id) {
           creatorIds.push(profile.supervisor_id);
         }
+        console.log('Supervisor query - creator IDs:', creatorIds);
         query = query.in('created_by', creatorIds);
       } else if (profile.role === 'Sales Director') {
         // For sales directors: own plans, supervisor plans, and delegate plans
         creatorIds = [profile.id, ...supervisorIds, ...allDelegateIds];
+        console.log('Sales Director query - creator IDs:', creatorIds);
         query = query.in('created_by', creatorIds);
       } else if (profile.role === 'Delegate') {
         console.log('Building delegate query for profile:', profile.id);
+        console.log('Delegate hierarchy available:', !!delegateHierarchy);
         console.log('Delegate hierarchy:', delegateHierarchy);
         
-        // Try multiple PostgREST syntax approaches for UUID array containment
-        const conditions = [`created_by.eq.${profile.id}`];
+        // Build OR conditions for delegate plans
+        const conditions: string[] = [];
+        
+        // Always include own plans
+        conditions.push(`created_by.eq.${profile.id}`);
+        console.log('Added own plans condition');
         
         // Add supervisor plans targeting this delegate
-        if (delegateHierarchy?.supervisor) {
-          console.log('Adding supervisor condition for:', delegateHierarchy.supervisor.id);
-          console.log('My profile ID:', profile.id);
-          
-          // Try different PostgREST syntax approaches
-          // Approach 1: quoted UUID with cs (contains)
-          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`);
+        if (delegateHierarchy?.supervisor?.id) {
+          const supervisorCondition = `and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`;
+          conditions.push(supervisorCondition);
+          console.log('Added supervisor condition:', supervisorCondition);
+        } else {
+          console.log('No supervisor found in hierarchy, skipping supervisor plans');
         }
         
         // Add sales director plans targeting this delegate
-        if (delegateHierarchy?.salesDirector) {
-          console.log('Adding sales director condition for:', delegateHierarchy.salesDirector.id);
-          console.log('My profile ID:', profile.id);
-          
-          // Try different PostgREST syntax approaches
-          // Approach 1: quoted UUID with cs (contains)
-          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`);
+        if (delegateHierarchy?.salesDirector?.id) {
+          const salesDirectorCondition = `and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`;
+          conditions.push(salesDirectorCondition);
+          console.log('Added sales director condition:', salesDirectorCondition);
+        } else {
+          console.log('No sales director found in hierarchy, skipping sales director plans');
         }
         
-        const orCondition = conditions.join(',');
-        console.log('Final OR condition for delegate:', orCondition);
-        
-        query = query.or(orCondition);
-        
-        // Log what we're about to execute
-        console.log('About to execute delegate query with OR condition:', orCondition);
+        if (conditions.length > 0) {
+          const orCondition = conditions.join(',');
+          console.log('Final OR condition for delegate:', orCondition);
+          query = query.or(orCondition);
+        } else {
+          console.log('No conditions built, this should not happen');
+        }
       } else {
         // For other roles, show their own plans
+        console.log('Other role query - own plans only');
         query = query.eq('created_by', user.id);
       }
       
