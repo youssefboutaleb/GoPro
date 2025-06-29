@@ -10,49 +10,132 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, ArrowLeft } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, Search, ArrowLeft, Users, User, UserCheck } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import ActionPlanCard from './ActionPlanCard';
 import ActionPlanDialog from './ActionPlanDialog';
 import { Database } from '@/integrations/supabase/types';
 
-type ActionPlan = Database['public']['Tables']['action_plans']['Row'];
+type ActionPlan = Database['public']['Tables']['action_plans']['Row'] & {
+  creator?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+  };
+};
 
 interface ActionPlansListProps {
   onBack: () => void;
 }
 
 const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterCreator, setFilterCreator] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedActionPlan, setSelectedActionPlan] = useState<ActionPlan | null>(null);
 
-  const { data: actionPlans, isLoading } = useQuery({
-    queryKey: ['action-plans', user?.id],
+  // Fetch supervised delegates for supervisor role
+  const { data: supervisedDelegates = [] } = useQuery({
+    queryKey: ['supervised-delegates', profile?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!profile?.id || profile.role !== 'Supervisor') {
+        return [];
+      }
       
       const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .eq('supervisor_id', profile.id)
+        .eq('role', 'Delegate');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!profile?.id && profile?.role === 'Supervisor',
+  });
+
+  const delegateIds = supervisedDelegates.map(d => d.id);
+
+  const { data: actionPlans, isLoading } = useQuery({
+    queryKey: ['action-plans', user?.id, profile?.role],
+    queryFn: async () => {
+      if (!user || !profile) return [];
+      
+      let query = supabase
         .from('action_plans')
-        .select('*')
+        .select(`
+          *,
+          creator:profiles!action_plans_created_by_fkey(
+            id,
+            first_name,
+            last_name,
+            role
+          )
+        `)
         .order('created_at', { ascending: false });
+
+      // For supervisors, fetch their own plans, delegate plans, and sales director plans
+      if (profile.role === 'Supervisor') {
+        const creatorIds = [profile.id];
+        if (delegateIds.length > 0) {
+          creatorIds.push(...delegateIds);
+        }
+        if (profile.supervisor_id) {
+          creatorIds.push(profile.supervisor_id);
+        }
+        query = query.in('created_by', creatorIds);
+      } else {
+        // For other roles, show their own plans
+        query = query.eq('created_by', user.id);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       return data as ActionPlan[];
     },
-    enabled: !!user,
+    enabled: !!user && !!profile,
   });
+
+  // Mutation for updating supervisor status
+  const updateSupervisorStatusMutation = useMutation({
+    mutationFn: async ({ planId, status }: { planId: string; status: 'Approved' | 'Rejected' }) => {
+      const { error } = await supabase
+        .from('action_plans')
+        .update({ supervisor_status: status })
+        .eq('id', planId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['action-plans'] });
+    },
+  });
+
+  // Helper functions for categorization
+  const isOwnPlan = (plan: ActionPlan) => plan.created_by === profile?.id;
+  const isDelegatePlan = (plan: ActionPlan) => delegateIds.includes(plan.created_by);
+  const isSalesDirectorPlan = (plan: ActionPlan) => plan.created_by === profile?.supervisor_id;
+
+  const handleApprovalToggle = async (planId: string, currentStatus: string) => {
+    if (!window.confirm('Are you sure you want to change the approval status?')) return;
+    
+    const newStatus = currentStatus === 'Approved' ? 'Rejected' : 'Approved';
+    updateSupervisorStatusMutation.mutate({ planId, status: newStatus });
+  };
 
   const filteredActionPlans = actionPlans?.filter(plan => {
     const matchesSearch = 
       plan.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (plan.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (plan.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) : false);
     
     const matchesType = filterType === 'all' || plan.type === filterType;
     
@@ -77,8 +160,28 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       }
     })();
 
-    return matchesSearch && matchesType && matchesStatus;
+    const matchesCreator = filterCreator === 'all' || (() => {
+      switch (filterCreator) {
+        case 'me':
+          return isOwnPlan(plan);
+        case 'delegates':
+          return isDelegatePlan(plan);
+        case 'sales_director':
+          return isSalesDirectorPlan(plan);
+        default:
+          return true;
+      }
+    })();
+
+    return matchesSearch && matchesType && matchesStatus && matchesCreator;
   }) || [];
+
+  // Group plans by category for better organization
+  const groupedPlans = {
+    own: filteredActionPlans.filter(isOwnPlan),
+    delegate: filteredActionPlans.filter(isDelegatePlan),
+    salesDirector: filteredActionPlans.filter(isSalesDirectorPlan)
+  };
 
   const handleEdit = (actionPlan: ActionPlan) => {
     setSelectedActionPlan(actionPlan);
@@ -121,6 +224,35 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     );
   }
 
+  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string) => {
+    if (plans.length === 0) return null;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2 border-b pb-2">
+          {icon}
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <span className="text-sm text-gray-500">({plans.length})</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {plans.map((actionPlan) => (
+            <ActionPlanCard
+              key={actionPlan.id}
+              actionPlan={actionPlan}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onApprovalToggle={handleApprovalToggle}
+              canEdit={isOwnPlan(actionPlan)}
+              canDelete={isOwnPlan(actionPlan)}
+              canApprove={isDelegatePlan(actionPlan) && profile?.role === 'Supervisor'}
+              creator={actionPlan.creator}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -138,7 +270,10 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Action Plans</h1>
                 <p className="text-sm text-gray-600">
-                  Manage and track your action plans
+                  {profile?.role === 'Supervisor' 
+                    ? 'Manage your action plans and approve team submissions'
+                    : 'Manage and track your action plans'
+                  }
                 </p>
               </div>
             </div>
@@ -157,11 +292,11 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
             <CardTitle>Filters</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search by location or description..."
+                  placeholder="Search by location, description, or creator..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -194,21 +329,100 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                   <SelectItem value="executed">Executed</SelectItem>
                 </SelectContent>
               </Select>
+
+              {profile?.role === 'Supervisor' && (
+                <Select value={filterCreator} onValueChange={setFilterCreator}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by creator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Creators</SelectItem>
+                    <SelectItem value="me">My Plans</SelectItem>
+                    <SelectItem value="delegates">Delegate Plans</SelectItem>
+                    <SelectItem value="sales_director">Sales Director Plans</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Action Plans Grid */}
+        {/* Summary Cards for Supervisors */}
+        {profile?.role === 'Supervisor' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600">My Plans</p>
+                    <p className="text-2xl font-bold text-blue-900">{groupedPlans.own.length}</p>
+                  </div>
+                  <User className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Delegate Plans</p>
+                    <p className="text-2xl font-bold text-green-900">{groupedPlans.delegate.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-purple-50 border-purple-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-600">Sales Director Plans</p>
+                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.salesDirector.length}</p>
+                  </div>
+                  <UserCheck className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Action Plans Sections */}
         {filteredActionPlans.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredActionPlans.map((actionPlan) => (
-              <ActionPlanCard
-                key={actionPlan.id}
-                actionPlan={actionPlan}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
+          <div className="space-y-8">
+            {profile?.role === 'Supervisor' ? (
+              <>
+                {renderPlanSection(
+                  "My Action Plans", 
+                  groupedPlans.own, 
+                  <User className="h-5 w-5 text-blue-600" />,
+                  "No action plans created by you"
+                )}
+                {renderPlanSection(
+                  "Delegate Action Plans", 
+                  groupedPlans.delegate, 
+                  <Users className="h-5 w-5 text-green-600" />,
+                  "No action plans from your delegates"
+                )}
+                {renderPlanSection(
+                  "Sales Director Action Plans", 
+                  groupedPlans.salesDirector, 
+                  <UserCheck className="h-5 w-5 text-purple-600" />,
+                  "No action plans from your sales director"
+                )}
+              </>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredActionPlans.map((actionPlan) => (
+                  <ActionPlanCard
+                    key={actionPlan.id}
+                    actionPlan={actionPlan}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    creator={actionPlan.creator}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <Card>
