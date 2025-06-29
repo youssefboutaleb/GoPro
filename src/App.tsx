@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ActionPlans from "./pages/ActionPlans";
 import CreateTestUsersPage from "./pages/CreateTestUsers";
 import SalesDirectorKPIsDashboard from "./components/SalesDirectorKPIsDashboard";
 import VisitReport from "./components/VisitReport";
@@ -29,6 +30,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/action-plans" element={<ActionPlans />} />
               <Route path="/create-test-users" element={<CreateTestUsersPage />} />
               <Route 
                 path="/sales-director/kpis" 
