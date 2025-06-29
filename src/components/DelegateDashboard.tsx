@@ -1,19 +1,22 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, BarChart3, TrendingUp, ArrowRight } from 'lucide-react';
+import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
+import ActionPlansList from './action-plans/ActionPlansList';
 
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
+  const [showActionPlans, setShowActionPlans] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -51,6 +54,14 @@ const DelegateDashboard: React.FC = () => {
 
         if (salesPlansError) throw salesPlansError;
 
+        // Fetch action plans count
+        const { data: actionPlans, error: actionPlansError } = await supabase
+          .from('action_plans')
+          .select('id, supervisor_status, sales_director_status, marketing_manager_status')
+          .eq('created_by', profile.id);
+
+        if (actionPlansError) throw actionPlansError;
+
         // Calculate proper date range for current month
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
@@ -78,9 +89,18 @@ const DelegateDashboard: React.FC = () => {
           ? Math.round((thisMonthVisits?.length || 0) / (visitPlans.length * 2) * 100)
           : 0;
 
+        // Calculate pending action plans
+        const pendingActionPlans = actionPlans?.filter(plan => 
+          plan.supervisor_status === 'Pending' || 
+          plan.sales_director_status === 'Pending' || 
+          plan.marketing_manager_status === 'Pending'
+        ).length || 0;
+
         return {
           visitPlansCount: visitPlans?.length || 0,
           salesPlansCount: salesPlans?.length || 0,
+          actionPlansCount: actionPlans?.length || 0,
+          pendingActionPlans,
           thisMonthVisits: thisMonthVisits?.length || 0,
           returnIndex,
           recruitmentRate: salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
@@ -106,6 +126,12 @@ const DelegateDashboard: React.FC = () => {
     }
   };
 
+  const getActionPlanColor = (pendingCount: number) => {
+    if (pendingCount === 0) return 'text-green-600 bg-green-50 border-green-200';
+    if (pendingCount <= 2) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    return 'text-red-600 bg-red-50 border-red-200';
+  };
+
   // Show Visit Plans Management interface
   if (showVisitPlansManagement) {
     return <VisitPlansManagement onBack={() => setShowVisitPlansManagement(false)} />;
@@ -114,6 +140,11 @@ const DelegateDashboard: React.FC = () => {
   // Show Rythme Recrutement interface
   if (showRythmeRecrutement) {
     return <RythmeRecrutement onBack={() => setShowRythmeRecrutement(false)} />;
+  }
+
+  // Show Action Plans interface
+  if (showActionPlans) {
+    return <ActionPlansList onBack={() => setShowActionPlans(false)} />;
   }
 
   return (
@@ -148,7 +179,7 @@ const DelegateDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Return Index Card */}
           <Card 
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -206,6 +237,38 @@ const DelegateDashboard: React.FC = () => {
               </p>
               <div className="mt-3 text-xs text-gray-500">
                 {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Plans Card */}
+          <Card 
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats ? getActionPlanColor(dashboardStats.pendingActionPlans) : 'border-gray-200'
+            }`}
+            onClick={() => setShowActionPlans(true)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                  <ClipboardList className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Action Plans</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : `${dashboardStats?.actionPlansCount || 0}`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Total action plans created
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.pendingActionPlans || 0} pending approval`}
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to manage plans →
               </div>
             </CardContent>
           </Card>

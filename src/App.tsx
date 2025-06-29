@@ -11,6 +11,7 @@ import SalesDirectorKPIsDashboard from "./components/SalesDirectorKPIsDashboard"
 import VisitReport from "./components/VisitReport";
 import ReturnIndexAnalysis from "./components/ReturnIndexAnalysis";
 import RythmeRecrutement from "./components/RythmeRecrutement";
+import ActionPlansList from "./components/action-plans/ActionPlansList";
 import './i18n';
 
 const queryClient = new QueryClient();
@@ -45,6 +46,10 @@ function App() {
               <Route 
                 path="/delegate/recruitment-rate" 
                 element={<RythmeRecrutement onBack={handleBack} />} 
+              />
+              <Route 
+                path="/delegate/action-plans" 
+                element={<ActionPlansList onBack={handleBack} />} 
               />
             </Routes>
           </BrowserRouter>
