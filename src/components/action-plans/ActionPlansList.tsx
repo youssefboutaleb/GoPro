@@ -215,8 +215,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         
         // Add supervisor plans targeting this delegate
         if (delegateHierarchy?.supervisor?.id) {
-          // Fixed PostgREST syntax for UUID array containment
-          const supervisorCondition = `and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{${profile.id}})`;
+          // Fixed PostgREST syntax for UUID array containment - UUIDs need quotes
+          const supervisorCondition = `and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`;
           conditions.push(supervisorCondition);
           console.log('Added supervisor condition:', supervisorCondition);
         } else {
@@ -225,8 +225,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         
         // Add sales director plans targeting this delegate
         if (delegateHierarchy?.salesDirector?.id) {
-          // Fixed PostgREST syntax for UUID array containment
-          const salesDirectorCondition = `and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{${profile.id}})`;
+          // Fixed PostgREST syntax for UUID array containment - UUIDs need quotes
+          const salesDirectorCondition = `and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`;
           conditions.push(salesDirectorCondition);
           console.log('Added sales director condition:', salesDirectorCondition);
         } else {
