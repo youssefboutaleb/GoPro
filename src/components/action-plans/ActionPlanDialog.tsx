@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -180,17 +181,21 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
         targeted_supervisors: formData.targeted_supervisors,
         targeted_sales_directors: formData.targeted_sales_directors,
         created_by: user.id,
-        // Auto-approve if the creator is a supervisor - properly typed as ActionStatus
+        // Auto-approve based on role
         supervisor_status: (profile?.role === 'Supervisor' ? 'Approved' : 'Pending') as ActionStatus,
+        sales_director_status: (profile?.role === 'Sales Director' ? 'Approved' : 'Pending') as ActionStatus,
       };
 
       if (actionPlan) {
-        // When editing, only auto-approve if it's the supervisor's own plan
+        // When editing, preserve existing approvals unless it's the creator's own plan
         const updateData = {
           ...actionPlanData,
           supervisor_status: (profile?.role === 'Supervisor' && actionPlan.created_by === user.id) 
             ? 'Approved' as ActionStatus
-            : actionPlan.supervisor_status, // Keep existing status for other cases
+            : actionPlan.supervisor_status,
+          sales_director_status: (profile?.role === 'Sales Director' && actionPlan.created_by === user.id)
+            ? 'Approved' as ActionStatus
+            : actionPlan.sales_director_status,
         };
         
         const { error } = await supabase
@@ -199,7 +204,6 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
           .eq('id', actionPlan.id);
         if (error) throw error;
       } else {
-        // Fixed: Pass single object instead of array
         const { error } = await supabase
           .from('action_plans')
           .insert(actionPlanData);

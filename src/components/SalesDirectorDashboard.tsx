@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building, BarChart3, TrendingUp, ArrowRight } from 'lucide-react';
+import { Building, BarChart3, TrendingUp, ArrowRight, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
+import ActionPlansList from './action-plans/ActionPlansList';
 
 interface SalesDirectorDashboardProps {
   onSignOut: () => void;
@@ -19,6 +20,7 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
   const { user } = useAuth();
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
+  const [showActionPlans, setShowActionPlans] = useState(false);
 
   const handleNavigateToRecruitmentRate = () => {
     setShowRythmeRecrutement(true);
@@ -145,6 +147,44 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch action plans statistics
+  const { data: actionPlansStats, isLoading: actionPlansStatsLoading } = useQuery({
+    queryKey: ['sales-director-action-plans-stats', profile?.id, supervisorIds.join(','), delegateIds.join(',')],
+    queryFn: async () => {
+      if (!profile?.id) return null;
+
+      try {
+        const creatorIds = [profile.id, ...supervisorIds, ...delegateIds];
+        
+        const { data: actionPlans, error } = await supabase
+          .from('action_plans')
+          .select('id, created_by, sales_director_status')
+          .in('created_by', creatorIds);
+
+        if (error) throw error;
+
+        const ownPlans = actionPlans?.filter(plan => plan.created_by === profile.id) || [];
+        const supervisorPlans = actionPlans?.filter(plan => supervisorIds.includes(plan.created_by)) || [];
+        const delegatePlans = actionPlans?.filter(plan => delegateIds.includes(plan.created_by)) || [];
+        const pendingApproval = actionPlans?.filter(plan => 
+          plan.created_by !== profile.id && plan.sales_director_status === 'Pending'
+        ) || [];
+
+        return {
+          totalPlans: actionPlans?.length || 0,
+          ownPlans: ownPlans.length,
+          supervisorPlans: supervisorPlans.length,
+          delegatePlans: delegatePlans.length,
+          pendingApproval: pendingApproval.length
+        };
+      } catch (error) {
+        console.error('Error fetching action plans stats:', error);
+        return null;
+      }
+    },
+    enabled: !!profile?.id && profile?.role === 'Sales Director',
+  });
+
   const getPerformanceColor = (value: number, type: 'return' | 'recruitment') => {
     if (type === 'return') {
       if (value >= 80) return 'text-green-600 bg-green-50 border-green-200';
@@ -173,6 +213,11 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
       delegateIds={delegateIds}
       supervisorName={`${profile?.first_name} ${profile?.last_name} Organization`}
     />;
+  }
+
+  // Show Action Plans interface
+  if (showActionPlans) {
+    return <ActionPlansList onBack={() => setShowActionPlans(false)} />;
   }
 
   return (
@@ -232,8 +277,8 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
           </Card>
         </div>
 
-        {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* KPI Cards Row - Now 3 cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Return Index Card */}
           <Card 
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -291,6 +336,42 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
               </p>
               <div className="mt-3 text-xs text-gray-500">
                 {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Plans Card */}
+          <Card 
+            className="bg-white/80 backdrop-blur-sm border-2 border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group text-indigo-700"
+            onClick={() => setShowActionPlans(true)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                  <ClipboardList className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Organization Action Plans</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {actionPlansStatsLoading ? '...' : `${actionPlansStats?.totalPlans || 0}`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Total action plans in your organization
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {actionPlansStatsLoading ? 'Loading...' : (
+                  <>
+                    {actionPlansStats?.pendingApproval || 0} pending your approval
+                    <br />
+                    {actionPlansStats?.ownPlans || 0} created by you
+                  </>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-indigo-600 font-medium">
+                Click to manage action plans →
               </div>
             </CardContent>
           </Card>

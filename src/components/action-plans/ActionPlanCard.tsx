@@ -27,6 +27,7 @@ interface ActionPlanCardProps {
   canDelete?: boolean;
   canApprove?: boolean;
   creator?: Creator;
+  userRole?: string;
 }
 
 const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
@@ -38,7 +39,8 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
   canEdit = true,
   canDelete = true,
   canApprove = false,
-  creator
+  creator,
+  userRole
 }) => {
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
@@ -73,6 +75,29 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
+
+  // Get the appropriate status field and buttons based on user role
+  const getApprovalInfo = () => {
+    if (userRole === 'Sales Director') {
+      return {
+        status: actionPlan.sales_director_status,
+        approvedLabel: 'SD Approved',
+        rejectedLabel: 'SD Rejected',
+        approveLabel: 'SD Approve',
+        rejectLabel: 'SD Reject'
+      };
+    } else {
+      return {
+        status: actionPlan.supervisor_status,
+        approvedLabel: 'Approved',
+        rejectedLabel: 'Rejected',
+        approveLabel: 'Approve',
+        rejectLabel: 'Reject'
+      };
+    }
+  };
+
+  const approvalInfo = getApprovalInfo();
 
   return (
     <Card className="hover:shadow-md transition-shadow duration-200">
@@ -131,28 +156,28 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
           </div>
           
           <div className="flex space-x-2">
-            {/* Approval/Rejection buttons for supervisors */}
+            {/* Approval/Rejection buttons */}
             {canApprove && (
               <div className="flex space-x-1">
                 <Button
-                  variant={actionPlan.supervisor_status === 'Approved' ? 'default' : 'outline'}
+                  variant={approvalInfo.status === 'Approved' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => onApprove?.(actionPlan.id)}
                   className="h-8 px-2 text-xs"
-                  disabled={actionPlan.supervisor_status === 'Approved'}
+                  disabled={approvalInfo.status === 'Approved'}
                 >
                   <Check className="w-3 h-3 mr-1" />
-                  {actionPlan.supervisor_status === 'Approved' ? 'Approved' : 'Approve'}
+                  {approvalInfo.status === 'Approved' ? approvalInfo.approvedLabel : approvalInfo.approveLabel}
                 </Button>
                 <Button
-                  variant={actionPlan.supervisor_status === 'Rejected' ? 'destructive' : 'outline'}
+                  variant={approvalInfo.status === 'Rejected' ? 'destructive' : 'outline'}
                   size="sm"
                   onClick={() => onReject?.(actionPlan.id)}
                   className="h-8 px-2 text-xs"
-                  disabled={actionPlan.supervisor_status === 'Rejected'}
+                  disabled={approvalInfo.status === 'Rejected'}
                 >
                   <X className="w-3 h-3 mr-1" />
-                  {actionPlan.supervisor_status === 'Rejected' ? 'Rejected' : 'Reject'}
+                  {approvalInfo.status === 'Rejected' ? approvalInfo.rejectedLabel : approvalInfo.rejectLabel}
                 </Button>
               </div>
             )}
