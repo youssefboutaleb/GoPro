@@ -110,7 +110,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       
       console.log('Fetching action plans for profile:', profile);
       
-      // Let RLS policies handle access control - no manual filtering by created_by
+      // Let RLS policies handle access control
       let query = supabase
         .from('action_plans')
         .select('*')
@@ -134,7 +134,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       const creatorIds = [...new Set(actionPlansData.map(plan => plan.created_by))];
       console.log('Creator IDs found:', creatorIds);
       
-      // Fetch creator profiles separately
+      // Fetch creator profiles separately with better error handling
       const { data: creatorsData, error: creatorsError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -142,25 +142,32 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
 
       if (creatorsError) {
         console.error('Error fetching creators:', creatorsError);
+        // Continue without creator data rather than failing completely
       }
 
-      console.log('Creators data:', creatorsData);
+      console.log('Creators data fetched:', creatorsData);
 
       // Create a map of creators for easy lookup
       const creatorsMap = new Map();
       if (creatorsData) {
         creatorsData.forEach(creator => {
+          console.log(`Mapping creator ${creator.id} (${creator.first_name} ${creator.last_name}) with role ${creator.role}`);
           creatorsMap.set(creator.id, creator);
         });
       }
       
       // Transform the data to match our ActionPlan type
-      const transformedData: ActionPlan[] = actionPlansData.map(plan => ({
-        ...plan,
-        creator: creatorsMap.get(plan.created_by) || undefined
-      }));
+      const transformedData: ActionPlan[] = actionPlansData.map(plan => {
+        const creator = creatorsMap.get(plan.created_by);
+        console.log(`Plan ${plan.id} created by ${plan.created_by}, mapped creator:`, creator);
+        
+        return {
+          ...plan,
+          creator: creator || undefined
+        };
+      });
       
-      console.log('Transformed action plans:', transformedData);
+      console.log('Final transformed action plans:', transformedData);
       
       return transformedData;
     },
@@ -237,7 +244,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const isDelegatePlan = (plan: ActionPlan) => delegateIds.includes(plan.created_by) || allDelegateIds.includes(plan.created_by);
   const isSupervisorPlan = (plan: ActionPlan) => supervisorIds.includes(plan.created_by);
 
-  // Updated helper functions for delegate-specific categorization
+  // Updated helper functions for delegate-specific categorization with better debugging
   const isSupervisorPlanForDelegate = (plan: ActionPlan) => {
     if (profile?.role !== 'Delegate') return false;
     
@@ -248,8 +255,11 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       isFromSupervisor,
       targetsDelegate,
       creatorRole: plan.creator?.role,
+      creatorId: plan.creator?.id,
+      creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'Unknown',
       targetedDelegates: plan.targeted_delegates,
-      profileId: profile.id
+      profileId: profile.id,
+      result: isFromSupervisor && targetsDelegate
     });
     
     return isFromSupervisor && targetsDelegate;
@@ -265,8 +275,11 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       isFromSalesDirector,
       targetsDelegate,
       creatorRole: plan.creator?.role,
+      creatorId: plan.creator?.id,
+      creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'Unknown',
       targetedDelegates: plan.targeted_delegates,
-      profileId: profile.id
+      profileId: profile.id,
+      result: isFromSalesDirector && targetsDelegate
     });
     
     return isFromSalesDirector && targetsDelegate;
@@ -343,7 +356,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     return matchesSearch && matchesType && matchesStatus && matchesCreator;
   }) || [];
 
-  // Group plans by category for better organization
+  // Group plans by category for better organization with debugging
   const groupedPlans = {
     own: filteredActionPlans.filter(isOwnPlan),
     delegate: filteredActionPlans.filter(isDelegatePlan),
@@ -353,7 +366,12 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     salesDirectorInvolvingMe: filteredActionPlans.filter(isSalesDirectorPlanForDelegate)
   };
 
-  console.log('Grouped plans:', groupedPlans);
+  console.log('Final grouped plans for delegate:', groupedPlans);
+  console.log('Summary counts:', {
+    own: groupedPlans.own.length,
+    supervisorInvolvingMe: groupedPlans.supervisorInvolvingMe.length,
+    salesDirectorInvolvingMe: groupedPlans.salesDirectorInvolvingMe.length
+  });
 
   const handleEdit = (actionPlan: ActionPlan) => {
     setSelectedActionPlan(actionPlan);
