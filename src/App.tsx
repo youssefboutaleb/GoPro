@@ -49,7 +49,7 @@ function App() {
               />
               <Route 
                 path="/delegate/action-plans" 
-                element={<ActionPlansList onBack={handleBack} />} 
+                element={<ActionPlansList />} 
               />
             </Routes>
           </BrowserRouter>

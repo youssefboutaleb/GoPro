@@ -22,14 +22,7 @@ export const useActionPlans = (statusFilter?: string) => {
       
       let query = supabase
         .from('action_plans')
-        .select(`
-          *,
-          created_by_profile:profiles!action_plans_created_by_fkey(
-            first_name,
-            last_name,
-            role
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (statusFilter) {
@@ -37,24 +30,39 @@ export const useActionPlans = (statusFilter?: string) => {
         query = query.or(`marketing_manager_status.eq.${statusFilter},sales_director_status.eq.${statusFilter},supervisor_status.eq.${statusFilter}`);
       }
 
-      const { data, error } = await query;
+      const { data: actionPlansData, error } = await query;
 
       if (error) {
         console.error('❌ Error fetching action plans:', error);
         throw error;
       }
 
-      console.log('✅ Action plans fetched successfully:', data?.length || 0, 'plans');
-      
-      // Transform data to ensure proper typing
-      return data?.map(plan => ({
-        ...plan,
-        created_by_profile: plan.created_by_profile ? {
-          first_name: plan.created_by_profile.first_name || '',
-          last_name: plan.created_by_profile.last_name || '',
-          role: plan.created_by_profile.role || '',
-        } : null
-      })) || [];
+      // Fetch profile information separately for created_by users
+      if (actionPlansData && actionPlansData.length > 0) {
+        const createdByIds = [...new Set(actionPlansData.map(plan => plan.created_by))];
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, role')
+          .in('id', createdByIds);
+
+        if (profilesError) {
+          console.error('❌ Error fetching profiles:', profilesError);
+          // Continue without profile data rather than failing completely
+        }
+
+        // Map profile data to action plans
+        const actionPlansWithProfiles = actionPlansData.map(plan => ({
+          ...plan,
+          created_by_profile: profilesData?.find(profile => profile.id === plan.created_by) || null
+        }));
+
+        console.log('✅ Action plans fetched successfully:', actionPlansWithProfiles.length, 'plans');
+        return actionPlansWithProfiles;
+      }
+
+      console.log('✅ Action plans fetched successfully:', 0, 'plans');
+      return [];
     },
   });
 
