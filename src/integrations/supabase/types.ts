@@ -9,6 +9,69 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      action_plans: {
+        Row: {
+          created_at: string
+          created_by: string
+          date: string
+          description: string | null
+          id: string
+          is_executed: boolean | null
+          location: string
+          marketing_manager_status: Database["public"]["Enums"]["action_status"]
+          sales_director_status: Database["public"]["Enums"]["action_status"]
+          supervisor_status: Database["public"]["Enums"]["action_status"]
+          targeted_bricks: string[] | null
+          targeted_delegates: string[] | null
+          targeted_doctors: string[] | null
+          targeted_products: string[] | null
+          targeted_sales_directors: string[] | null
+          targeted_supervisors: string[] | null
+          type: Database["public"]["Enums"]["action_types"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          date: string
+          description?: string | null
+          id?: string
+          is_executed?: boolean | null
+          location: string
+          marketing_manager_status?: Database["public"]["Enums"]["action_status"]
+          sales_director_status?: Database["public"]["Enums"]["action_status"]
+          supervisor_status?: Database["public"]["Enums"]["action_status"]
+          targeted_bricks?: string[] | null
+          targeted_delegates?: string[] | null
+          targeted_doctors?: string[] | null
+          targeted_products?: string[] | null
+          targeted_sales_directors?: string[] | null
+          targeted_supervisors?: string[] | null
+          type?: Database["public"]["Enums"]["action_types"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          date?: string
+          description?: string | null
+          id?: string
+          is_executed?: boolean | null
+          location?: string
+          marketing_manager_status?: Database["public"]["Enums"]["action_status"]
+          sales_director_status?: Database["public"]["Enums"]["action_status"]
+          supervisor_status?: Database["public"]["Enums"]["action_status"]
+          targeted_bricks?: string[] | null
+          targeted_delegates?: string[] | null
+          targeted_doctors?: string[] | null
+          targeted_products?: string[] | null
+          targeted_sales_directors?: string[] | null
+          targeted_supervisors?: string[] | null
+          type?: Database["public"]["Enums"]["action_types"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bricks: {
         Row: {
           id: string
@@ -372,6 +435,8 @@ export type Database = {
       }
     }
     Enums: {
+      action_status: "Pending" | "Approved" | "Rejected"
+      action_types: "Staff" | "ePU" | "Congress" | "Travel" | "Gift"
       doctor_specialty:
         | "cardiologue"
         | "generaliste"
@@ -500,6 +565,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      action_status: ["Pending", "Approved", "Rejected"],
+      action_types: ["Staff", "ePU", "Congress", "Travel", "Gift"],
       doctor_specialty: [
         "cardiologue",
         "generaliste",
