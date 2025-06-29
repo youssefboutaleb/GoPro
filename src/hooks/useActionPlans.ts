@@ -50,7 +50,7 @@ export const useActionPlans = () => {
       const creatorIds = [...new Set(actionPlansData.map(plan => plan.created_by))].filter(Boolean);
       console.log('Creator IDs to fetch:', creatorIds);
       
-      // Fetch creator profiles - this will respect RLS policies
+      // Fetch creator profiles - this should now work with the updated RLS policies
       const { data: creatorsData, error: creatorsError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -62,12 +62,14 @@ export const useActionPlans = () => {
       }
 
       console.log(`Fetched ${creatorsData?.length || 0} creator profiles out of ${creatorIds.length} requested`);
+      console.log('Creator profiles data:', creatorsData);
 
       // Create creators map
       const creatorsMap = new Map();
       if (creatorsData) {
         creatorsData.forEach(creator => {
           creatorsMap.set(creator.id, creator);
+          console.log(`Mapped creator: ${creator.id} -> ${creator.first_name} ${creator.last_name} (${creator.role})`);
         });
       }
       
@@ -80,6 +82,16 @@ export const useActionPlans = () => {
       console.log('=== TRANSFORMATION COMPLETE ===');
       console.log('Plans with creators:', transformedData.filter(p => p.creator).length);
       console.log('Plans without creators:', transformedData.filter(p => !p.creator).length);
+      
+      // Log each plan with its creator info for debugging
+      transformedData.forEach(plan => {
+        console.log(`Plan ${plan.id} (${plan.location}):`, {
+          createdBy: plan.created_by,
+          creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'NO CREATOR DATA',
+          creatorRole: plan.creator?.role || 'UNKNOWN',
+          targetedDelegates: plan.targeted_delegates
+        });
+      });
       
       return transformedData;
     },

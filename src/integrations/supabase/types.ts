@@ -409,6 +409,10 @@ export type Database = {
         Args: { profile_id: string }
         Returns: boolean
       }
+      has_created_action_plan_targeting_current_user: {
+        Args: { creator_id: string }
+        Returns: boolean
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
