@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, BarChart3, TrendingUp, ArrowRight } from 'lucide-react';
+import { User, BarChart3, TrendingUp, ArrowRight, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
+import ActionPlansList from './action-plans/ActionPlansList';
 
 interface SupervisorDashboardProps {
   onSignOut: () => void;
@@ -19,9 +20,14 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
   const { user } = useAuth();
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
+  const [showActionPlans, setShowActionPlans] = useState(false);
 
   const handleNavigateToRecruitmentRate = () => {
     setShowRythmeRecrutement(true);
+  };
+
+  const handleNavigateToActionPlans = () => {
+    setShowActionPlans(true);
   };
 
   // Helper function to get the last day of a month
@@ -57,9 +63,9 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
 
   // Fetch aggregated dashboard stats for all supervised delegates
   const { data: dashboardStats, isLoading: statsLoading } = useQuery({
-    queryKey: ['supervisor-dashboard-stats', delegateIds.join(',')],
+    queryKey: ['supervisor-dashboard-stats', delegateIds.join(','), profile?.id],
     queryFn: async () => {
-      if (delegateIds.length === 0) return null;
+      if (delegateIds.length === 0 && !profile?.id) return null;
 
       try {
         // Fetch visit plans count for all supervised delegates
@@ -77,6 +83,22 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
           .in('delegate_id', delegateIds);
 
         if (salesPlansError) throw salesPlansError;
+
+        // Fetch action plans for supervisor and their delegates
+        const allUserIds = profile?.id ? [profile.id, ...delegateIds] : delegateIds;
+        const { data: actionPlans, error: actionPlansError } = await supabase
+          .from('action_plans')
+          .select('id, supervisor_status, sales_director_status, marketing_manager_status')
+          .in('created_by', allUserIds);
+
+        if (actionPlansError) throw actionPlansError;
+
+        // Count pending approvals
+        const pendingApprovals = actionPlans?.filter(plan => 
+          plan.supervisor_status === 'Pending' || 
+          plan.sales_director_status === 'Pending' || 
+          plan.marketing_manager_status === 'Pending'
+        ).length || 0;
 
         // Calculate proper date range for current month
         const currentDate = new Date();
@@ -110,14 +132,16 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
           salesPlansCount: salesPlans?.length || 0,
           thisMonthVisits: thisMonthVisits?.length || 0,
           returnIndex,
-          recruitmentRate: salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
+          recruitmentRate: salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0, // Placeholder calculation
+          actionPlansCount: actionPlans?.length || 0,
+          pendingApprovals
         };
       } catch (error) {
         console.error('Error fetching supervisor dashboard stats:', error);
         return null;
       }
     },
-    enabled: delegateIds.length > 0,
+    enabled: delegateIds.length > 0 || !!profile?.id,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -131,6 +155,12 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
       if (value >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       return 'text-red-600 bg-red-50 border-red-200';
     }
+  };
+
+  const getActionPlansColor = (pendingCount: number) => {
+    if (pendingCount === 0) return 'text-green-600 bg-green-50 border-green-200';
+    if (pendingCount <= 2) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    return 'text-red-600 bg-red-50 border-red-200';
   };
 
   // Show Visit Plans Management interface
@@ -148,6 +178,13 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
       onBack={() => setShowRythmeRecrutement(false)} 
       delegateIds={delegateIds}
       supervisorName={`${profile?.first_name} ${profile?.last_name}`}
+    />;
+  }
+
+  // Show Action Plans interface
+  if (showActionPlans) {
+    return <ActionPlansList 
+      onBack={() => setShowActionPlans(false)} 
     />;
   }
 
@@ -206,7 +243,7 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
         </div>
 
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Return Index Card */}
           <Card 
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -267,6 +304,38 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
               </div>
             </CardContent>
           </Card>
+
+          {/* Action Plans Card */}
+          <Card 
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats ? getActionPlansColor(dashboardStats.pendingApprovals) : 'border-gray-200'
+            }`}
+            onClick={handleNavigateToActionPlans}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                  <ClipboardList className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Action Plans</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : dashboardStats?.actionPlansCount || 0}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Total action plans (team + yours)
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading ? 'Loading...' : `${dashboardStats?.pendingApprovals || 0} pending approvals`}
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to manage action plans →
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Performance Legend */}
@@ -278,15 +347,15 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({ onSignOut, si
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
-                <span>Excellent Performance (≥80%)</span>
+                <span>Excellent Performance (≥80% / No Pending)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-50 border-2 border-yellow-200 rounded"></div>
-                <span>Good Performance (50-79%)</span>
+                <span>Good Performance (50-79% / Few Pending)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
-                <span>Needs Improvement (&lt;50%)</span>
+                <span>Needs Improvement (&lt;50% / Many Pending)</span>
               </div>
             </div>
           </CardContent>
