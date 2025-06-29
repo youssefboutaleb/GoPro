@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, MapPin, Calendar } from 'lucide-react';
 import StatusCircles from './StatusCircles';
+import TargetedEntities from './TargetedEntities';
 import { Database } from '@/integrations/supabase/types';
 
 type ActionPlan = Database['public']['Tables']['action_plans']['Row'];
@@ -77,6 +78,16 @@ const ActionPlanCard: React.FC<ActionPlanCardProps> = ({
             {actionPlan.description}
           </p>
         )}
+        
+        {/* Targeted Entities */}
+        <TargetedEntities
+          targetedProducts={actionPlan.targeted_products}
+          targetedBricks={actionPlan.targeted_bricks}
+          targetedDoctors={actionPlan.targeted_doctors}
+          targetedDelegates={actionPlan.targeted_delegates}
+          targetedSupervisors={actionPlan.targeted_supervisors}
+          targetedSalesDirectors={actionPlan.targeted_sales_directors}
+        />
         
         <div className="flex items-center justify-between pt-2">
           <div className="text-xs text-gray-500">
