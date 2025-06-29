@@ -67,17 +67,10 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     queryFn: async () => {
       if (!user || !profile) return [];
       
+      // First, get the action plans
       let query = supabase
         .from('action_plans')
-        .select(`
-          *,
-          profiles:created_by (
-            id,
-            first_name,
-            last_name,
-            role
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       // For supervisors, fetch their own plans, delegate plans, and sales director plans
@@ -95,19 +88,39 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         query = query.eq('created_by', user.id);
       }
       
-      const { data, error } = await query;
+      const { data: actionPlansData, error } = await query;
       
       if (error) throw error;
       
+      if (!actionPlansData || actionPlansData.length === 0) {
+        return [];
+      }
+
+      // Get unique creator IDs
+      const creatorIds = [...new Set(actionPlansData.map(plan => plan.created_by))];
+      
+      // Fetch creator profiles separately
+      const { data: creatorsData, error: creatorsError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, role')
+        .in('id', creatorIds);
+
+      if (creatorsError) {
+        console.error('Error fetching creators:', creatorsError);
+      }
+
+      // Create a map of creators for easy lookup
+      const creatorsMap = new Map();
+      if (creatorsData) {
+        creatorsData.forEach(creator => {
+          creatorsMap.set(creator.id, creator);
+        });
+      }
+      
       // Transform the data to match our ActionPlan type
-      const transformedData: ActionPlan[] = (data || []).map(plan => ({
+      const transformedData: ActionPlan[] = actionPlansData.map(plan => ({
         ...plan,
-        creator: plan.profiles ? {
-          id: plan.profiles.id,
-          first_name: plan.profiles.first_name,
-          last_name: plan.profiles.last_name,
-          role: plan.profiles.role,
-        } : undefined
+        creator: creatorsMap.get(plan.created_by) || undefined
       }));
       
       return transformedData;
