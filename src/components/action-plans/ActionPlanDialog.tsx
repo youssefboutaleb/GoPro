@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -181,8 +179,8 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
         targeted_supervisors: formData.targeted_supervisors,
         targeted_sales_directors: formData.targeted_sales_directors,
         created_by: user.id,
-        // Auto-approve based on role
-        supervisor_status: (profile?.role === 'Supervisor' ? 'Approved' : 'Pending') as ActionStatus,
+        // Auto-approve based on role - ensure own plans are approved
+        supervisor_status: (profile?.role === 'Supervisor' || profile?.role === 'Sales Director' ? 'Approved' : 'Pending') as ActionStatus,
         sales_director_status: (profile?.role === 'Sales Director' ? 'Approved' : 'Pending') as ActionStatus,
       };
 
@@ -190,10 +188,11 @@ const ActionPlanDialog: React.FC<ActionPlanDialogProps> = ({
         // When editing, preserve existing approvals unless it's the creator's own plan
         const updateData = {
           ...actionPlanData,
-          supervisor_status: (profile?.role === 'Supervisor' && actionPlan.created_by === user.id) 
+          // Only auto-approve if this is the creator's own plan
+          supervisor_status: (actionPlan.created_by === user.id && (profile?.role === 'Supervisor' || profile?.role === 'Sales Director'))
             ? 'Approved' as ActionStatus
             : actionPlan.supervisor_status,
-          sales_director_status: (profile?.role === 'Sales Director' && actionPlan.created_by === user.id)
+          sales_director_status: (actionPlan.created_by === user.id && profile?.role === 'Sales Director')
             ? 'Approved' as ActionStatus
             : actionPlan.sales_director_status,
         };

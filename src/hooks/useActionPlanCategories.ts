@@ -64,7 +64,7 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
           // Plans from sales directors that target this supervisor
           categories.involvingMe.push(plan);
         } else if (creatorRole === 'Delegate' && creatorSupervisorId === profile.id) {
-          // Plans from delegates under this supervisor's supervision
+          // Plans from delegates under this supervisor's direct supervision
           categories.delegatePlans.push(plan);
         }
       } else if (profile.role === 'Sales Director') {
@@ -73,16 +73,19 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
           // Plans from marketing managers that target this sales director
           categories.involvingMe.push(plan);
         } else if (creatorRole === 'Supervisor' && creatorSupervisorId === profile.id) {
-          // Plans from supervisors under this sales director's supervision
+          // Plans from supervisors under this sales director's direct supervision
           categories.supervisorPlans.push(plan);
         } else if (creatorRole === 'Delegate') {
-          // Plans from delegates - need to check if they're under supervised supervisors
-          // For now, include all delegate plans (this could be refined with more hierarchy data)
-          const delegateUnderSupervision = actionPlans.some(p => 
-            p.creator?.id === creatorSupervisorId && 
-            p.creator?.supervisor_id === profile.id
+          // Plans from delegates - check if they're under supervision of supervisors that this sales director supervises
+          const isUnderSupervision = actionPlans.some(supervisorPlan => 
+            supervisorPlan.creator?.id === creatorSupervisorId && 
+            supervisorPlan.creator?.role === 'Supervisor' &&
+            supervisorPlan.creator?.supervisor_id === profile.id
           );
-          if (delegateUnderSupervision || creatorSupervisorId === profile.id) {
+          
+          // Alternative check: directly check if the delegate's supervisor is supervised by this sales director
+          if (isUnderSupervision || 
+              actionPlans.find(p => p.creator?.id === creatorSupervisorId)?.creator?.supervisor_id === profile.id) {
             categories.delegatePlans.push(plan);
           }
         }

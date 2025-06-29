@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -215,7 +216,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     );
   }
 
-  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string, showApprovalButtons = false) => {
+  const renderPlanSection = (title: string, plans: ActionPlan[], icon: React.ReactNode, emptyMessage: string, sectionType?: 'delegate' | 'supervisor') => {
     if (plans.length === 0) return null;
 
     return (
@@ -227,11 +228,16 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans.map((actionPlan) => {
-            // Determine if this plan needs approval from current user
-            const needsApproval = showApprovalButtons && (
-              (profile?.role === 'Supervisor' && actionPlan.supervisor_status === 'Pending') ||
-              (profile?.role === 'Sales Director' && actionPlan.sales_director_status === 'Pending')
-            );
+            // Determine if this plan needs approval from current user based on actual status
+            let needsApproval = false;
+            
+            if (profile?.role === 'Supervisor' && sectionType === 'delegate') {
+              // Supervisor can approve delegate plans if supervisor_status is pending
+              needsApproval = actionPlan.supervisor_status === 'Pending';
+            } else if (profile?.role === 'Sales Director' && (sectionType === 'supervisor' || sectionType === 'delegate')) {
+              // Sales Director can approve supervisor/delegate plans if sales_director_status is pending
+              needsApproval = actionPlan.sales_director_status === 'Pending';
+            }
 
             return (
               <ActionPlanCard
@@ -532,7 +538,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                   groupedPlans.delegatePlans, 
                   <UserCheck className="h-5 w-5 text-green-600" />,
                   "No plans from your delegates",
-                  true
+                  'delegate'
                 )}
               </>
             ) : profile?.role === 'Sales Director' ? (
@@ -554,14 +560,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                   groupedPlans.supervisorPlans, 
                   <Building className="h-5 w-5 text-orange-600" />,
                   "No plans from your supervisors",
-                  true
+                  'supervisor'
                 )}
                 {renderPlanSection(
                   "Delegate Plans", 
                   groupedPlans.delegatePlans, 
                   <UserCheck className="h-5 w-5 text-green-600" />,
                   "No plans from delegates",
-                  true
+                  'delegate'
                 )}
               </>
             ) : (
