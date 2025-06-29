@@ -177,12 +177,12 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         
         // Add supervisor plans targeting this delegate
         if (delegateHierarchy?.supervisor) {
-          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{${profile.id}})`);
+          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`);
         }
         
         // Add sales director plans targeting this delegate
         if (delegateHierarchy?.salesDirector) {
-          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{${profile.id}})`);
+          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`);
         }
         
         query = query.or(conditions.join(','));
