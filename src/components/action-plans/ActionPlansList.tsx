@@ -207,10 +207,6 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         const orCondition = conditions.join(',');
         console.log('Final OR condition for delegate:', orCondition);
         
-        // Log the full query URL for debugging
-        const baseUrl = query.url;
-        console.log('Base query URL:', baseUrl);
-        
         query = query.or(orCondition);
         
         // Log what we're about to execute
