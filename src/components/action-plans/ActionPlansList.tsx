@@ -181,26 +181,40 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         console.log('Building delegate query for profile:', profile.id);
         console.log('Delegate hierarchy:', delegateHierarchy);
         
-        // For delegates: own plans, supervisor plans targeting them, sales director plans targeting them
+        // Try multiple PostgREST syntax approaches for UUID array containment
         const conditions = [`created_by.eq.${profile.id}`];
         
         // Add supervisor plans targeting this delegate
         if (delegateHierarchy?.supervisor) {
           console.log('Adding supervisor condition for:', delegateHierarchy.supervisor.id);
-          // Use correct PostgREST array containment syntax with 'cs' (contains)
-          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{${profile.id}})`);
+          console.log('My profile ID:', profile.id);
+          
+          // Try different PostgREST syntax approaches
+          // Approach 1: quoted UUID with cs (contains)
+          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`);
         }
         
         // Add sales director plans targeting this delegate
         if (delegateHierarchy?.salesDirector) {
           console.log('Adding sales director condition for:', delegateHierarchy.salesDirector.id);
-          // Use correct PostgREST array containment syntax with 'cs' (contains)
-          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{${profile.id}})`);
+          console.log('My profile ID:', profile.id);
+          
+          // Try different PostgREST syntax approaches
+          // Approach 1: quoted UUID with cs (contains)
+          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`);
         }
         
         const orCondition = conditions.join(',');
-        console.log('Final OR condition:', orCondition);
+        console.log('Final OR condition for delegate:', orCondition);
+        
+        // Log the full query URL for debugging
+        const baseUrl = query.url;
+        console.log('Base query URL:', baseUrl);
+        
         query = query.or(orCondition);
+        
+        // Log what we're about to execute
+        console.log('About to execute delegate query with OR condition:', orCondition);
       } else {
         // For other roles, show their own plans
         query = query.eq('created_by', user.id);
@@ -211,6 +225,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       
       if (error) {
         console.error('Error fetching action plans:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         throw error;
       }
       
@@ -218,6 +233,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       console.log('Action plans data:', actionPlansData);
       
       if (!actionPlansData || actionPlansData.length === 0) {
+        console.log('No action plans returned from query');
         return [];
       }
 
@@ -248,6 +264,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         creator: creatorsMap.get(plan.created_by) || undefined
       }));
       
+      console.log('Final transformed data:', transformedData);
       return transformedData;
     },
     enabled: !!user && !!profile && (profile.role !== 'Delegate' || !!delegateHierarchy),
