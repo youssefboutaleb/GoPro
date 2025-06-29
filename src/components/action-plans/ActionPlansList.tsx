@@ -107,6 +107,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         return { supervisor: null, salesDirector: null };
       }
 
+      console.log('Fetching delegate hierarchy for:', profile.id);
+
       let supervisor = null;
       let salesDirector = null;
 
@@ -120,6 +122,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
 
         if (!supervisorError && supervisorData) {
           supervisor = supervisorData;
+          console.log('Found supervisor:', supervisor);
 
           // Get sales director info (supervisor's supervisor)
           if (supervisorData.supervisor_id) {
@@ -131,12 +134,15 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
 
             if (!salesDirectorError && salesDirectorData) {
               salesDirector = salesDirectorData;
+              console.log('Found sales director:', salesDirector);
             }
           }
         }
       }
 
-      return { supervisor, salesDirector };
+      const result = { supervisor, salesDirector };
+      console.log('Delegate hierarchy result:', result);
+      return result;
     },
     enabled: !!profile?.id && profile?.role === 'Delegate',
   });
@@ -172,28 +178,44 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         creatorIds = [profile.id, ...supervisorIds, ...allDelegateIds];
         query = query.in('created_by', creatorIds);
       } else if (profile.role === 'Delegate') {
+        console.log('Building delegate query for profile:', profile.id);
+        console.log('Delegate hierarchy:', delegateHierarchy);
+        
         // For delegates: own plans, supervisor plans targeting them, sales director plans targeting them
         const conditions = [`created_by.eq.${profile.id}`];
         
         // Add supervisor plans targeting this delegate
         if (delegateHierarchy?.supervisor) {
-          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.{"${profile.id}"})`);
+          console.log('Adding supervisor condition for:', delegateHierarchy.supervisor.id);
+          // Try alternative syntax: use array containment with @> operator
+          conditions.push(`and(created_by.eq.${delegateHierarchy.supervisor.id},targeted_delegates.cs.[${profile.id}])`);
         }
         
         // Add sales director plans targeting this delegate
         if (delegateHierarchy?.salesDirector) {
-          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.{"${profile.id}"})`);
+          console.log('Adding sales director condition for:', delegateHierarchy.salesDirector.id);
+          // Try alternative syntax: use array containment with @> operator
+          conditions.push(`and(created_by.eq.${delegateHierarchy.salesDirector.id},targeted_delegates.cs.[${profile.id}])`);
         }
         
-        query = query.or(conditions.join(','));
+        const orCondition = conditions.join(',');
+        console.log('Final OR condition:', orCondition);
+        query = query.or(orCondition);
       } else {
         // For other roles, show their own plans
         query = query.eq('created_by', user.id);
       }
       
+      console.log('Executing action plans query...');
       const { data: actionPlansData, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching action plans:', error);
+        throw error;
+      }
+      
+      console.log('Fetched action plans:', actionPlansData?.length || 0, 'plans');
+      console.log('Action plans data:', actionPlansData);
       
       if (!actionPlansData || actionPlansData.length === 0) {
         return [];
@@ -299,13 +321,31 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
 
   // Additional helper functions for delegate categorization
   const isSupervisorPlanTargetingMe = (plan: ActionPlan) => {
-    return delegateHierarchy?.supervisor?.id === plan.created_by && 
+    const isTargeting = delegateHierarchy?.supervisor?.id === plan.created_by && 
            plan.targeted_delegates?.includes(profile?.id || '');
+    console.log('Checking if supervisor plan targets me:', {
+      planId: plan.id,
+      planCreator: plan.created_by,
+      supervisorId: delegateHierarchy?.supervisor?.id,
+      targetedDelegates: plan.targeted_delegates,
+      myId: profile?.id,
+      isTargeting
+    });
+    return isTargeting;
   };
   
   const isSalesDirectorPlanTargetingMe = (plan: ActionPlan) => {
-    return delegateHierarchy?.salesDirector?.id === plan.created_by && 
+    const isTargeting = delegateHierarchy?.salesDirector?.id === plan.created_by && 
            plan.targeted_delegates?.includes(profile?.id || '');
+    console.log('Checking if sales director plan targets me:', {
+      planId: plan.id,
+      planCreator: plan.created_by,
+      salesDirectorId: delegateHierarchy?.salesDirector?.id,
+      targetedDelegates: plan.targeted_delegates,
+      myId: profile?.id,
+      isTargeting
+    });
+    return isTargeting;
   };
 
   const handleApprove = async (planId: string) => {
@@ -391,6 +431,13 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     supervisorTargeting: [],
     salesDirectorTargeting: []
   };
+
+  console.log('Grouped plans for delegate:', {
+    own: groupedPlans.own.length,
+    supervisorTargeting: groupedPlans.supervisorTargeting.length,
+    salesDirectorTargeting: groupedPlans.salesDirectorTargeting.length,
+    totalFiltered: filteredActionPlans.length
+  });
 
   const handleEdit = (actionPlan: ActionPlan) => {
     setSelectedActionPlan(actionPlan);
