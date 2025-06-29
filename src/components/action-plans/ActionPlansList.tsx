@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,13 +48,20 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         return null;
       }
       
+      console.log('Fetching supervisor info for:', profile.supervisor_id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, supervisor_id')
         .eq('id', profile.supervisor_id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching supervisor info:', error);
+        throw error;
+      }
+      
+      console.log('Supervisor info:', data);
       return data;
     },
     enabled: !!profile?.supervisor_id && profile?.role === 'Delegate',
@@ -129,6 +135,9 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     queryFn: async () => {
       if (!user || !profile) return [];
       
+      console.log('Fetching action plans for profile:', profile);
+      console.log('Supervisor info:', supervisorInfo);
+      
       // First, get the action plans
       let query = supabase
         .from('action_plans')
@@ -142,13 +151,16 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         // Add supervisor if exists
         if (profile.supervisor_id) {
           creatorIds.push(profile.supervisor_id);
+          console.log('Added supervisor to creators:', profile.supervisor_id);
         }
         
         // Add sales director if exists (supervisor's supervisor)
         if (supervisorInfo?.supervisor_id) {
           creatorIds.push(supervisorInfo.supervisor_id);
+          console.log('Added sales director to creators:', supervisorInfo.supervisor_id);
         }
         
+        console.log('Querying with creator IDs:', creatorIds);
         query = query.in('created_by', creatorIds);
       } else if (profile.role === 'Supervisor') {
         // For supervisors, fetch their own plans, delegate plans, and sales director plans
@@ -171,14 +183,21 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       
       const { data: actionPlansData, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching action plans:', error);
+        throw error;
+      }
+      
+      console.log('Raw action plans data:', actionPlansData);
       
       if (!actionPlansData || actionPlansData.length === 0) {
+        console.log('No action plans found');
         return [];
       }
 
       // Get unique creator IDs
       const creatorIds = [...new Set(actionPlansData.map(plan => plan.created_by))];
+      console.log('Creator IDs found:', creatorIds);
       
       // Fetch creator profiles separately
       const { data: creatorsData, error: creatorsError } = await supabase
@@ -189,6 +208,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
       if (creatorsError) {
         console.error('Error fetching creators:', creatorsError);
       }
+
+      console.log('Creators data:', creatorsData);
 
       // Create a map of creators for easy lookup
       const creatorsMap = new Map();
@@ -203,6 +224,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         ...plan,
         creator: creatorsMap.get(plan.created_by) || undefined
       }));
+      
+      console.log('Transformed action plans:', transformedData);
       
       return transformedData;
     },
@@ -270,22 +293,51 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   });
 
   // Helper functions for categorization
-  const isOwnPlan = (plan: ActionPlan) => plan.created_by === profile?.id;
+  const isOwnPlan = (plan: ActionPlan) => {
+    const result = plan.created_by === profile?.id;
+    console.log(`Plan ${plan.id} is own plan:`, result, `(created_by: ${plan.created_by}, profile.id: ${profile?.id})`);
+    return result;
+  };
+  
   const isDelegatePlan = (plan: ActionPlan) => delegateIds.includes(plan.created_by) || allDelegateIds.includes(plan.created_by);
   const isSupervisorPlan = (plan: ActionPlan) => supervisorIds.includes(plan.created_by);
   const isSalesDirectorPlan = (plan: ActionPlan) => plan.created_by === profile?.supervisor_id;
 
-  // New helper functions for delegate-specific categorization
+  // Updated helper functions for delegate-specific categorization
   const isSupervisorPlanForDelegate = (plan: ActionPlan) => {
-    return profile?.role === 'Delegate' && 
-           plan.created_by === profile.supervisor_id &&
-           plan.targeted_delegates?.includes(profile.id);
+    if (profile?.role !== 'Delegate') return false;
+    
+    const isFromSupervisor = plan.created_by === profile.supervisor_id;
+    const targetsDelegate = plan.targeted_delegates?.includes(profile.id) || false;
+    
+    console.log(`Plan ${plan.id} supervisor check:`, {
+      isFromSupervisor,
+      targetsDelegate,
+      planCreatedBy: plan.created_by,
+      supervisorId: profile.supervisor_id,
+      targetedDelegates: plan.targeted_delegates,
+      profileId: profile.id
+    });
+    
+    return isFromSupervisor && targetsDelegate;
   };
 
   const isSalesDirectorPlanForDelegate = (plan: ActionPlan) => {
-    return profile?.role === 'Delegate' && 
-           plan.created_by === supervisorInfo?.supervisor_id &&
-           plan.targeted_delegates?.includes(profile.id);
+    if (profile?.role !== 'Delegate') return false;
+    
+    const isFromSalesDirector = plan.created_by === supervisorInfo?.supervisor_id;
+    const targetsDelegate = plan.targeted_delegates?.includes(profile.id) || false;
+    
+    console.log(`Plan ${plan.id} sales director check:`, {
+      isFromSalesDirector,
+      targetsDelegate,
+      planCreatedBy: plan.created_by,
+      salesDirectorId: supervisorInfo?.supervisor_id,
+      targetedDelegates: plan.targeted_delegates,
+      profileId: profile.id
+    });
+    
+    return isFromSalesDirector && targetsDelegate;
   };
 
   const handleApprove = async (planId: string) => {
@@ -368,6 +420,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     supervisorInvolvingMe: filteredActionPlans.filter(isSupervisorPlanForDelegate),
     salesDirectorInvolvingMe: filteredActionPlans.filter(isSalesDirectorPlanForDelegate)
   };
+
+  console.log('Grouped plans:', groupedPlans);
 
   const handleEdit = (actionPlan: ActionPlan) => {
     setSelectedActionPlan(actionPlan);
