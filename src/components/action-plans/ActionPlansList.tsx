@@ -41,6 +41,26 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedActionPlan, setSelectedActionPlan] = useState<ActionPlan | null>(null);
 
+  // Fetch delegate's supervisor and sales director info for proper categorization
+  const { data: supervisorInfo } = useQuery({
+    queryKey: ['supervisor-info', profile?.supervisor_id],
+    queryFn: async () => {
+      if (!profile?.supervisor_id || profile.role !== 'Delegate') {
+        return null;
+      }
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, supervisor_id')
+        .eq('id', profile.supervisor_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.supervisor_id && profile?.role === 'Delegate',
+  });
+
   // Fetch supervised delegates for supervisor role
   const { data: supervisedDelegates = [] } = useQuery({
     queryKey: ['supervised-delegates', profile?.id],
@@ -105,7 +125,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const allDelegateIds = allDelegates.map(d => d.id);
 
   const { data: actionPlans, isLoading } = useQuery({
-    queryKey: ['action-plans', user?.id, profile?.role],
+    queryKey: ['action-plans', user?.id, profile?.role, profile?.supervisor_id, supervisorInfo?.supervisor_id],
     queryFn: async () => {
       if (!user || !profile) return [];
       
@@ -115,8 +135,23 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // For supervisors, fetch their own plans, delegate plans, and sales director plans
-      if (profile.role === 'Supervisor') {
+      // For delegates, fetch their own plans and plans targeting them
+      if (profile.role === 'Delegate') {
+        const creatorIds = [profile.id];
+        
+        // Add supervisor if exists
+        if (profile.supervisor_id) {
+          creatorIds.push(profile.supervisor_id);
+        }
+        
+        // Add sales director if exists (supervisor's supervisor)
+        if (supervisorInfo?.supervisor_id) {
+          creatorIds.push(supervisorInfo.supervisor_id);
+        }
+        
+        query = query.in('created_by', creatorIds);
+      } else if (profile.role === 'Supervisor') {
+        // For supervisors, fetch their own plans, delegate plans, and sales director plans
         const creatorIds = [profile.id];
         if (delegateIds.length > 0) {
           creatorIds.push(...delegateIds);
@@ -240,6 +275,19 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const isSupervisorPlan = (plan: ActionPlan) => supervisorIds.includes(plan.created_by);
   const isSalesDirectorPlan = (plan: ActionPlan) => plan.created_by === profile?.supervisor_id;
 
+  // New helper functions for delegate-specific categorization
+  const isSupervisorPlanForDelegate = (plan: ActionPlan) => {
+    return profile?.role === 'Delegate' && 
+           plan.created_by === profile.supervisor_id &&
+           plan.targeted_delegates?.includes(profile.id);
+  };
+
+  const isSalesDirectorPlanForDelegate = (plan: ActionPlan) => {
+    return profile?.role === 'Delegate' && 
+           plan.created_by === supervisorInfo?.supervisor_id &&
+           plan.targeted_delegates?.includes(profile.id);
+  };
+
   const handleApprove = async (planId: string) => {
     if (!window.confirm('Are you sure you want to approve this action plan?')) return;
     approvePlanMutation.mutate(planId);
@@ -299,6 +347,10 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
           return isSupervisorPlan(plan);
         case 'sales_director':
           return isSalesDirectorPlan(plan);
+        case 'supervisor_involving_me':
+          return isSupervisorPlanForDelegate(plan);
+        case 'sales_director_involving_me':
+          return isSalesDirectorPlanForDelegate(plan);
         default:
           return true;
       }
@@ -312,7 +364,9 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     own: filteredActionPlans.filter(isOwnPlan),
     delegate: filteredActionPlans.filter(isDelegatePlan),
     supervisor: filteredActionPlans.filter(isSupervisorPlan),
-    salesDirector: filteredActionPlans.filter(isSalesDirectorPlan)
+    salesDirector: filteredActionPlans.filter(isSalesDirectorPlan),
+    supervisorInvolvingMe: filteredActionPlans.filter(isSupervisorPlanForDelegate),
+    salesDirectorInvolvingMe: filteredActionPlans.filter(isSalesDirectorPlanForDelegate)
   };
 
   const handleEdit = (actionPlan: ActionPlan) => {
@@ -402,6 +456,11 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
           title: 'Action Plans',
           subtitle: 'Manage your action plans and approve team submissions'
         };
+      case 'Delegate':
+        return {
+          title: 'Action Plans',
+          subtitle: 'Manage your action plans and view plans involving you from your supervisors'
+        };
       default:
         return {
           title: 'Action Plans',
@@ -484,7 +543,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                 </SelectContent>
               </Select>
 
-              {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
+              {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director' || profile?.role === 'Delegate') && (
                 <Select value={filterCreator} onValueChange={setFilterCreator}>
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by creator" />
@@ -492,7 +551,15 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
                   <SelectContent>
                     <SelectItem value="all">All Creators</SelectItem>
                     <SelectItem value="me">My Plans</SelectItem>
-                    <SelectItem value="delegates">Delegate Plans</SelectItem>
+                    {profile?.role === 'Delegate' && (
+                      <>
+                        <SelectItem value="supervisor_involving_me">Plans Involving Me from Supervisor</SelectItem>
+                        <SelectItem value="sales_director_involving_me">Plans Involving Me from Sales Director</SelectItem>
+                      </>
+                    )}
+                    {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
+                      <SelectItem value="delegates">Delegate Plans</SelectItem>
+                    )}
                     {profile?.role === 'Sales Director' && (
                       <SelectItem value="supervisors">Supervisor Plans</SelectItem>
                     )}
@@ -507,7 +574,45 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         </Card>
 
         {/* Summary Cards */}
-        {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
+        {profile?.role === 'Delegate' ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600">My Plans</p>
+                    <p className="text-2xl font-bold text-blue-900">{groupedPlans.own.length}</p>
+                  </div>
+                  <User className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-purple-50 border-purple-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-600">Supervisor Plans Involving Me</p>
+                    <p className="text-2xl font-bold text-purple-900">{groupedPlans.supervisorInvolvingMe.length}</p>
+                  </div>
+                  <Building className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Sales Director Plans Involving Me</p>
+                    <p className="text-2xl font-bold text-green-900">{groupedPlans.salesDirectorInvolvingMe.length}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (profile?.role === 'Supervisor' || profile?.role === 'Sales Director') && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-6">
@@ -552,7 +657,28 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         {/* Action Plans Sections */}
         {filteredActionPlans.length > 0 ? (
           <div className="space-y-8">
-            {(profile?.role === 'Supervisor' || profile?.role === 'Sales Director') ? (
+            {profile?.role === 'Delegate' ? (
+              <>
+                {renderPlanSection(
+                  "My Action Plans", 
+                  groupedPlans.own, 
+                  <User className="h-5 w-5 text-blue-600" />,
+                  "No action plans created by you"
+                )}
+                {renderPlanSection(
+                  "Supervisor Plans Involving Me", 
+                  groupedPlans.supervisorInvolvingMe, 
+                  <Building className="h-5 w-5 text-purple-600" />,
+                  "No action plans from your supervisor involving you"
+                )}
+                {renderPlanSection(
+                  "Sales Director Plans Involving Me", 
+                  groupedPlans.salesDirectorInvolvingMe, 
+                  <Users className="h-5 w-5 text-green-600" />,
+                  "No action plans from your sales director involving you"
+                )}
+              </>
+            ) : (profile?.role === 'Supervisor' || profile?.role === 'Sales Director') ? (
               <>
                 {renderPlanSection(
                   "My Action Plans", 

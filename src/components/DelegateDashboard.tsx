@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,9 +30,27 @@ const DelegateDashboard: React.FC = () => {
     return new Date(year, month, 0).getDate();
   };
 
+  // Fetch supervisor info to get sales director ID
+  const { data: supervisorInfo } = useQuery({
+    queryKey: ['supervisor-info', profile?.supervisor_id],
+    queryFn: async () => {
+      if (!profile?.supervisor_id) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, supervisor_id')
+        .eq('id', profile.supervisor_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.supervisor_id,
+  });
+
   // Fetch quick stats for dashboard cards
   const { data: dashboardStats, isLoading: statsLoading } = useQuery({
-    queryKey: ['delegate-dashboard-stats', profile?.id],
+    queryKey: ['delegate-dashboard-stats', profile?.id, profile?.supervisor_id, supervisorInfo?.supervisor_id],
     queryFn: async () => {
       if (!profile?.id) return null;
 
@@ -54,13 +71,32 @@ const DelegateDashboard: React.FC = () => {
 
         if (salesPlansError) throw salesPlansError;
 
-        // Fetch action plans count
-        const { data: actionPlans, error: actionPlansError } = await supabase
+        // Fetch action plans - include created by delegate and targeting delegate
+        let actionPlansQuery = supabase
           .from('action_plans')
-          .select('id, supervisor_status, sales_director_status, marketing_manager_status')
-          .eq('created_by', profile.id);
+          .select('id, supervisor_status, sales_director_status, marketing_manager_status, created_by, targeted_delegates');
+
+        // Get plans created by delegate OR targeting delegate
+        const creatorIds = [profile.id];
+        if (profile.supervisor_id) {
+          creatorIds.push(profile.supervisor_id);
+        }
+        if (supervisorInfo?.supervisor_id) {
+          creatorIds.push(supervisorInfo.supervisor_id);
+        }
+
+        const { data: allActionPlans, error: actionPlansError } = await actionPlansQuery
+          .in('created_by', creatorIds);
 
         if (actionPlansError) throw actionPlansError;
+
+        // Filter action plans to include only:
+        // 1. Plans created by the delegate
+        // 2. Plans created by supervisor/sales director that target this delegate
+        const relevantActionPlans = allActionPlans?.filter(plan => 
+          plan.created_by === profile.id || 
+          (plan.targeted_delegates && plan.targeted_delegates.includes(profile.id))
+        ) || [];
 
         // Calculate proper date range for current month
         const currentDate = new Date();
@@ -89,17 +125,17 @@ const DelegateDashboard: React.FC = () => {
           ? Math.round((thisMonthVisits?.length || 0) / (visitPlans.length * 2) * 100)
           : 0;
 
-        // Calculate pending action plans
-        const pendingActionPlans = actionPlans?.filter(plan => 
+        // Calculate pending action plans (including those targeting the delegate)
+        const pendingActionPlans = relevantActionPlans.filter(plan => 
           plan.supervisor_status === 'Pending' || 
           plan.sales_director_status === 'Pending' || 
           plan.marketing_manager_status === 'Pending'
-        ).length || 0;
+        ).length;
 
         return {
           visitPlansCount: visitPlans?.length || 0,
           salesPlansCount: salesPlans?.length || 0,
-          actionPlansCount: actionPlans?.length || 0,
+          actionPlansCount: relevantActionPlans.length,
           pendingActionPlans,
           thisMonthVisits: thisMonthVisits?.length || 0,
           returnIndex,
@@ -262,7 +298,7 @@ const DelegateDashboard: React.FC = () => {
                 {statsLoading ? '...' : `${dashboardStats?.actionPlansCount || 0}`}
               </div>
               <p className="text-gray-600 text-sm">
-                Total action plans created
+                Total action plans (including those involving you)
               </p>
               <div className="mt-3 text-xs text-gray-500">
                 {statsLoading ? 'Loading...' : `${dashboardStats?.pendingActionPlans || 0} pending approval`}

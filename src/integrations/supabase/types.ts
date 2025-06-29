@@ -433,6 +433,12 @@ export type Database = {
         Args: { user_email: string }
         Returns: undefined
       }
+      user_in_target_array: {
+        Args:
+          | { user_id: string; target_array: string[] }
+          | { user_id: string; target_array: string[] }
+        Returns: boolean
+      }
     }
     Enums: {
       action_status: "Pending" | "Approved" | "Rejected"
