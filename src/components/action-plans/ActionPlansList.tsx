@@ -71,7 +71,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
         .from('action_plans')
         .select(`
           *,
-          profiles!action_plans_created_by_fkey (
+          profiles:created_by (
             id,
             first_name,
             last_name,
