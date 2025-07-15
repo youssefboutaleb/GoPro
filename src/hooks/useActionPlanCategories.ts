@@ -26,7 +26,11 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
         salesDirector: [],
         // Supervisor-specific categories
         delegatePlans: [],
-        involvingMe: []
+        involvingMe: [],
+        // Sales Director-specific categories
+        supervisorPlans: [],
+        salesDirectorDelegatePlans: [],
+        marketingManagerInvolvingMe: []
       };
     }
 
@@ -43,7 +47,11 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
       salesDirector: [] as ActionPlan[],
       // Supervisor-specific categories
       delegatePlans: [] as ActionPlan[],
-      involvingMe: [] as ActionPlan[]
+      involvingMe: [] as ActionPlan[],
+      // Sales Director-specific categories
+      supervisorPlans: [] as ActionPlan[],
+      salesDirectorDelegatePlans: [] as ActionPlan[],
+      marketingManagerInvolvingMe: [] as ActionPlan[]
     };
 
     actionPlans.forEach(plan => {
@@ -83,8 +91,20 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
           // Plans from sales directors that involve this supervisor
           categories.involvingMe.push(plan);
         }
+      } else if (profile.role === 'Sales Director') {
+        // For sales directors, use specific categorization logic
+        if (creatorRole === 'Supervisor') {
+          // Plans from supervisors under direct supervision that need approval
+          categories.supervisorPlans.push(plan);
+        } else if (creatorRole === 'Delegate') {
+          // Plans from delegates under supervision that need approval
+          categories.salesDirectorDelegatePlans.push(plan);
+        } else if (creatorRole === 'Marketing Manager' && plan.targeted_sales_directors?.includes(profile.id)) {
+          // Plans from marketing managers that involve this sales director
+          categories.marketingManagerInvolvingMe.push(plan);
+        }
       } else {
-        // For other roles (Sales Directors, etc.), use general categorization
+        // For other roles (Marketing Managers, etc.), use general categorization
         if (creatorRole === 'Delegate') {
           categories.delegate.push(plan);
         } else if (creatorRole === 'Supervisor') {
