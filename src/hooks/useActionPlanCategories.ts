@@ -23,7 +23,10 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
         salesDirectorInvolvingMe: [],
         delegate: [],
         supervisor: [],
-        salesDirector: []
+        salesDirector: [],
+        // Supervisor-specific categories
+        delegatePlans: [],
+        involvingMe: []
       };
     }
 
@@ -37,12 +40,16 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
       salesDirectorInvolvingMe: [] as ActionPlan[],
       delegate: [] as ActionPlan[],
       supervisor: [] as ActionPlan[],
-      salesDirector: [] as ActionPlan[]
+      salesDirector: [] as ActionPlan[],
+      // Supervisor-specific categories
+      delegatePlans: [] as ActionPlan[],
+      involvingMe: [] as ActionPlan[]
     };
 
     actionPlans.forEach(plan => {
       const isOwnPlan = plan.created_by === profile.id;
       const isTargeted = plan.targeted_delegates?.includes(profile.id) || false;
+      const isSupervisorTargeted = plan.targeted_supervisors?.includes(profile.id) || false;
       const creatorRole = plan.creator?.role;
 
       console.log(`Plan ${plan.id} (${plan.location}):`, {
@@ -51,7 +58,9 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
         creatorRole,
         creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'UNKNOWN',
         isTargeted,
-        targetedDelegates: plan.targeted_delegates
+        isSupervisorTargeted,
+        targetedDelegates: plan.targeted_delegates,
+        targetedSupervisors: plan.targeted_supervisors
       });
 
       if (isOwnPlan) {
@@ -63,8 +72,19 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
         } else if (creatorRole === 'Sales Director' && isTargeted) {
           categories.salesDirectorInvolvingMe.push(plan);
         }
+      } else if (profile.role === 'Supervisor') {
+        // For supervisors, use specific categorization logic
+        if (creatorRole === 'Delegate') {
+          // Check if this delegate is under this supervisor's supervision
+          // This will be handled by the action plans query which should only return
+          // plans from delegates under supervision
+          categories.delegatePlans.push(plan);
+        } else if (creatorRole === 'Sales Director' && isSupervisorTargeted) {
+          // Plans from sales directors that involve this supervisor
+          categories.involvingMe.push(plan);
+        }
       } else {
-        // For supervisors/sales directors, categorize by creator role
+        // For other roles (Sales Directors, etc.), use general categorization
         if (creatorRole === 'Delegate') {
           categories.delegate.push(plan);
         } else if (creatorRole === 'Supervisor') {
