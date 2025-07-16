@@ -287,7 +287,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         .from('visits')
         .insert({
           visit_plan_id: visitPlanId,
-          visit_date: today
+          visit_date: new Date().toISOString()
         })
         .select()
         .single();
