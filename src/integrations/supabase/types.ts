@@ -414,6 +414,18 @@ export type Database = {
         Args: { profile_id: string }
         Returns: boolean
       }
+      get_visit_records_for_delegate: {
+        Args: { delegate_user_id: string }
+        Returns: {
+          visit_id: string
+          visit_date: string
+          visit_plan_id: string
+          doctor_first_name: string
+          doctor_last_name: string
+          doctor_specialty: string
+          brick_name: string
+        }[]
+      }
       has_created_action_plan_targeting_current_user: {
         Args: { creator_id: string }
         Returns: boolean

@@ -32,43 +32,27 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
     queryFn: async () => {
       if (!profile?.id) return [];
 
-      const { data, error } = await supabase
-        .from('visits')
-        .select(`
-          id,
-          visit_date,
-          visit_plan_id,
-          visit_plans!inner(
-            delegate_id,
-            doctors!inner(
-              first_name,
-              last_name,
-              specialty,
-              bricks!inner(
-                name
-              )
-            )
-          )
-        `)
-        .eq('visit_plans.delegate_id', profile.id)
-        .order('visit_date', { ascending: false });
+      // Use the RPC function to get visit records with proper joins
+      const { data, error } = await supabase.rpc('get_visit_records_for_delegate', {
+        delegate_user_id: profile.id
+      });
 
       if (error) {
-        console.error('Supabase query error:', error);
+        console.error('Supabase RPC error:', error);
         throw error;
       }
 
-      console.log('Raw visit data:', data);
+      console.log('RPC visit data:', data);
 
-      // Transform the data to match our interface
-      return data.map((visit: any) => ({
-        id: visit.id,
+      // Transform the RPC data to match our interface
+      return (data || []).map((visit: any) => ({
+        id: visit.visit_id,
         visit_date: visit.visit_date,
         visit_plan_id: visit.visit_plan_id,
-        doctor_first_name: visit.visit_plans.doctors.first_name,
-        doctor_last_name: visit.visit_plans.doctors.last_name,
-        doctor_specialty: visit.visit_plans.doctors.specialty || 'Not specified',
-        brick_name: visit.visit_plans.doctors.bricks.name,
+        doctor_first_name: visit.doctor_first_name || 'Unknown',
+        doctor_last_name: visit.doctor_last_name || 'Doctor',
+        doctor_specialty: visit.doctor_specialty || 'Not specified',
+        brick_name: visit.brick_name || 'Unknown Brick',
       })) as VisitRecord[];
     },
     enabled: !!profile?.id,
