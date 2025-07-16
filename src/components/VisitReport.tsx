@@ -88,18 +88,27 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
 
   // Generate time slots with 30-minute intervals
   const generateTimeSlots = (visits: VisitRecord[]) => {
+    console.log('Generating time slots for visits:', visits);
     const timeSlots = [];
-    const startHour = 8; // 8:00 AM
-    const endHour = 18; // 6:00 PM
+    const startHour = 6; // 6:00 AM
+    const endHour = 19; // 7:00 PM
     
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         
-        // Find visit for this time slot
+        // Find visit that falls within this 30-minute time slot
         const visit = visits.find(v => {
-          const visitTime = format(parseISO(v.visit_date), 'HH:mm');
-          return visitTime === timeString;
+          const visitDate = parseISO(v.visit_date);
+          const visitHour = visitDate.getHours();
+          const visitMinute = visitDate.getMinutes();
+          
+          // Check if this visit falls within the current 30-minute slot
+          const slotStart = hour * 60 + minute;
+          const slotEnd = slotStart + 30;
+          const visitTimeInMinutes = visitHour * 60 + visitMinute;
+          
+          return visitTimeInMinutes >= slotStart && visitTimeInMinutes < slotEnd;
         });
         
         timeSlots.push({
@@ -109,6 +118,7 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
       }
     }
     
+    console.log('Generated time slots:', timeSlots.filter(slot => slot.visit));
     return timeSlots;
   };
 
