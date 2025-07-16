@@ -16,14 +16,10 @@ interface VisitRecord {
   id: string;
   visit_date: string;
   visit_plan_id: string;
-  doctor: {
-    first_name: string;
-    last_name: string;
-    specialty: string;
-  };
-  brick: {
-    name: string;
-  };
+  doctor_first_name: string;
+  doctor_last_name: string;
+  doctor_specialty: string;
+  brick_name: string;
 }
 
 const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
@@ -43,12 +39,11 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
           visit_date,
           visit_plan_id,
           visit_plans!inner(
-            doctor_id,
+            delegate_id,
             doctors!inner(
               first_name,
               last_name,
               specialty,
-              brick_id,
               bricks!inner(
                 name
               )
@@ -58,21 +53,22 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
         .eq('visit_plans.delegate_id', profile.id)
         .order('visit_date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
+
+      console.log('Raw visit data:', data);
 
       // Transform the data to match our interface
       return data.map((visit: any) => ({
         id: visit.id,
         visit_date: visit.visit_date,
         visit_plan_id: visit.visit_plan_id,
-        doctor: {
-          first_name: visit.visit_plans.doctors.first_name,
-          last_name: visit.visit_plans.doctors.last_name,
-          specialty: visit.visit_plans.doctors.specialty || 'Not specified',
-        },
-        brick: {
-          name: visit.visit_plans.doctors.bricks.name,
-        },
+        doctor_first_name: visit.visit_plans.doctors.first_name,
+        doctor_last_name: visit.visit_plans.doctors.last_name,
+        doctor_specialty: visit.visit_plans.doctors.specialty || 'Not specified',
+        brick_name: visit.visit_plans.doctors.bricks.name,
       })) as VisitRecord[];
     },
     enabled: !!profile?.id,
@@ -224,18 +220,18 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
                         {slot.visit ? (
                           <div className="space-y-1">
                             <div className="flex items-center space-x-2">
-                              <User className="h-4 w-4 text-teal-600" />
-                              <span className="font-medium text-gray-900">
-                                Dr. {slot.visit.doctor.first_name} {slot.visit.doctor.last_name}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Specialty: {slot.visit.doctor.specialty}
-                            </div>
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <MapPin className="h-3 w-3" />
-                              <span>Brick: {slot.visit.brick.name}</span>
-                            </div>
+                               <User className="h-4 w-4 text-teal-600" />
+                               <span className="font-medium text-gray-900">
+                                 Dr. {slot.visit.doctor_first_name} {slot.visit.doctor_last_name}
+                               </span>
+                             </div>
+                             <div className="text-sm text-gray-600">
+                               Specialty: {slot.visit.doctor_specialty}
+                             </div>
+                             <div className="flex items-center space-x-2 text-sm text-gray-600">
+                               <MapPin className="h-3 w-3" />
+                               <span>Brick: {slot.visit.brick_name}</span>
+                             </div>
                           </div>
                         ) : (
                           <div className="text-gray-400 text-sm">
@@ -278,13 +274,13 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600">
-                  {new Set(visitRecords?.map(v => v.doctor.first_name + ' ' + v.doctor.last_name)).size || 0}
+                  {new Set(visitRecords?.map(v => v.doctor_first_name + ' ' + v.doctor_last_name)).size || 0}
                 </div>
                 <div className="text-sm text-gray-600">Unique Doctors</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-600">
-                  {new Set(visitRecords?.map(v => v.brick.name)).size || 0}
+                  {new Set(visitRecords?.map(v => v.brick_name)).size || 0}
                 </div>
                 <div className="text-sm text-gray-600">Different Bricks</div>
               </div>
