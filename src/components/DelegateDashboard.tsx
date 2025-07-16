@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight } from 'lucide-react';
+import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
+import VisitReport from './VisitReport';
 
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const DelegateDashboard: React.FC = () => {
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
   const [showActionPlans, setShowActionPlans] = useState(false);
+  const [showVisitReport, setShowVisitReport] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -183,6 +185,11 @@ const DelegateDashboard: React.FC = () => {
     return <ActionPlansList onBack={() => setShowActionPlans(false)} />;
   }
 
+  // Show Visit Report interface
+  if (showVisitReport) {
+    return <VisitReport onBack={() => setShowVisitReport(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -215,7 +222,7 @@ const DelegateDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Return Index Card */}
           <Card 
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -305,6 +312,36 @@ const DelegateDashboard: React.FC = () => {
               </div>
               <div className="mt-2 text-xs text-blue-600 font-medium">
                 Click to manage plans →
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Report Card */}
+          <Card 
+            className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={() => setShowVisitReport(true)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-teal-600 to-teal-700 rounded-lg">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-teal-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Report</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? '...' : `${dashboardStats?.thisMonthVisits || 0}`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Monthly visit calendar
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                View detailed visit records
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to view calendar →
               </div>
             </CardContent>
           </Card>
