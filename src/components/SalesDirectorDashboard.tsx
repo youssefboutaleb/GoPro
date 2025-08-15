@@ -1,14 +1,21 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Building, BarChart3, TrendingUp, ArrowRight, ClipboardList } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import VisitPlansManagement from './VisitPlansManagement';
-import RythmeRecrutement from './RythmeRecrutement';
-import ActionPlansList from './action-plans/ActionPlansList';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Building,
+  BarChart3,
+  TrendingUp,
+  ArrowRight,
+  ClipboardList,
+  FileText,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import VisitPlansManagement from "./VisitPlansManagement";
+import RythmeRecrutement from "./RythmeRecrutement";
+import ActionPlansList from "./action-plans/ActionPlansList";
+import VisitReport from "./VisitReport";
 
 interface SalesDirectorDashboardProps {
   onSignOut: () => void;
@@ -16,11 +23,17 @@ interface SalesDirectorDashboardProps {
   profile: any;
 }
 
-const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignOut, signOutLoading, profile }) => {
+const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
+  onSignOut,
+  signOutLoading,
+  profile,
+}) => {
   const { user } = useAuth();
-  const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
+  const [showVisitPlansManagement, setShowVisitPlansManagement] =
+    useState(false);
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
   const [showActionPlans, setShowActionPlans] = useState(false);
+  const [showVisitReport, setShowVisitReport] = useState(false);
 
   const handleNavigateToRecruitmentRate = () => {
     setShowRythmeRecrutement(true);
@@ -33,44 +46,44 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
 
   // Fetch supervised supervisors
   const { data: supervisedSupervisors = [] } = useQuery({
-    queryKey: ['supervised-supervisors', profile?.id],
+    queryKey: ["supervised-supervisors", profile?.id],
     queryFn: async () => {
-      if (!profile?.id || profile.role !== 'Sales Director') {
+      if (!profile?.id || profile.role !== "Sales Director") {
         return [];
       }
-      
+
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .eq('supervisor_id', profile.id)
-        .eq('role', 'Supervisor');
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .eq("supervisor_id", profile.id)
+        .eq("role", "Supervisor");
 
       if (error) {
-        console.error('Error fetching supervised supervisors:', error);
+        console.error("Error fetching supervised supervisors:", error);
         throw error;
       }
 
       return data || [];
     },
-    enabled: !!profile?.id && profile?.role === 'Sales Director',
+    enabled: !!profile?.id && profile?.role === "Sales Director",
   });
 
-  const supervisorIds = supervisedSupervisors.map(s => s.id);
+  const supervisorIds = supervisedSupervisors.map((s) => s.id);
 
   // Fetch all delegates under supervised supervisors
   const { data: allDelegates = [] } = useQuery({
-    queryKey: ['all-supervised-delegates', supervisorIds.join(',')],
+    queryKey: ["all-supervised-delegates", supervisorIds.join(",")],
     queryFn: async () => {
       if (supervisorIds.length === 0) return [];
-      
+
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id')
-        .in('supervisor_id', supervisorIds)
-        .eq('role', 'Delegate');
+        .from("profiles")
+        .select("id, first_name, last_name, supervisor_id")
+        .in("supervisor_id", supervisorIds)
+        .eq("role", "Delegate");
 
       if (error) {
-        console.error('Error fetching all delegates:', error);
+        console.error("Error fetching all delegates:", error);
         throw error;
       }
 
@@ -79,28 +92,28 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
     enabled: supervisorIds.length > 0,
   });
 
-  const delegateIds = allDelegates.map(d => d.id);
+  const delegateIds = allDelegates.map((d) => d.id);
 
   // Fetch aggregated dashboard stats for all supervised delegates
   const { data: dashboardStats, isLoading: statsLoading } = useQuery({
-    queryKey: ['sales-director-dashboard-stats', delegateIds.join(',')],
+    queryKey: ["sales-director-dashboard-stats", delegateIds.join(",")],
     queryFn: async () => {
       if (delegateIds.length === 0) return null;
 
       try {
         // Fetch visit plans count for all supervised delegates
         const { data: visitPlans, error: visitPlansError } = await supabase
-          .from('visit_plans')
-          .select('id')
-          .in('delegate_id', delegateIds);
+          .from("visit_plans")
+          .select("id")
+          .in("delegate_id", delegateIds);
 
         if (visitPlansError) throw visitPlansError;
 
         // Fetch sales plans count for all supervised delegates
         const { data: salesPlans, error: salesPlansError } = await supabase
-          .from('sales_plans')
-          .select('id')
-          .in('delegate_id', delegateIds);
+          .from("sales_plans")
+          .select("id")
+          .in("delegate_id", delegateIds);
 
         if (salesPlansError) throw salesPlansError;
 
@@ -109,37 +122,50 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
         const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
-        
-        const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
-        const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
-        
-        console.log('Fetching visits for date range:', startDate, 'to', endDate);
-        
+
+        const startDate = `${currentYear}-${currentMonth
+          .toString()
+          .padStart(2, "0")}-01`;
+        const endDate = `${currentYear}-${currentMonth
+          .toString()
+          .padStart(2, "0")}-${lastDayOfMonth.toString().padStart(2, "0")}`;
+
+        console.log(
+          "Fetching visits for date range:",
+          startDate,
+          "to",
+          endDate
+        );
+
         const { data: thisMonthVisits, error: visitsError } = await supabase
-          .from('visits')
-          .select('id, visit_plan_id, visit_date')
-          .gte('visit_date', startDate)
-          .lte('visit_date', endDate);
+          .from("visits")
+          .select("id, visit_plan_id, visit_date")
+          .gte("visit_date", startDate)
+          .lte("visit_date", endDate);
 
         if (visitsError) {
-          console.error('Error fetching visits:', visitsError);
+          console.error("Error fetching visits:", visitsError);
           throw visitsError;
         }
 
         // Calculate return index (simplified aggregation)
-        const returnIndex = visitPlans && visitPlans.length > 0 
-          ? Math.round((thisMonthVisits?.length || 0) / (visitPlans.length * 2) * 100)
-          : 0;
+        const returnIndex =
+          visitPlans && visitPlans.length > 0
+            ? Math.round(
+                ((thisMonthVisits?.length || 0) / (visitPlans.length * 2)) * 100
+              )
+            : 0;
 
         return {
           visitPlansCount: visitPlans?.length || 0,
           salesPlansCount: salesPlans?.length || 0,
           thisMonthVisits: thisMonthVisits?.length || 0,
           returnIndex,
-          recruitmentRate: salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
+          recruitmentRate:
+            salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0, // Placeholder calculation
         };
       } catch (error) {
-        console.error('Error fetching sales director dashboard stats:', error);
+        console.error("Error fetching sales director dashboard stats:", error);
         return null;
       }
     },
@@ -148,76 +174,109 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
   });
 
   // Fetch action plans statistics
-  const { data: actionPlansStats, isLoading: actionPlansStatsLoading } = useQuery({
-    queryKey: ['sales-director-action-plans-stats', profile?.id, supervisorIds.join(','), delegateIds.join(',')],
-    queryFn: async () => {
-      if (!profile?.id) return null;
+  const { data: actionPlansStats, isLoading: actionPlansStatsLoading } =
+    useQuery({
+      queryKey: [
+        "sales-director-action-plans-stats",
+        profile?.id,
+        supervisorIds.join(","),
+        delegateIds.join(","),
+      ],
+      queryFn: async () => {
+        if (!profile?.id) return null;
 
-      try {
-        const creatorIds = [profile.id, ...supervisorIds, ...delegateIds];
-        
-        const { data: actionPlans, error } = await supabase
-          .from('action_plans')
-          .select('id, created_by, sales_director_status')
-          .in('created_by', creatorIds);
+        try {
+          const creatorIds = [profile.id, ...supervisorIds, ...delegateIds];
 
-        if (error) throw error;
+          const { data: actionPlans, error } = await supabase
+            .from("action_plans")
+            .select("id, created_by, sales_director_status")
+            .in("created_by", creatorIds);
 
-        const ownPlans = actionPlans?.filter(plan => plan.created_by === profile.id) || [];
-        const supervisorPlans = actionPlans?.filter(plan => supervisorIds.includes(plan.created_by)) || [];
-        const delegatePlans = actionPlans?.filter(plan => delegateIds.includes(plan.created_by)) || [];
-        const pendingApproval = actionPlans?.filter(plan => 
-          plan.created_by !== profile.id && plan.sales_director_status === 'Pending'
-        ) || [];
+          if (error) throw error;
 
-        return {
-          totalPlans: actionPlans?.length || 0,
-          ownPlans: ownPlans.length,
-          supervisorPlans: supervisorPlans.length,
-          delegatePlans: delegatePlans.length,
-          pendingApproval: pendingApproval.length
-        };
-      } catch (error) {
-        console.error('Error fetching action plans stats:', error);
-        return null;
-      }
-    },
-    enabled: !!profile?.id && profile?.role === 'Sales Director',
-  });
+          const ownPlans =
+            actionPlans?.filter((plan) => plan.created_by === profile.id) || [];
+          const supervisorPlans =
+            actionPlans?.filter((plan) =>
+              supervisorIds.includes(plan.created_by)
+            ) || [];
+          const delegatePlans =
+            actionPlans?.filter((plan) =>
+              delegateIds.includes(plan.created_by)
+            ) || [];
+          const pendingApproval =
+            actionPlans?.filter(
+              (plan) =>
+                plan.created_by !== profile.id &&
+                plan.sales_director_status === "Pending"
+            ) || [];
 
-  const getPerformanceColor = (value: number, type: 'return' | 'recruitment') => {
-    if (type === 'return') {
-      if (value >= 80) return 'text-green-600 bg-green-50 border-green-200';
-      if (value >= 50) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      return 'text-red-600 bg-red-50 border-red-200';
+          return {
+            totalPlans: actionPlans?.length || 0,
+            ownPlans: ownPlans.length,
+            supervisorPlans: supervisorPlans.length,
+            delegatePlans: delegatePlans.length,
+            pendingApproval: pendingApproval.length,
+          };
+        } catch (error) {
+          console.error("Error fetching action plans stats:", error);
+          return null;
+        }
+      },
+      enabled: !!profile?.id && profile?.role === "Sales Director",
+    });
+
+  const getPerformanceColor = (
+    value: number,
+    type: "return" | "recruitment"
+  ) => {
+    if (type === "return") {
+      if (value >= 80) return "text-green-600 bg-green-50 border-green-200";
+      if (value >= 50) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      return "text-red-600 bg-red-50 border-red-200";
     } else {
-      if (value >= 80) return 'text-green-600 bg-green-50 border-green-200';
-      if (value >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      return 'text-red-600 bg-red-50 border-red-200';
+      if (value >= 80) return "text-green-600 bg-green-50 border-green-200";
+      if (value >= 60) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      return "text-red-600 bg-red-50 border-red-200";
     }
   };
 
   // Show Visit Plans Management interface
   if (showVisitPlansManagement) {
-    return <VisitPlansManagement 
-      onBack={() => setShowVisitPlansManagement(false)} 
-      delegateIds={delegateIds}
-      supervisorName={`${profile?.first_name} ${profile?.last_name} Organization`}
-    />;
+    return (
+      <VisitPlansManagement
+        onBack={() => setShowVisitPlansManagement(false)}
+        delegateIds={delegateIds}
+        supervisorName={`${profile?.first_name} ${profile?.last_name} Organization`}
+      />
+    );
   }
 
   // Show Rythme Recrutement interface
   if (showRythmeRecrutement) {
-    return <RythmeRecrutement 
-      onBack={() => setShowRythmeRecrutement(false)} 
-      delegateIds={delegateIds}
-      supervisorName={`${profile?.first_name} ${profile?.last_name} Organization`}
-    />;
+    return (
+      <RythmeRecrutement
+        onBack={() => setShowRythmeRecrutement(false)}
+        delegateIds={delegateIds}
+        supervisorName={`${profile?.first_name} ${profile?.last_name} Organization`}
+      />
+    );
   }
 
   // Show Action Plans interface
   if (showActionPlans) {
     return <ActionPlansList onBack={() => setShowActionPlans(false)} />;
+  }
+
+  // Show Visit Report interface
+  if (showVisitReport) {
+    return (
+      <VisitReport
+        onBack={() => setShowVisitReport(false)}
+        delegateIds={delegateIds}
+      />
+    );
   }
 
   return (
@@ -231,19 +290,21 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
                 <Building className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Sales Director Dashboard</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Sales Director Dashboard
+                </h1>
                 <p className="text-sm text-gray-600">
                   Welcome back, {profile?.first_name} {profile?.last_name}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={onSignOut}
                 disabled={signOutLoading}
               >
-                {signOutLoading ? 'Signing out...' : 'Sign Out'}
+                {signOutLoading ? "Signing out..." : "Sign Out"}
               </Button>
             </div>
           </div>
@@ -256,17 +317,28 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardContent className="pt-6">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900">Managing Organization Performance</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Managing Organization Performance
+                </h3>
                 <p className="text-gray-600 mt-2">
-                  Overseeing {supervisedSupervisors.length} supervisor{supervisedSupervisors.length !== 1 ? 's' : ''} and {allDelegates.length} delegate{allDelegates.length !== 1 ? 's' : ''}
+                  Overseeing {supervisedSupervisors.length} supervisor
+                  {supervisedSupervisors.length !== 1 ? "s" : ""} and{" "}
+                  {allDelegates.length} delegate
+                  {allDelegates.length !== 1 ? "s" : ""}
                 </p>
                 {supervisedSupervisors.length > 0 && (
                   <div className="flex flex-wrap justify-center gap-2 mt-3">
                     {supervisedSupervisors.map((supervisor) => {
-                      const supervisorDelegates = allDelegates.filter(d => d.supervisor_id === supervisor.id);
+                      const supervisorDelegates = allDelegates.filter(
+                        (d) => d.supervisor_id === supervisor.id
+                      );
                       return (
-                        <span key={supervisor.id} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-                          {supervisor.first_name} {supervisor.last_name} ({supervisorDelegates.length})
+                        <span
+                          key={supervisor.id}
+                          className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
+                        >
+                          {supervisor.first_name} {supervisor.last_name} (
+                          {supervisorDelegates.length})
                         </span>
                       );
                     })}
@@ -277,12 +349,14 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
           </Card>
         </div>
 
-        {/* KPI Cards Row - Now 3 cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* KPI Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Return Index Card */}
-          <Card 
+          <Card
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
-              dashboardStats ? getPerformanceColor(dashboardStats.returnIndex, 'return') : 'border-gray-200'
+              dashboardStats
+                ? getPerformanceColor(dashboardStats.returnIndex, "return")
+                : "border-gray-200"
             }`}
             onClick={() => setShowVisitPlansManagement(true)}
           >
@@ -295,15 +369,21 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Organization Return Index</CardTitle>
+              <CardTitle className="text-lg mb-2">
+                Organization Return Index
+              </CardTitle>
               <div className="text-3xl font-bold mb-2">
-                {statsLoading ? '...' : `${dashboardStats?.returnIndex || 0}%`}
+                {statsLoading ? "..." : `${dashboardStats?.returnIndex || 0}%`}
               </div>
               <p className="text-gray-600 text-sm">
                 Organization visit effectiveness this month
               </p>
               <div className="mt-3 text-xs text-gray-500">
-                {statsLoading ? 'Loading...' : `${dashboardStats?.thisMonthVisits || 0} total visits completed`}
+                {statsLoading
+                  ? "Loading..."
+                  : `${
+                      dashboardStats?.thisMonthVisits || 0
+                    } total visits completed`}
               </div>
               <div className="mt-2 text-xs text-blue-600 font-medium">
                 Click to manage organization visits →
@@ -312,9 +392,14 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
           </Card>
 
           {/* Recruitment Rate Card */}
-          <Card 
+          <Card
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
-              dashboardStats ? getPerformanceColor(dashboardStats.recruitmentRate, 'recruitment') : 'border-gray-200'
+              dashboardStats
+                ? getPerformanceColor(
+                    dashboardStats.recruitmentRate,
+                    "recruitment"
+                  )
+                : "border-gray-200"
             }`}
             onClick={handleNavigateToRecruitmentRate}
           >
@@ -327,21 +412,29 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Organization Recruitment Rate</CardTitle>
+              <CardTitle className="text-lg mb-2">
+                Organization Recruitment Rate
+              </CardTitle>
               <div className="text-3xl font-bold mb-2">
-                {statsLoading ? '...' : `${dashboardStats?.recruitmentRate || 0}%`}
+                {statsLoading
+                  ? "..."
+                  : `${dashboardStats?.recruitmentRate || 0}%`}
               </div>
               <p className="text-gray-600 text-sm">
                 Organization sales plan achievement rate
               </p>
               <div className="mt-3 text-xs text-gray-500">
-                {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
+                {statsLoading
+                  ? "Loading..."
+                  : `${
+                      dashboardStats?.salesPlansCount || 0
+                    } active sales plans`}
               </div>
             </CardContent>
           </Card>
 
           {/* Action Plans Card */}
-          <Card 
+          <Card
             className="bg-white/80 backdrop-blur-sm border-2 border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group text-indigo-700"
             onClick={() => setShowActionPlans(true)}
           >
@@ -354,17 +447,24 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Organization Action Plans</CardTitle>
+              <CardTitle className="text-lg mb-2">
+                Organization Action Plans
+              </CardTitle>
               <div className="text-3xl font-bold mb-2">
-                {actionPlansStatsLoading ? '...' : `${actionPlansStats?.totalPlans || 0}`}
+                {actionPlansStatsLoading
+                  ? "..."
+                  : `${actionPlansStats?.totalPlans || 0}`}
               </div>
               <p className="text-gray-600 text-sm">
                 Total action plans in your organization
               </p>
               <div className="mt-3 text-xs text-gray-500">
-                {actionPlansStatsLoading ? 'Loading...' : (
+                {actionPlansStatsLoading ? (
+                  "Loading..."
+                ) : (
                   <>
-                    {actionPlansStats?.pendingApproval || 0} pending your approval
+                    {actionPlansStats?.pendingApproval || 0} pending your
+                    approval
                     <br />
                     {actionPlansStats?.ownPlans || 0} created by you
                   </>
@@ -372,6 +472,40 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({ onSignO
               </div>
               <div className="mt-2 text-xs text-indigo-600 font-medium">
                 Click to manage action plans →
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Report Card */}
+          <Card
+            className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={() => setShowVisitReport(true)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-teal-600 to-teal-700 rounded-lg">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-teal-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">
+                Organization Visit Report
+              </CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading
+                  ? "..."
+                  : `${dashboardStats?.thisMonthVisits || 0}`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Organization monthly visit calendar
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                View detailed organization visit records
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to view calendar →
               </div>
             </CardContent>
           </Card>
