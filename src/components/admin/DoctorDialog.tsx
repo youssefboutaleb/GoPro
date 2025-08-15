@@ -1,17 +1,29 @@
+import React from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Tables } from "@/integrations/supabase/types";
 
-import React from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Tables } from '@/integrations/supabase/types';
-
-type Doctor = Tables<'doctors'>;
-type Brick = Tables<'bricks'>;
+type Doctor = Tables<"doctors">;
+type Brick = Tables<"bricks">;
 
 interface DoctorDialogProps {
   open: boolean;
@@ -19,63 +31,62 @@ interface DoctorDialogProps {
   doctor?: Doctor | null;
 }
 
-const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor }) => {
-  const [formData, setFormData] = React.useState({
-    first_name: '',
-    last_name: '',
-    specialty: '',
-    brick_id: '',
-  });
+const DoctorDialog: React.FC<DoctorDialogProps> = ({
+  open,
+  onOpenChange,
+  doctor,
+}) => {
+  const initialFormData = {
+    first_name: "",
+    last_name: "",
+    specialty: "",
+    brick_id: "",
+  };
+  const [formData, setFormData] = React.useState(initialFormData);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Load bricks for selection
-  const { data: bricks } = useQuery({
-    queryKey: ['bricks'],
+  const { data: bricks, isLoading: bricksLoading } = useQuery({
+    queryKey: ["bricks"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('bricks')
-        .select('*')
-        .order('name');
-      
+        .from("bricks")
+        .select("id, name")
+        .order("name");
+
       if (error) throw error;
-      return data as Brick[];
+      return data.filter((brick) => brick.id && brick.name) as Brick[];
     },
   });
 
   React.useEffect(() => {
     if (doctor) {
       setFormData({
-        first_name: doctor.first_name || '',
-        last_name: doctor.last_name || '',
-        specialty: doctor.specialty || '',
-        brick_id: doctor.brick_id || '',
+        first_name: doctor.first_name || "",
+        last_name: doctor.last_name || "",
+        specialty: doctor.specialty || "",
+        brick_id: doctor.brick_id || "",
       });
     } else {
-      setFormData({
-        first_name: '',
-        last_name: '',
-        specialty: '',
-        brick_id: '',
-      });
+      setFormData(initialFormData);
     }
   }, [doctor]);
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase
-        .from('doctors')
-        .insert({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          specialty: data.specialty || null,
-          brick_id: data.brick_id || null,
-        });
-      
+      const { error } = await supabase.from("doctors").insert({
+        first_name: data.first_name,
+        last_name: data.last_name,
+        specialty: data.specialty || null,
+        brick_id: data.brick_id === "none" ? null : data.brick_id || null,
+      });
+
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['doctors'] });
+      queryClient.invalidateQueries({ queryKey: ["doctors"] });
+      setFormData(initialFormData); // Reset form after successful creation
       onOpenChange(false);
       toast({
         title: "Succès",
@@ -94,21 +105,21 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!doctor) return;
-      
+
       const { error } = await supabase
-        .from('doctors')
+        .from("doctors")
         .update({
           first_name: data.first_name,
           last_name: data.last_name,
           specialty: data.specialty || null,
-          brick_id: data.brick_id || null,
+          brick_id: data.brick_id === "none" ? null : data.brick_id || null,
         })
-        .eq('id', doctor.id);
-      
+        .eq("id", doctor.id);
+
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['doctors'] });
+      queryClient.invalidateQueries({ queryKey: ["doctors"] });
       onOpenChange(false);
       toast({
         title: "Succès",
@@ -126,7 +137,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.first_name.trim() || !formData.last_name.trim()) {
       toast({
         title: "Erreur",
@@ -143,17 +154,20 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
     }
   };
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+  const isLoading =
+    createMutation.isPending || updateMutation.isPending || bricksLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {doctor ? 'Modifier le médecin' : 'Ajouter un médecin'}
+            {doctor ? "Modifier le médecin" : "Ajouter un médecin"}
           </DialogTitle>
           <DialogDescription>
-            {doctor ? 'Modifiez les informations du médecin.' : 'Ajoutez un nouveau médecin à la base de données.'}
+            {doctor
+              ? "Modifiez les informations du médecin."
+              : "Ajoutez un nouveau médecin à la base de données."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -165,7 +179,12 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
               <Input
                 id="first_name"
                 value={formData.first_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    first_name: e.target.value,
+                  }))
+                }
                 className="col-span-3"
                 required
               />
@@ -177,7 +196,12 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
               <Input
                 id="last_name"
                 value={formData.last_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    last_name: e.target.value,
+                  }))
+                }
                 className="col-span-3"
                 required
               />
@@ -189,7 +213,12 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
               <Input
                 id="specialty"
                 value={formData.specialty}
-                onChange={(e) => setFormData(prev => ({ ...prev, specialty: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    specialty: e.target.value,
+                  }))
+                }
                 className="col-span-3"
               />
             </div>
@@ -199,13 +228,16 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
               </Label>
               <Select
                 value={formData.brick_id}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, brick_id: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, brick_id: value }))
+                }
+                disabled={isLoading}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Sélectionner un brick" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun brick</SelectItem>
+                  <SelectItem value="none">Aucun brick</SelectItem>
                   {bricks?.map((brick) => (
                     <SelectItem key={brick.id} value={brick.id}>
                       {brick.name}
@@ -217,7 +249,7 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({ open, onOpenChange, doctor 
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Chargement...' : doctor ? 'Modifier' : 'Ajouter'}
+              {isLoading ? "Chargement..." : doctor ? "Modifier" : "Ajouter"}
             </Button>
           </DialogFooter>
         </form>
