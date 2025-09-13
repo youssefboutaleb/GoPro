@@ -274,7 +274,6 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
     return (
       <VisitReport
         onBack={() => setShowVisitReport(false)}
-        delegateIds={delegateIds}
       />
     );
   }

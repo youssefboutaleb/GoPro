@@ -236,7 +236,6 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
     return (
       <VisitReport
         onBack={() => setShowVisitReport(false)}
-        delegateIds={delegateIds}
       />
     );
   }
