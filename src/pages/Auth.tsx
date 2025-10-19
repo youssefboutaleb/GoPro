@@ -11,6 +11,7 @@ import { ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import goproLogo from '@/assets/gopro-logo.png';
 
 const Auth = () => {
   const { t } = useTranslation(['auth', 'common']);
@@ -96,6 +97,24 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        {/* GOPRO Branding */}
+        <div className="mb-8 text-center space-y-2">
+          <img 
+            src={goproLogo} 
+            alt="GOPRO Logo" 
+            className="h-16 mx-auto mb-3"
+          />
+          <h1 className="text-2xl font-bold text-gray-900">
+            GOPRO
+          </h1>
+          <p className="text-sm font-semibold text-gray-700">
+            Global Operational Performance Reporting & Optimization
+          </p>
+          <p className="text-xs italic text-gray-600 mt-1">
+            Go in the field, perform like a pro.
+          </p>
+        </div>
+
         <div className="mb-4 flex justify-center">
           <LanguageSwitcher />
         </div>
