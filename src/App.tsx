@@ -12,7 +12,7 @@ import VisitReport from "./components/VisitReport";
 import ReturnIndexAnalysis from "./components/ReturnIndexAnalysis";
 import RythmeRecrutement from "./components/RythmeRecrutement";
 import ActionPlansList from "./components/action-plans/ActionPlansList";
-import './i18n';
+import './i18n/config';
 
 const queryClient = new QueryClient();
 
