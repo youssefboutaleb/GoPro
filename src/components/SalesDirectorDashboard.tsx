@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Building,
   BarChart3,
@@ -8,6 +9,8 @@ import {
   ArrowRight,
   ClipboardList,
   FileText,
+  MessageCircle,
+  LineChart,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +19,8 @@ import VisitPlansManagement from "./VisitPlansManagement";
 import RythmeRecrutement from "./RythmeRecrutement";
 import ActionPlansList from "./action-plans/ActionPlansList";
 import VisitReport from "./VisitReport";
+import MenaConnect from "./MenaConnect";
+import SalesForecasting from "./SalesForecasting";
 import LanguageSwitcher from "./LanguageSwitcher";
 
 interface SalesDirectorDashboardProps {
@@ -35,6 +40,8 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
   const [showActionPlans, setShowActionPlans] = useState(false);
   const [showVisitReport, setShowVisitReport] = useState(false);
+  const [showMenaConnect, setShowMenaConnect] = useState(false);
+  const [showSalesForecasting, setShowSalesForecasting] = useState(false);
 
   const handleNavigateToRecruitmentRate = () => {
     setShowRythmeRecrutement(true);
@@ -279,6 +286,16 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
     );
   }
 
+  // Show MenaConnect interface
+  if (showMenaConnect) {
+    return <MenaConnect onBack={() => setShowMenaConnect(false)} />;
+  }
+
+  // Show Sales Forecasting interface
+  if (showSalesForecasting) {
+    return <SalesForecasting onBack={() => setShowSalesForecasting(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
       {/* Header */}
@@ -351,7 +368,7 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
         </div>
 
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           {/* Return Index Card */}
           <Card
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -510,6 +527,82 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
               </div>
             </CardContent>
           </Card>
+
+          {/* MENACONNECT Card */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-red-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-red-300"
+                  onClick={() => setShowMenaConnect(true)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+                        <MessageCircle className="h-6 w-6 text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-red-600 transition-colors" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-lg mb-1 text-red-700">MENACONNECT</CardTitle>
+                    <p className="text-xs text-red-600 font-semibold mb-3 italic">
+                      Connecter. Vendre. Performer.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Assistant intelligent pour l'équipe
+                    </p>
+                    <div className="mt-2 text-xs text-blue-600 font-medium">
+                      Cliquer pour accéder →
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Chatbot intelligent pour connecter l'équipe de vente Menarini et accéder rapidement aux infos essentielles.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Sales Forecasting Card */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-blue-300"
+                  onClick={() => setShowSalesForecasting(true)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg">
+                        <LineChart className="h-6 w-6 text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-lg mb-1 text-blue-700">Sales Forecasting</CardTitle>
+                    <p className="text-xs text-blue-600 font-semibold mb-3 italic">
+                      Predict. Plan. Perform.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Prévisions intelligentes des ventes
+                    </p>
+                    <div className="mt-2 text-xs text-blue-600 font-medium">
+                      Cliquer pour analyser →
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Analysez les tendances et prédisez vos ventes avec précision grâce à l'IA.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Performance Legend */}
