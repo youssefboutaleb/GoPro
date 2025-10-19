@@ -14,6 +14,14 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
 
     if (error) {
       console.error('❌ Profile fetch error:', error.message);
+      
+      // Check if it's a JWT expired error
+      if (error.message.includes('JWT') || error.message.includes('expired')) {
+        console.error('🔒 JWT expired - signing out user');
+        await supabase.auth.signOut();
+        window.location.href = '/auth';
+      }
+      
       return null;
     }
 
@@ -32,6 +40,15 @@ export const fetchProfile = async (userId: string): Promise<Profile | null> => {
     return data;
   } catch (error) {
     console.error('💥 Profile fetch exception:', error);
+    
+    // Check if the error message includes JWT or expired
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('JWT') || errorMessage.includes('expired')) {
+      console.error('🔒 JWT expired - signing out user');
+      await supabase.auth.signOut();
+      window.location.href = '/auth';
+    }
+    
     return null;
   }
 };
