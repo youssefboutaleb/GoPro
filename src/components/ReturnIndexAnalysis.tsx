@@ -391,6 +391,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                   <thead>
                     <tr className="border-b border-gray-200">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Doctor Name</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Chardo</th>
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Brick Name</th>
                       {displayMonths.map((month, index) => (
                         <th 
@@ -407,9 +408,11 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                     {processedData.map((plan) => (
                       <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
                         <td className="py-4 px-4 font-medium">
-                          <div className="flex items-center gap-2">
+                          {plan.doctor_name}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center">
                             <StatusBird doctorId={plan.id} />
-                            <span>{plan.doctor_name}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
