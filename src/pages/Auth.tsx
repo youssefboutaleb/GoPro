@@ -104,13 +104,10 @@ const Auth = () => {
             alt="GOPRO Logo" 
             className="h-16 mx-auto mb-3"
           />
-          <h1 className="text-2xl font-bold text-gray-900">
-            GOPRO
-          </h1>
-          <p className="text-sm font-semibold text-gray-700">
+          <h1 className="text-xl font-bold text-gray-900">
             Global Operational Performance Reporting & Optimization
-          </p>
-          <p className="text-xs italic text-gray-600 mt-1">
+          </h1>
+          <p className="text-sm italic text-gray-600 mt-1">
             Go in the field, perform like a pro.
           </p>
         </div>
