@@ -16,7 +16,6 @@ import VisitPlansManagement from "./VisitPlansManagement";
 import RythmeRecrutement from "./RythmeRecrutement";
 import ActionPlansList from "./action-plans/ActionPlansList";
 import VisitReport from "./VisitReport";
-import LanguageSwitcher from "./LanguageSwitcher";
 
 interface SupervisorDashboardProps {
   onSignOut: () => void;
@@ -260,8 +259,7 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <LanguageSwitcher />
+            <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
                 onClick={onSignOut}
