@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Send, Bot, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import menaconnectBadge from '@/assets/menaconnect-badge.png';
 
 interface MenaConnectProps {
   onBack: () => void;
@@ -79,11 +78,8 @@ const MenaConnect: React.FC<MenaConnectProps> = ({ onBack }) => {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="relative p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+              <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
                 <Bot className="h-6 w-6 text-white" />
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full overflow-hidden border-2 border-red-600">
-                  <img src={menaconnectBadge} alt="MENACONNECT" className="w-full h-full object-contain" />
-                </div>
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-red-700">MENACONNECT</h1>

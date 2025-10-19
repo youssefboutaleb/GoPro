@@ -14,7 +14,6 @@ import ActionPlansList from './action-plans/ActionPlansList';
 import VisitReport from './VisitReport';
 import MenaConnect from './MenaConnect';
 import LanguageSwitcher from './LanguageSwitcher';
-import menaconnectBadge from '@/assets/menaconnect-badge.png';
 
 const DelegateDashboard: React.FC = () => {
   const { t } = useTranslation(['common', 'dashboard', 'visits']);
@@ -369,11 +368,8 @@ const DelegateDashboard: React.FC = () => {
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <div className="relative p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+                      <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
                         <MessageCircle className="h-6 w-6 text-white" />
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full overflow-hidden border-2 border-red-600">
-                          <img src={menaconnectBadge} alt="AI Badge" className="w-full h-full object-contain" />
-                        </div>
                       </div>
                       <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-red-600 transition-colors" />
                     </div>
