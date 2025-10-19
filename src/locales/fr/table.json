@@ -1,0 +1,14 @@
+{
+  "metric": "Indicateur",
+  "currentValue": "Valeur actuelle",
+  "targetValue": "Valeur cible",
+  "change": "Évolution",
+  "status": "Statut",
+  "actions": "Actions",
+  "name": "Nom",
+  "id": "Identifiant",
+  "date": "Date",
+  "time": "Heure",
+  "department": "Service",
+  "notes": "Notes"
+}

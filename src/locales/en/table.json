@@ -1,0 +1,14 @@
+{
+  "metric": "Metric",
+  "currentValue": "Current Value",
+  "targetValue": "Target Value",
+  "change": "Change",
+  "status": "Status",
+  "actions": "Actions",
+  "name": "Name",
+  "id": "ID",
+  "date": "Date",
+  "time": "Time",
+  "department": "Department",
+  "notes": "Notes"
+}

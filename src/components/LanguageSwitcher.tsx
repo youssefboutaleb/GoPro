@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Globe } from 'lucide-react';
@@ -14,13 +14,16 @@ const LanguageSwitcher: React.FC = () => {
     { code: 'it', name: 'Italiano', flag: '🇮🇹' }
   ];
 
+  useEffect(() => {
+    // Set initial direction based on current language
+    const dir = i18n.dir(i18n.language);
+    document.documentElement.dir = dir;
+    document.documentElement.lang = i18n.language;
+  }, [i18n]);
+
   const handleLanguageChange = (languageCode: string) => {
     i18n.changeLanguage(languageCode);
-    
-    // Handle RTL for Arabic
-    const isRTL = languageCode === 'ar';
-    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-    document.documentElement.lang = languageCode;
+    // Direction and lang attributes are handled by i18n config
   };
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
