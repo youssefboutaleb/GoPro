@@ -19,6 +19,11 @@ import arAuth from '../locales/ar/auth.json';
 import arDashboard from '../locales/ar/dashboard.json';
 import arAdmin from '../locales/ar/admin.json';
 
+import itCommon from '../locales/it/common.json';
+import itAuth from '../locales/it/auth.json';
+import itDashboard from '../locales/it/dashboard.json';
+import itAdmin from '../locales/it/admin.json';
+
 const resources = {
   en: {
     common: enCommon,
@@ -37,6 +42,12 @@ const resources = {
     auth: arAuth,
     dashboard: arDashboard,
     admin: arAdmin,
+  },
+  it: {
+    common: itCommon,
+    auth: itAuth,
+    dashboard: itDashboard,
+    admin: itAdmin,
   },
 };
 

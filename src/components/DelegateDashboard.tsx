@@ -10,6 +10,7 @@ import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
 import VisitReport from './VisitReport';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const DelegateDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -207,7 +208,8 @@ const DelegateDashboard: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
               <Button 
                 variant="outline" 
                 onClick={handleSignOut}
