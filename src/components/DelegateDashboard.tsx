@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText } from 'lucide-react';
@@ -10,8 +11,10 @@ import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
 import VisitReport from './VisitReport';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const DelegateDashboard: React.FC = () => {
+  const { t } = useTranslation(['common', 'dashboard', 'visits']);
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
@@ -201,19 +204,20 @@ const DelegateDashboard: React.FC = () => {
                 <User className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Delegate Dashboard</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('dashboard:dashboard')}</h1>
                 <p className="text-sm text-gray-600">
-                  Welcome back, {profile?.first_name} {profile?.last_name}
+                  {t('common:welcome')}, {profile?.first_name} {profile?.last_name}
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
               <Button 
                 variant="outline" 
                 onClick={handleSignOut}
                 disabled={signOutLoading}
               >
-                {signOutLoading ? 'Signing out...' : 'Sign Out'}
+                {signOutLoading ? t('common:signingOut') : t('common:signOut')}
               </Button>
             </div>
           </div>
@@ -239,18 +243,18 @@ const DelegateDashboard: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Return Index</CardTitle>
+              <CardTitle className="text-lg mb-2">{t('dashboard:returnIndex')}</CardTitle>
               <div className="text-3xl font-bold mb-2">
                 {statsLoading ? '...' : `${dashboardStats?.returnIndex || 0}%`}
               </div>
               <p className="text-gray-600 text-sm">
-                Visit effectiveness this month
+                {t('dashboard:returnIndexDescription')}
               </p>
               <div className="mt-3 text-xs text-gray-500">
-                {statsLoading ? 'Loading...' : `${dashboardStats?.thisMonthVisits || 0} visits completed`}
+                {statsLoading ? t('common:loading') : `${dashboardStats?.thisMonthVisits || 0} ${t('visits:visitRecorded')}`}
               </div>
               <div className="mt-2 text-xs text-blue-600 font-medium">
-                Click to manage visits →
+                {t('common:clickToView')} →
               </div>
             </CardContent>
           </Card>
@@ -271,15 +275,15 @@ const DelegateDashboard: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Recruitment Rate</CardTitle>
+              <CardTitle className="text-lg mb-2">{t('dashboard:recruitmentRhythm')}</CardTitle>
               <div className="text-3xl font-bold mb-2">
                 {statsLoading ? '...' : `${dashboardStats?.recruitmentRate || 0}%`}
               </div>
               <p className="text-gray-600 text-sm">
-                Sales plan achievement rate
+                {t('dashboard:recruitmentRhythmDescription')}
               </p>
               <div className="mt-3 text-xs text-gray-500">
-                {statsLoading ? 'Loading...' : `${dashboardStats?.salesPlansCount || 0} active sales plans`}
+                {statsLoading ? t('common:loading') : `${dashboardStats?.salesPlansCount || 0} ${t('recruitment:plannedSales')}`}
               </div>
             </CardContent>
           </Card>
@@ -330,18 +334,18 @@ const DelegateDashboard: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Report</CardTitle>
+              <CardTitle className="text-lg mb-2">{t('visits:visitReport')}</CardTitle>
               <div className="text-3xl font-bold mb-2">
                 {statsLoading ? '...' : `${dashboardStats?.thisMonthVisits || 0}`}
               </div>
               <p className="text-gray-600 text-sm">
-                Monthly visit calendar
+                {t('visits:visitReportDescription')}
               </p>
               <div className="mt-3 text-xs text-gray-500">
-                View detailed visit records
+                {t('common:clickToView')}
               </div>
               <div className="mt-2 text-xs text-blue-600 font-medium">
-                Click to view calendar →
+                {t('common:clickToView')} →
               </div>
             </CardContent>
           </Card>

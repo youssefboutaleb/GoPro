@@ -12,6 +12,7 @@ import SectorsBricksManager from '@/components/admin/SectorsBricksManager';
 import ReportsManager from '@/components/admin/ReportsManager';
 import ProductsManager from '@/components/ProductsManager';
 import SalesManager from '@/components/SalesManager';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 interface AdminDashboardProps {
   onSignOut: () => void;
@@ -69,13 +70,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
                 {t('common:welcome')}, {profile.first_name} {profile.last_name} ({t('admin:administrator')})
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={onSignOut}
-              disabled={signOutLoading}
-            >
-              {signOutLoading ? t('common:signingOut') : t('common:signOut')}
-            </Button>
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
+              <Button 
+                variant="outline" 
+                onClick={onSignOut}
+                disabled={signOutLoading}
+              >
+                {signOutLoading ? t('common:signingOut') : t('common:signOut')}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -55,6 +56,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   showDelegateGrouping = false,
   showSupervisorGrouping = false,
 }) => {
+  const { t } = useTranslation(['visits', 'common']);
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -565,7 +567,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                   }
                   className={plan.can_record_today ? "hover:bg-green-100" : ""}
                 >
-                  {recordingVisit === plan.id ? "Recording..." : "Record Visit"}
+                  {recordingVisit === plan.id ? t('visits:recordingVisit') : t('visits:recordVisit')}
                 </Button>
               </td>
             </tr>
@@ -585,7 +587,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             <div className="text-2xl font-bold text-gray-900">
               {totalVisitPlans}
             </div>
-            <div className="text-sm text-gray-600">Total Visit Plans</div>
+            <div className="text-sm text-gray-600">{t('visits:visitPlansAnalysis')}</div>
           </CardContent>
         </Card>
 
@@ -595,7 +597,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             <div className="text-2xl font-bold text-gray-900">
               {totalVisits}
             </div>
-            <div className="text-sm text-gray-600">Total Visits</div>
+            <div className="text-sm text-gray-600">{t('visits:totalVisits')}</div>
           </CardContent>
         </Card>
 
@@ -605,7 +607,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             <div className="text-2xl font-bold text-gray-900">
               {averageReturnIndex}%
             </div>
-            <div className="text-sm text-gray-600">Average Return Index</div>
+            <div className="text-sm text-gray-600">{t('visits:returnIndex')}</div>
           </CardContent>
         </Card>
       </div>
@@ -613,9 +615,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       {/* Visit Plans Analysis Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Visit Plans Analysis</CardTitle>
+          <CardTitle className="text-lg">{t('visits:visitPlansAnalysis')}</CardTitle>
           <p className="text-sm text-gray-500">
-            Click the "Record Visit" button to log a visit
+            {t('visits:visitPlansDescription')}
           </p>
         </CardHeader>
         <CardContent>
@@ -749,7 +751,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       {/* Bird Legend */}
       <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-sm">Chardo Status Legend</CardTitle>
+          <CardTitle className="text-sm">{t('visits:chardoLegend')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-6 text-sm">
@@ -763,7 +765,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               >
                 <path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/>
               </svg>
-              <span>Chardo juvénile</span>
+              <span>{t('visits:chardoJuvenile')}</span>
             </div>
             <div className="flex items-center gap-2">
               <svg
@@ -775,11 +777,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               >
                 <path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/>
               </svg>
-              <span>Chardo adulte</span>
+              <span>{t('visits:chardoAdult')}</span>
             </div>
           </div>
           <div className="mt-2 text-xs text-gray-600">
-            Click on any bird icon to cycle through status: grey → yellow → green
+            {t('visits:chardoStatusHelp')}
           </div>
         </CardContent>
       </Card>
