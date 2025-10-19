@@ -7,6 +7,7 @@ import { ArrowLeft, BarChart3, Calendar, TrendingUp, Target } from 'lucide-react
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { StatusBird } from '@/components/common/StatusBird';
 
 interface ReturnIndexAnalysisProps {
   onBack: () => void;
@@ -406,7 +407,10 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                     {processedData.map((plan) => (
                       <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
                         <td className="py-4 px-4 font-medium">
-                          {plan.doctor_name}
+                          <div className="flex items-center gap-2">
+                            <StatusBird doctorId={plan.id} />
+                            <span>{plan.doctor_name}</span>
+                          </div>
                         </td>
                         <td className="py-4 px-4">
                           {plan.brick_name}
@@ -438,21 +442,55 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
         {/* Legend */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg mt-6">
           <CardHeader>
-            <CardTitle className="text-sm">Color Legend</CardTitle>
+            <CardTitle className="text-sm">Légende</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
-                <span>Green: Return Index ≥ 80%</span>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Return Index Colors:</p>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
+                    <span>Green: Return Index ≥ 80%</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
+                    <span>Yellow: 50% ≤ Return Index &lt; 80%</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
+                    <span>Red: Return Index &lt; 50%</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                <span>Yellow: 50% ≤ Return Index &lt; 80%</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                <span>Red: Return Index &lt; 50%</span>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Bird Status Indicators:</p>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div className="flex items-center gap-2" data-testid="legend-bird-juvenile">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="#F59E0B"
+                      style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
+                    >
+                      <path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/>
+                    </svg>
+                    <span>Chardo juvénile</span>
+                  </div>
+                  <div className="flex items-center gap-2" data-testid="legend-bird-adult">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="#10B981"
+                      style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
+                    >
+                      <path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"/>
+                    </svg>
+                    <span>Chardo adulte</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="mt-4 text-xs text-gray-600">
