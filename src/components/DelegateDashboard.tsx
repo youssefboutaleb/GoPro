@@ -12,17 +12,15 @@ import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
 import VisitReport from './VisitReport';
 import LanguageSwitcher from './LanguageSwitcher';
-import MenaConnect from './MenaConnect';
 
 const DelegateDashboard: React.FC = () => {
-  const { t } = useTranslation(['common', 'dashboard', 'visits', 'menaconnect']);
+  const { t } = useTranslation(['common', 'dashboard', 'visits']);
   const navigate = useNavigate();
   const { profile, signOut, signOutLoading } = useAuth();
   const [showVisitPlansManagement, setShowVisitPlansManagement] = useState(false);
   const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
   const [showActionPlans, setShowActionPlans] = useState(false);
   const [showVisitReport, setShowVisitReport] = useState(false);
-  const [showMenaConnect, setShowMenaConnect] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -195,11 +193,6 @@ const DelegateDashboard: React.FC = () => {
     return <VisitReport onBack={() => setShowVisitReport(false)} />;
   }
 
-  // Show MenaConnect interface
-  if (showMenaConnect) {
-    return <MenaConnect onBack={() => setShowMenaConnect(false)} />;
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -233,7 +226,7 @@ const DelegateDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Return Index Card */}
           <Card 
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -353,38 +346,6 @@ const DelegateDashboard: React.FC = () => {
               </div>
               <div className="mt-2 text-xs text-blue-600 font-medium">
                 {t('common:clickToView')} →
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* MENACONNECT Card */}
-          <Card 
-            className="bg-gradient-to-br from-red-600 to-red-700 text-white border-2 border-red-700 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
-            onClick={() => setShowMenaConnect(true)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
-                  <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                  </svg>
-                </div>
-                <ArrowRight className="h-5 w-5 text-white/70 group-hover:text-white transition-colors" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-2 text-white">{t('menaconnect:title')}</CardTitle>
-              <div className="text-sm font-semibold mb-2 text-red-100">
-                {t('menaconnect:slogan')}
-              </div>
-              <p className="text-white/90 text-sm">
-                {t('menaconnect:description')}
-              </p>
-              <div className="mt-3 text-xs text-red-100">
-                {t('common:clickToAccess')}
-              </div>
-              <div className="mt-2 text-xs text-white font-medium">
-                {t('common:clickToAccess')} →
               </div>
             </CardContent>
           </Card>

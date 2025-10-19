@@ -12,7 +12,6 @@ import enRecruitment from '../locales/en/recruitment.json';
 import enTable from '../locales/en/table.json';
 import enModals from '../locales/en/modals.json';
 import enTooltips from '../locales/en/tooltips.json';
-import enMenaconnect from '../locales/en/menaconnect.json';
 
 import frCommon from '../locales/fr/common.json';
 import frAuth from '../locales/fr/auth.json';
@@ -23,7 +22,6 @@ import frRecruitment from '../locales/fr/recruitment.json';
 import frTable from '../locales/fr/table.json';
 import frModals from '../locales/fr/modals.json';
 import frTooltips from '../locales/fr/tooltips.json';
-import frMenaconnect from '../locales/fr/menaconnect.json';
 
 import arCommon from '../locales/ar/common.json';
 import arAuth from '../locales/ar/auth.json';
@@ -34,7 +32,6 @@ import arRecruitment from '../locales/ar/recruitment.json';
 import arTable from '../locales/ar/table.json';
 import arModals from '../locales/ar/modals.json';
 import arTooltips from '../locales/ar/tooltips.json';
-import arMenaconnect from '../locales/ar/menaconnect.json';
 
 import itCommon from '../locales/it/common.json';
 import itAuth from '../locales/it/auth.json';
@@ -45,7 +42,6 @@ import itRecruitment from '../locales/it/recruitment.json';
 import itTable from '../locales/it/table.json';
 import itModals from '../locales/it/modals.json';
 import itTooltips from '../locales/it/tooltips.json';
-import itMenaconnect from '../locales/it/menaconnect.json';
 
 const resources = {
   en: {
@@ -58,7 +54,6 @@ const resources = {
     table: enTable,
     modals: enModals,
     tooltips: enTooltips,
-    menaconnect: enMenaconnect,
   },
   fr: {
     common: frCommon,
@@ -70,7 +65,6 @@ const resources = {
     table: frTable,
     modals: frModals,
     tooltips: frTooltips,
-    menaconnect: frMenaconnect,
   },
   ar: {
     common: arCommon,
@@ -82,7 +76,6 @@ const resources = {
     table: arTable,
     modals: arModals,
     tooltips: arTooltips,
-    menaconnect: arMenaconnect,
   },
   it: {
     common: itCommon,
@@ -94,7 +87,6 @@ const resources = {
     table: itTable,
     modals: itModals,
     tooltips: itTooltips,
-    menaconnect: itMenaconnect,
   },
 };
 
@@ -105,7 +97,7 @@ i18n
     resources,
     supportedLngs: ['en', 'fr', 'ar', 'it'],
     fallbackLng: 'en',
-    ns: ['common', 'auth', 'dashboard', 'admin', 'visits', 'recruitment', 'table', 'modals', 'tooltips', 'menaconnect'],
+    ns: ['common', 'auth', 'dashboard', 'admin', 'visits', 'recruitment', 'table', 'modals', 'tooltips'],
     defaultNS: 'common',
     
     detection: {
