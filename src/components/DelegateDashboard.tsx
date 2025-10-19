@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText, MessageCircle } from 'lucide-react';
+import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText, MessageCircle, LineChart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
 import VisitReport from './VisitReport';
 import MenaConnect from './MenaConnect';
+import SalesForecasting from './SalesForecasting';
 import LanguageSwitcher from './LanguageSwitcher';
 
 const DelegateDashboard: React.FC = () => {
@@ -24,6 +25,7 @@ const DelegateDashboard: React.FC = () => {
   const [showActionPlans, setShowActionPlans] = useState(false);
   const [showVisitReport, setShowVisitReport] = useState(false);
   const [showMenaConnect, setShowMenaConnect] = useState(false);
+  const [showSalesForecasting, setShowSalesForecasting] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -201,6 +203,11 @@ const DelegateDashboard: React.FC = () => {
     return <MenaConnect onBack={() => setShowMenaConnect(false)} />;
   }
 
+  // Show Sales Forecasting interface
+  if (showSalesForecasting) {
+    return <SalesForecasting onBack={() => setShowSalesForecasting(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
@@ -234,7 +241,7 @@ const DelegateDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           {/* Return Index Card */}
           <Card 
             className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
@@ -391,6 +398,44 @@ const DelegateDashboard: React.FC = () => {
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
                   Chatbot intelligent pour connecter l'équipe de vente Menarini et accéder rapidement aux infos essentielles.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Sales Forecasting Card */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-blue-300"
+                  onClick={() => setShowSalesForecasting(true)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg">
+                        <LineChart className="h-6 w-6 text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-lg mb-1 text-blue-700">Sales Forecasting</CardTitle>
+                    <p className="text-xs text-blue-600 font-semibold mb-3 italic">
+                      Predict. Plan. Perform.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Prévisions intelligentes des ventes
+                    </p>
+                    <div className="mt-2 text-xs text-blue-600 font-medium">
+                      Cliquer pour analyser →
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Analysez les tendances et prédisez vos ventes avec précision grâce à l'IA.
                 </p>
               </TooltipContent>
             </Tooltip>
