@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { StatusBird } from "@/components/common/StatusBird";
 
 interface VisitPlanData {
   id: string;
@@ -454,6 +455,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             <th className="text-left py-3 px-3 font-medium text-gray-700">
               Doctor
             </th>
+            <th className="text-center py-3 px-3 font-medium text-gray-700">
+              Chardo
+            </th>
             <th className="text-left py-3 px-3 font-medium text-gray-700">
               Brick
             </th>
@@ -507,6 +511,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
                   <span className="font-medium text-gray-900">
                     {plan.doctor_name}
                   </span>
+                </div>
+              </td>
+              <td className="py-3 px-3 text-center">
+                <div className="flex items-center justify-center">
+                  <StatusBird doctorId={plan.id} />
                 </div>
               </td>
               <td className="py-3 px-3 text-gray-600">{plan.brick_name}</td>
