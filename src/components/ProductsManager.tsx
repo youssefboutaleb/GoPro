@@ -27,7 +27,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    therapeutic_class: 'none' as 'Cardiology' | 'Fever' | 'Pain Killer' | 'none'
+    therapeutic_class: '' as 'Cardiology' | 'Fever' | 'Pain Killer' | ''
   });
 
   const queryClient = useQueryClient();
@@ -121,7 +121,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   const resetForm = () => {
     setFormData({
       name: '',
-      therapeutic_class: 'none'
+      therapeutic_class: ''
     });
     setEditingProduct(null);
   };
@@ -134,7 +134,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
       return;
     }
 
-    const therapeuticClass = formData.therapeutic_class === 'none' ? undefined : formData.therapeutic_class;
+    const therapeuticClass = formData.therapeutic_class || undefined;
 
     if (editingProduct) {
       updateProductMutation.mutate({
@@ -154,7 +154,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      therapeutic_class: product.therapeutic_class || 'none'
+      therapeutic_class: product.therapeutic_class || ''
     });
     setIsDialogOpen(true);
   };
@@ -234,12 +234,12 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="therapeutic_class">Therapeutic Class</Label>
-                      <Select value={formData.therapeutic_class} onValueChange={(value) => setFormData({ ...formData, therapeutic_class: value as 'Cardiology' | 'Fever' | 'Pain Killer' | 'none' })}>
+                      <Select value={formData.therapeutic_class} onValueChange={(value) => setFormData({ ...formData, therapeutic_class: value as 'Cardiology' | 'Fever' | 'Pain Killer' | '' })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select therapeutic class (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="">None</SelectItem>
                           <SelectItem value="Cardiology">Cardiology</SelectItem>
                           <SelectItem value="Fever">Fever</SelectItem>
                           <SelectItem value="Pain Killer">Pain Killer</SelectItem>
