@@ -11,7 +11,7 @@ interface SalesPlanData {
   product_name: string;
   brick_name: string | null;
   monthly_achievements: number[];
-  monthly_targets: number[];
+  monthly_target: number;
   recruitment_rhythm: number;
   row_color: 'red' | 'yellow' | 'green';
 }
@@ -146,7 +146,7 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                     </TableCell>
                     {displayMonths.map((_, index) => {
                       const actual = plan.monthly_achievements[index] || 0;
-                      const target = plan.monthly_targets[index] || 0;
+                      const target = plan.monthly_target;
                       const ratio = getCompletionRatio(actual, target);
                       
                       return (
