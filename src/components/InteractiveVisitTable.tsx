@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { StatusBird } from "@/components/common/StatusBird";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface VisitPlanData {
   id: string;
@@ -62,6 +64,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [recordingVisit, setRecordingVisit] = useState<string | null>(null);
+  const [showQualitativeHistogram, setShowQualitativeHistogram] = useState(false);
 
   // Use provided delegateIds or fallback to current user
   const effectiveDelegateIds =
@@ -473,6 +476,23 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     return "text-red-600";
   };
 
+  // Histogram data for Qualitative Return Index modal
+  const histogramData = useMemo(() => {
+    let c1 = 0, c2 = 0, c3 = 0;
+    for (const plan of visitPlansData) {
+      const v = plan.return_index;
+      if (typeof v !== "number") continue;
+      if (v < YELLOW_MIN) c1++;       // 0–32.99
+      else if (v < GREEN_MIN) c2++;   // 33–65.99
+      else c3++;                      // 66–100
+    }
+    return [
+      { bucket: t('visits:class1'), count: c1 },
+      { bucket: t('visits:class2'), count: c2 },
+      { bucket: t('visits:class3'), count: c3 },
+    ];
+  }, [visitPlansData, t]);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -626,7 +646,12 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="bg-white border border-gray-200">
+        <Card 
+          className="bg-white border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => setShowQualitativeHistogram(true)}
+          role="button"
+          aria-label={t('visits:openQualitativeHistogram')}
+        >
           <CardContent className="p-4 text-center">
             <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
             <div className={`text-2xl font-bold ${getReturnIndexColor(qualitativeReturnIndexPct)}`}>
@@ -824,6 +849,40 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Qualitative Return Index Histogram Modal */}
+      <Dialog open={showQualitativeHistogram} onOpenChange={setShowQualitativeHistogram}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('visits:qualitativeDistributionTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t('visits:qualitativeDistributionSubtitle')}
+          </p>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={histogramData} margin={{ top: 8, right: 16, left: 0, bottom: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="bucket" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+            <div>
+              {t('visits:class1')}: <strong>{histogramData[0].count}</strong>
+            </div>
+            <div>
+              {t('visits:class2')}: <strong>{histogramData[1].count}</strong>
+            </div>
+            <div>
+              {t('visits:class3')}: <strong>{histogramData[2].count}</strong>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
