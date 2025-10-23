@@ -1,7 +1,7 @@
 
 {
   "dashboard": "لوحة التحكم",
-  "returnIndex": "مؤشر العائد النوعي",
+  "returnIndex": "مؤشر العائد الكمي",
   "returnIndexDescription": "تحليل فعالية الزيارات",
   "returnIndexDescriptionSupervisor": "تحليل فعالية زيارات مندوبيك",
   "returnIndexDescriptionSalesDirector": "تحليل فعالية الزيارات حسب المشرف",

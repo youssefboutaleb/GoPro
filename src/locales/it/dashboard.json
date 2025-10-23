@@ -1,6 +1,6 @@
 {
   "dashboard": "Dashboard",
-  "returnIndex": "Indice di Ritorno Qualitativo",
+  "returnIndex": "Indice di Ritorno Quantitativo",
   "returnIndexDescription": "Analisi dell'indice di ritorno qualitativo del team",
   "returnIndexDescriptionSupervisor": "Analisi dettagliata dell'indice di ritorno qualitativo per delegati supervisionati",
   "returnIndexDescriptionSalesDirector": "Panoramica dell'indice di ritorno qualitativo per tutti i team",
