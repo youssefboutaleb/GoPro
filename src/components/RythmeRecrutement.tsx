@@ -474,6 +474,11 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           continue;
         }
 
+        // Filter to show only Nebilet product
+        if (product.name !== 'Nebilet') {
+          continue;
+        }
+
         // Apply filters
         if (selectedProduct !== 'all' && product.name !== selectedProduct) {
           continue;
