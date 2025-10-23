@@ -12,6 +12,7 @@ import {
   User,
   Users,
   Building,
+  Gauge,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -430,13 +431,47 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     (sum, plan) => sum + plan.total_visits,
     0
   );
-  const averageReturnIndex =
+  
+  // Quantitative Return Index (existing average)
+  const quantitativeReturnIndexPct =
     totalVisitPlans > 0
       ? Math.round(
           visitPlansData.reduce((sum, plan) => sum + plan.return_index, 0) /
             totalVisitPlans
         )
       : 0;
+
+  // Qualitative Return Index - bucket counts
+  const GREEN_MIN = 66;
+  const YELLOW_MIN = 33;
+  
+  let x1 = 0, x2 = 0, x3 = 0, xTotal = 0;
+  for (const plan of visitPlansData) {
+    const v = plan.return_index;
+    if (typeof v !== "number") continue;
+    xTotal++;
+    if (v < YELLOW_MIN) x1++;
+    else if (v < GREEN_MIN) x2++;   // 33–65
+    else x3++;                      // ≥ 66
+  }
+  
+  const qualitativeReturnIndexPct =
+    xTotal > 0
+      ? Math.round(((0 * x1 + 0.25 * x2 + 1 * x3) / xTotal) * 100)
+      : 0;
+
+  // Overall Return Index (average of quantitative and qualitative)
+  const returnIndexPct =
+    totalVisitPlans > 0
+      ? Math.round((quantitativeReturnIndexPct + qualitativeReturnIndexPct) / 2)
+      : 0;
+
+  // Helper to get color based on thresholds
+  const getReturnIndexColor = (pct: number) => {
+    if (pct >= GREEN_MIN) return "text-green-600";
+    if (pct >= YELLOW_MIN) return "text-yellow-600";
+    return "text-red-600";
+  };
 
   if (isLoading) {
     return (
@@ -583,31 +618,35 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-white border border-gray-200">
           <CardContent className="p-4 text-center">
-            <User className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">
-              {totalVisitPlans}
+            <TrendingUp className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+            <div className={`text-2xl font-bold ${getReturnIndexColor(quantitativeReturnIndexPct)}`}>
+              {quantitativeReturnIndexPct}%
             </div>
-            <div className="text-sm text-gray-600">{t('visits:visitPlansAnalysis')}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border border-gray-200">
-          <CardContent className="p-4 text-center">
-            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">
-              {totalVisits}
-            </div>
-            <div className="text-sm text-gray-600">{t('visits:totalVisits')}</div>
+            <div className="text-sm text-gray-600">{t('visits:quantitativeReturnIndex')}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border border-gray-200">
           <CardContent className="p-4 text-center">
             <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">
-              {averageReturnIndex}%
+            <div className={`text-2xl font-bold ${getReturnIndexColor(qualitativeReturnIndexPct)}`}>
+              {qualitativeReturnIndexPct}%
             </div>
-            <div className="text-sm text-gray-600">{t('visits:returnIndex')}</div>
+            <div className="text-sm text-gray-600" title={t('visits:qualitativeTooltip')}>
+              {t('visits:qualitativeReturnIndex')}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border border-gray-200">
+          <CardContent className="p-4 text-center">
+            <Gauge className="h-8 w-8 text-green-600 mx-auto mb-2" />
+            <div className={`text-2xl font-bold ${getReturnIndexColor(returnIndexPct)}`}>
+              {returnIndexPct}%
+            </div>
+            <div className="text-sm text-gray-600" title={t('visits:returnIndexTooltip')}>
+              {t('visits:overallReturnIndex')}
+            </div>
           </CardContent>
         </Card>
       </div>
