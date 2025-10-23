@@ -215,7 +215,7 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
                   <BarChart3 className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Team Return Index Dashboard</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Team Qualitative Return Index Dashboard</h1>
                   <p className="text-sm text-gray-600">
                     Visit effectiveness analysis for your supervised team
                   </p>
@@ -265,7 +265,7 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
           <CardHeader>
             <CardTitle>Team Visit Plans Analysis</CardTitle>
             <p className="text-sm text-gray-500">
-              Return index and visit effectiveness for {delegates.length} team members
+              Qualitative return index and visit effectiveness for {delegates.length} team members
             </p>
           </CardHeader>
           <CardContent>
@@ -289,7 +289,7 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Frequency</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Last Visit</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Visits This Month</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Return Index</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Qualitative Return Index</th>
                       <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
                     </tr>
                   </thead>

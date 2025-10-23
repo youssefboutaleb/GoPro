@@ -1,7 +1,7 @@
 
 {
   "dashboard": "Tableau de bord",
-  "returnIndex": "Indice de Retour",
+  "returnIndex": "Indice de Retour Qualitatif",
   "returnIndexDescription": "Analyser l'efficacité des visites",
   "returnIndexDescriptionSupervisor": "Analyser l'efficacité des visites de vos délégués",
   "returnIndexDescriptionSalesDirector": "Analyser l'efficacité des visites par superviseur",

@@ -487,7 +487,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               Expected
             </th>
             <th className="text-center py-3 px-3 font-medium text-gray-700">
-              Return Index
+              Qualitative Return Index
             </th>
             <th className="text-center py-3 px-3 font-medium text-gray-700">
               Action

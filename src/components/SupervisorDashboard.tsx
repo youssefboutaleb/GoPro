@@ -341,7 +341,7 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
               </div>
             </CardHeader>
             <CardContent>
-              <CardTitle className="text-lg mb-2">Team Return Index</CardTitle>
+              <CardTitle className="text-lg mb-2">Team Qualitative Return Index</CardTitle>
               <div className="text-3xl font-bold mb-2">
                 {statsLoading ? "..." : `${dashboardStats?.returnIndex || 0}%`}
               </div>

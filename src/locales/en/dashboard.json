@@ -1,7 +1,7 @@
 
 {
   "dashboard": "Dashboard",
-  "returnIndex": "Return Index",
+  "returnIndex": "Qualitative Return Index",
   "returnIndexDescription": "Analyze visit effectiveness",
   "returnIndexDescriptionSupervisor": "Analyze your delegates' visit effectiveness",
   "returnIndexDescriptionSalesDirector": "Analyze visit effectiveness by supervisor",
