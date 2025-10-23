@@ -182,8 +182,8 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
   };
 
   const getReturnIndexColor = (index: number) => {
-    if (index >= 80) return 'text-green-600 bg-green-100';
-    if (index >= 50) return 'text-yellow-600 bg-yellow-100';
+    if (index >= 66) return 'text-green-600 bg-green-100';
+    if (index >= 33) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 

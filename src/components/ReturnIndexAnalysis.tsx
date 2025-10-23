@@ -227,9 +227,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
         const returnIndex = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
 
         let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        if (returnIndex >= 80) {
+        if (returnIndex >= 66) {
           rowColor = 'green';
-        } else if (returnIndex >= 50) {
+        } else if (returnIndex >= 33) {
           rowColor = 'yellow';
         }
 
@@ -269,8 +269,8 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
   };
 
   const getReturnIndexColor = (returnIndex: number) => {
-    if (returnIndex >= 80) return 'text-green-600 bg-green-100';
-    if (returnIndex >= 50) return 'text-yellow-600 bg-yellow-100';
+    if (returnIndex >= 66) return 'text-green-600 bg-green-100';
+    if (returnIndex >= 33) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 
@@ -454,15 +454,15 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
-                    <span>Green: Return Index ≥ 80%</span>
+                    <span>🟩 Green: Good performance (≥66%)</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                    <span>Yellow: 50% ≤ Return Index &lt; 80%</span>
+                    <span>🟨 Yellow: Moderate performance (33–65%)</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                    <span>Red: Return Index &lt; 50%</span>
+                    <span>🟥 Red: Needs improvement (&lt;33%)</span>
                   </div>
                 </div>
               </div>

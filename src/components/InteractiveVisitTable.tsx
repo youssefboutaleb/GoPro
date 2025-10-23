@@ -253,9 +253,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         const monthlyTargetMet = currentMonthVisits >= monthlyFrequency;
 
         let rowColor: "red" | "yellow" | "green" = "red";
-        if (returnIndex >= 80) {
+        if (returnIndex >= 66) {
           rowColor = "green";
-        } else if (returnIndex >= 50) {
+        } else if (returnIndex >= 33) {
           rowColor = "yellow";
         }
 
@@ -547,9 +547,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               <td className="py-3 px-3 text-center">
                 <span
                   className={`font-medium ${
-                    plan.return_index >= 80
+                    plan.return_index >= 66
                       ? "text-green-600"
-                      : plan.return_index >= 50
+                      : plan.return_index >= 33
                       ? "text-yellow-600"
                       : "text-red-600"
                   }`}
@@ -731,15 +731,15 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-1 bg-green-500"></div>
-              <span>Green border: Good performance (≥80%)</span>
+              <span>🟩 Green border: Good performance (≥66%)</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-1 bg-yellow-500"></div>
-              <span>Yellow border: Moderate performance (50-79%)</span>
+              <span>🟨 Yellow border: Moderate performance (33–65%)</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-1 bg-red-500"></div>
-              <span>Red border: Needs improvement (&lt;50%)</span>
+              <span>🟥 Red border: Needs improvement (&lt;33%)</span>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">

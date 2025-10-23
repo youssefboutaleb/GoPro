@@ -259,8 +259,8 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
                         <TableCell>
                           {user.role === 'Delegate' ? (
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              (user.return_index || 0) >= 80 ? 'bg-green-100 text-green-800' :
-                              (user.return_index || 0) >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                              (user.return_index || 0) >= 66 ? 'bg-green-100 text-green-800' :
+                              (user.return_index || 0) >= 33 ? 'bg-yellow-100 text-yellow-800' :
                               'bg-red-100 text-red-800'
                             }`}>
                               {user.return_index || 0}%
