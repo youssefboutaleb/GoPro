@@ -35,6 +35,7 @@ interface VisitPlanData {
   total_visits: number;
   expected_visits: number;
   return_index: number;
+  monthly_target_pct: number;
   row_color: "red" | "yellow" | "green";
   can_record_today: boolean;
   monthly_target_met: boolean;
@@ -247,19 +248,25 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         );
         const expectedVisits = currentMonth * monthlyFrequency;
 
-        // Calculate return index
+        // Calculate return index (cumulative)
         const returnIndex =
           expectedVisits > 0
             ? Math.round((totalVisits / expectedVisits) * 100)
+            : 0;
+
+        // Calculate monthly target percentage (current month only)
+        const monthlyTargetPct =
+          monthlyFrequency > 0
+            ? Math.round((currentMonthVisits / monthlyFrequency) * 100)
             : 0;
 
         // Check if monthly target is met for current month
         const monthlyTargetMet = currentMonthVisits >= monthlyFrequency;
 
         let rowColor: "red" | "yellow" | "green" = "red";
-        if (returnIndex >= 66) {
+        if (monthlyTargetPct >= 66) {
           rowColor = "green";
-        } else if (returnIndex >= 33) {
+        } else if (monthlyTargetPct >= 33) {
           rowColor = "yellow";
         }
 
@@ -279,6 +286,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
           total_visits: totalVisits,
           expected_visits: expectedVisits,
           return_index: returnIndex,
+          monthly_target_pct: monthlyTargetPct,
           row_color: rowColor,
           can_record_today: canRecordToday,
           monthly_target_met: monthlyTargetMet,
@@ -444,13 +452,13 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
         )
       : 0;
 
-  // Qualitative Return Index - bucket counts
+  // Qualitative Return Index - bucket counts (using monthly target)
   const GREEN_MIN = 66;
   const YELLOW_MIN = 33;
   
   let x1 = 0, x2 = 0, x3 = 0, xTotal = 0;
   for (const plan of visitPlansData) {
-    const v = plan.return_index;
+    const v = plan.monthly_target_pct;
     if (typeof v !== "number") continue;
     xTotal++;
     if (v < YELLOW_MIN) x1++;
@@ -476,11 +484,11 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     return "text-red-600";
   };
 
-  // Histogram data for Qualitative Return Index modal
+  // Histogram data for Qualitative Return Index modal (using monthly target)
   const histogramData = useMemo(() => {
     let c1 = 0, c2 = 0, c3 = 0;
     for (const plan of visitPlansData) {
-      const v = plan.return_index;
+      const v = plan.monthly_target_pct;
       if (typeof v !== "number") continue;
       if (v < YELLOW_MIN) c1++;       // 0–32.99
       else if (v < GREEN_MIN) c2++;   // 33–65.99
@@ -602,14 +610,14 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
               <td className="py-3 px-3 text-center">
                 <span
                   className={`font-medium ${
-                    plan.return_index >= 66
+                    plan.monthly_target_pct >= 66
                       ? "text-green-600"
-                      : plan.return_index >= 33
+                      : plan.monthly_target_pct >= 33
                       ? "text-yellow-600"
                       : "text-red-600"
                   }`}
                 >
-                  {plan.return_index}%
+                  {plan.monthly_target_pct}%
                 </span>
               </td>
               <td className="py-3 px-3 text-center">
