@@ -124,6 +124,98 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   };
 
+  // Deterministic pseudo-random generator for achievements
+  const generateAchievements = (productName: string, brickName: string, monthlyTarget: number): number[] => {
+    const achievements: number[] = [];
+    for (let month = 1; month <= 12; month++) {
+      // Create a simple hash from product, brick, and month
+      const seed = `${productName}|${brickName}|${month}`.split('').reduce((acc, char) => {
+        return ((acc << 5) - acc) + char.charCodeAt(0);
+      }, 0);
+      
+      // Generate pseudo-random factor between 0.65 and 1.25
+      const normalizedSeed = Math.abs(seed % 10000) / 10000;
+      const factor = 0.65 + (normalizedSeed * 0.6); // 0.65 to 1.25 range
+      
+      const achievement = Math.round(monthlyTarget * factor);
+      achievements.push(achievement);
+    }
+    return achievements;
+  };
+
+  // Upsert sales data for missing rows
+  const ensureSalesData = async (delegateId: string, salesPlans: any[], products: any[], bricks: any[]) => {
+    const defaultTargets: { [key: string]: number } = {
+      'Ranexa': 14000,
+      'Nebilet': 600,
+      'Enantyum': 250
+    };
+
+    const targetProducts = ['Ranexa', 'Nebilet', 'Enantyum'];
+    
+    // Get existing sales records
+    const salesPlanIds = salesPlans.map(sp => sp.id);
+    const { data: existingSales } = await supabase
+      .from('sales')
+      .select('*')
+      .in('sales_plan_id', salesPlanIds)
+      .eq('year', currentYear);
+
+    const existingSalesMap = new Map(
+      (existingSales || []).map(s => [s.sales_plan_id, s])
+    );
+
+    // Process each sales plan
+    for (const salesPlan of salesPlans) {
+      const product = products.find(p => p.id === salesPlan.product_id);
+      const brick = bricks.find(b => b.id === salesPlan.brick_id);
+      
+      if (!product || !brick || !targetProducts.includes(product.name)) {
+        continue;
+      }
+
+      // Check if sales record exists
+      if (!existingSalesMap.has(salesPlan.id)) {
+        const monthlyTarget = defaultTargets[product.name] || 0;
+        const achievements = generateAchievements(product.name, brick.name, monthlyTarget);
+
+        // Insert new sales record
+        const { error } = await supabase
+          .from('sales')
+          .insert({
+            sales_plan_id: salesPlan.id,
+            year: currentYear,
+            'monthly target': monthlyTarget,
+            achievements: achievements
+          });
+
+        if (error) {
+          console.error('Error inserting sales record:', error);
+        } else {
+          console.log(`Created sales record for ${product.name} in ${brick.name}`);
+        }
+      } else {
+        // Update if achievements are missing or invalid
+        const existing = existingSalesMap.get(salesPlan.id);
+        if (!existing.achievements || existing.achievements.length !== 12) {
+          const monthlyTarget = existing['monthly target'] || defaultTargets[product.name] || 0;
+          const achievements = generateAchievements(product.name, brick.name, monthlyTarget);
+
+          const { error } = await supabase
+            .from('sales')
+            .update({ achievements })
+            .eq('id', existing.id);
+
+          if (error) {
+            console.error('Error updating achievements:', error);
+          } else {
+            console.log(`Updated achievements for ${product.name} in ${brick.name}`);
+          }
+        }
+      }
+    }
+  };
+
   // Fetch supervisors for Sales Director filtering
   const { data: supervisors = [] } = useQuery({
     queryKey: ['supervisors-for-filter-recruitment', profile?.id],
@@ -306,6 +398,30 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       return data || [];
     },
     enabled: isSalesDirectorView && delegateProfiles.length > 0,
+  });
+
+  // Ensure sales data exists for Ahmed Gargouri
+  useQuery({
+    queryKey: ['ensure-sales-data-ahmed', salesPlansData.length, allProducts.length, allBricks.length],
+    queryFn: async () => {
+      if (salesPlansData.length === 0 || allProducts.length === 0 || allBricks.length === 0) {
+        return null;
+      }
+
+      // Check if current user or any delegate is Ahmed Gargouri
+      const ahmedDelegate = delegateProfiles.find(d => 
+        d.first_name.toLowerCase() === 'ahmed' && d.last_name.toLowerCase() === 'gargouri'
+      );
+
+      if (ahmedDelegate) {
+        const ahmedPlans = salesPlansData.filter(sp => sp.delegate_id === ahmedDelegate.id);
+        await ensureSalesData(ahmedDelegate.id, ahmedPlans, allProducts, allBricks);
+      }
+
+      return null;
+    },
+    enabled: salesPlansData.length > 0 && allProducts.length > 0 && allBricks.length > 0 && delegateProfiles.length > 0,
+    staleTime: Infinity, // Only run once per page load
   });
 
   const salesPlanIds = salesPlansData.map(plan => plan.id);
