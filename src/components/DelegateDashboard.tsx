@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText, MessageCircle, LineChart } from 'lucide-react';
+import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText, MessageCircle, LineChart, PieChart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import ActionPlansList from './action-plans/ActionPlansList';
 import VisitReport from './VisitReport';
 import MenaConnect from './MenaConnect';
 import SalesForecasting from './SalesForecasting';
+import SalesPerformanceAnalysis from './SalesPerformanceAnalysis';
 import LanguageSwitcher from './LanguageSwitcher';
 
 const DelegateDashboard: React.FC = () => {
@@ -26,6 +27,7 @@ const DelegateDashboard: React.FC = () => {
   const [showVisitReport, setShowVisitReport] = useState(false);
   const [showMenaConnect, setShowMenaConnect] = useState(false);
   const [showSalesForecasting, setShowSalesForecasting] = useState(false);
+  const [showSalesPerformance, setShowSalesPerformance] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -206,6 +208,30 @@ const DelegateDashboard: React.FC = () => {
   // Show Sales Forecasting interface
   if (showSalesForecasting) {
     return <SalesForecasting onBack={() => setShowSalesForecasting(false)} />;
+  }
+
+  // Show Sales Performance Analysis interface
+  if (showSalesPerformance) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="bg-white shadow-lg border-b border-blue-100">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button variant="ghost" onClick={() => setShowSalesPerformance(false)} className="p-2 hover:bg-blue-50">
+                  <ArrowRight className="h-5 w-5 rotate-180" />
+                </Button>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Sales Performance Analysis</h1>
+                  <p className="text-sm text-gray-600">Your personal sales performance tracking</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <SalesPerformanceAnalysis delegateId={profile?.id} />
+      </div>
+    );
   }
 
   return (
@@ -436,6 +462,44 @@ const DelegateDashboard: React.FC = () => {
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
                   Analysez les tendances et prédisez vos ventes avec précision grâce à l'IA.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Sales Performance Analysis Card */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-cyan-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-cyan-300"
+                  onClick={() => setShowSalesPerformance(true)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-gradient-to-r from-cyan-600 to-cyan-700 rounded-lg">
+                        <PieChart className="h-6 w-6 text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-cyan-600 transition-colors" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-lg mb-1 text-cyan-700">Performance Analysis</CardTitle>
+                    <p className="text-xs text-cyan-600 font-semibold mb-3 italic">
+                      Track. Analyze. Improve.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Analyse détaillée des performances
+                    </p>
+                    <div className="mt-2 text-xs text-blue-600 font-medium">
+                      Cliquer pour voir →
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Visualisez vos performances de vente mensuelles avec métriques détaillées et taux de recrutement.
                 </p>
               </TooltipContent>
             </Tooltip>

@@ -5,6 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Package, Calendar } from 'lucide-react';
 
+interface SalesPerformanceAnalysisProps {
+  delegateId?: string;
+}
+
 interface SalesData {
   id: string;
   product_name: string;
@@ -47,16 +51,16 @@ const getPercentageBadgeColor = (percentage: number | null): string => {
   return 'bg-green-500';
 };
 
-const SalesPerformanceAnalysis: React.FC = () => {
+const SalesPerformanceAnalysis: React.FC<SalesPerformanceAnalysisProps> = ({ delegateId }) => {
   const now = new Date();
   const currentMonthIndex = now.getMonth();
   const currentMonth = currentMonthIndex + 1;
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const { data: salesData = [], isLoading } = useQuery({
-    queryKey: ['sales-performance'],
+    queryKey: ['sales-performance', delegateId],
     queryFn: async () => {
-      const { data: salesPlans, error: plansError } = await supabase
+      let salesPlansQuery = supabase
         .from('sales_plans')
         .select(`
           id,
@@ -67,6 +71,13 @@ const SalesPerformanceAnalysis: React.FC = () => {
           bricks (name),
           profiles (first_name, last_name)
         `);
+
+      // Filter by delegateId if provided
+      if (delegateId) {
+        salesPlansQuery = salesPlansQuery.eq('delegate_id', delegateId);
+      }
+
+      const { data: salesPlans, error: plansError } = await salesPlansQuery;
 
       if (plansError) throw plansError;
 
