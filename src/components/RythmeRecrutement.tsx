@@ -98,7 +98,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 }) => {
   const { profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedProduct, setSelectedProduct] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<string>('Nebilet');
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
   const [selectedSupervisor, setSelectedSupervisor] = useState<string>('all');
@@ -182,13 +182,14 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     enabled: baseDelegateIds.length > 0,
   });
 
-  // Fetch products for filter
+  // Fetch products for filter - only Nebilet
   const { data: products = [] } = useQuery({
     queryKey: ['products-for-filter'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name');
+        .select('id, name')
+        .eq('name', 'Nebilet');
 
       if (error) throw error;
       return data || [];
@@ -463,7 +464,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   ];
 
   const handleClearFilters = () => {
-    setSelectedProduct('all');
+    setSelectedProduct('Nebilet');
     setSelectedBrick('all');
     setSelectedDelegate('all');
     setSelectedSupervisor('all');
@@ -653,12 +654,11 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
-                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                <Select value={selectedProduct} onValueChange={setSelectedProduct} disabled>
                   <SelectTrigger>
-                    <SelectValue placeholder="All Products" />
+                    <SelectValue placeholder="Nebilet" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Products</SelectItem>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.name}>
                         {product.name}
