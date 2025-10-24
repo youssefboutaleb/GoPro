@@ -179,7 +179,7 @@ const SupervisorVisitKPIs: React.FC<SupervisorVisitKPIsProps> = ({
           <div className="bg-purple-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600">Avg Qualitative Return Index</p>
+                <p className="text-sm font-medium text-purple-600">Avg Quantitative Return Index</p>
                 <p className="text-2xl font-bold text-purple-900">{avgReturnIndex.toFixed(1)}%</p>
               </div>
               <Users className="h-8 w-8 text-purple-500" />
@@ -208,7 +208,7 @@ const SupervisorVisitKPIs: React.FC<SupervisorVisitKPIsProps> = ({
                     <th className="text-center py-2 px-4 font-medium text-gray-700">Completion Rate</th>
                     <th className="text-center py-2 px-4 font-medium text-gray-700">Planned Visits</th>
                     <th className="text-center py-2 px-4 font-medium text-gray-700">Actual Visits</th>
-                    <th className="text-center py-2 px-4 font-medium text-gray-700">Qualitative Return Index</th>
+                    <th className="text-center py-2 px-4 font-medium text-gray-700">Quantitative Return Index</th>
                   </tr>
                 </thead>
                 <tbody>
