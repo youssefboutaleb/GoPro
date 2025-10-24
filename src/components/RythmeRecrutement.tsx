@@ -21,10 +21,11 @@ interface RecruitmentData {
   id: string;
   product_name: string;
   brick_name: string;
-  planned_sales: number[];
-  actual_sales: number[];
-  recruitment_rate: number;
-  row_color: 'red' | 'yellow' | 'green';
+  monthly_target: number;
+  achievements: number[];
+  rate: number | null;
+  rythme_recrutement: number | null;
+  row_color: 'red' | 'yellow' | 'green' | 'gray';
   delegate_id: string;
   delegate_name: string;
   supervisor_id?: string;
@@ -342,6 +343,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       }
 
       const processed: RecruitmentData[] = [];
+      const now = new Date();
+      const currMonthIndex = now.getMonth(); // 0=Jan, 1=Feb...
 
       for (const salesPlan of salesPlansData) {
         const product = allProducts.find(p => p.id === salesPlan.product_id);
@@ -367,39 +370,59 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 
         const planSales = salesData.filter(s => s.sales_plan_id === salesPlan.id);
         
-        let planned_sales = Array(12).fill(0);
-        let actual_sales = Array(12).fill(0);
+        let achievements = Array(12).fill(0);
+        let monthlyTarget = 0;
 
         if (planSales.length > 0) {
           const salesRecord = planSales[0];
-          planned_sales = salesRecord.targets || Array(12).fill(0);
-          actual_sales = salesRecord.achievements || Array(12).fill(0);
+          achievements = (salesRecord.achievements || Array(12).fill(0)).map(v => Number(v ?? 0));
+          monthlyTarget = Number(salesRecord['monthly target'] ?? 0);
         }
 
-        let totalPlanned = 0;
-        let totalActual = 0;
+        // Calculate Rate (average realization % for past months)
+        const visibleMonths = achievements.slice(0, currMonthIndex);
+        const ratios = visibleMonths
+          .map(a => monthlyTarget > 0 ? (a / monthlyTarget) * 100 : null)
+          .filter(v => v !== null) as number[];
 
-        for (let i = 0; i < selectedMonth; i++) {
-          totalPlanned += planned_sales[i] || 0;
-          totalActual += actual_sales[i] || 0;
+        const rate = ratios.length > 0
+          ? Math.round(ratios.reduce((sum, v) => sum + v, 0) / ratios.length)
+          : null;
+
+        // Calculate Rythme de recrutement
+        const m = currMonthIndex + 1; // Jan=1
+        const prev = achievements.slice(0, m - 1);
+        const avgPrev = prev.length > 0
+          ? prev.reduce((sum, v) => sum + v, 0) / prev.length
+          : null;
+        const denom = ((14 - m) * (13 - m)) / 2;
+
+        let rythmeRecrutement = null;
+        if (avgPrev !== null && monthlyTarget > 0 && denom > 0) {
+          rythmeRecrutement = ((monthlyTarget - avgPrev) * 12) / denom;
+          rythmeRecrutement = Math.max(0, Math.round(rythmeRecrutement));
         }
 
-        const recruitmentRate = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
-
-        let rowColor: 'red' | 'yellow' | 'green' = 'red';
-        if (recruitmentRate >= 80) {
-          rowColor = 'green';
-        } else if (recruitmentRate >= 60) {
-          rowColor = 'yellow';
+        // Determine row color based on rate
+        let rowColor: 'red' | 'yellow' | 'green' | 'gray' = 'gray';
+        if (rate !== null) {
+          if (rate >= 100) {
+            rowColor = 'green';
+          } else if (rate >= 80) {
+            rowColor = 'yellow';
+          } else {
+            rowColor = 'red';
+          }
         }
 
         processed.push({
           id: salesPlan.id,
           product_name: product.name,
           brick_name: brick.name,
-          planned_sales,
-          actual_sales,
-          recruitment_rate: recruitmentRate,
+          monthly_target: monthlyTarget,
+          achievements,
+          rate,
+          rythme_recrutement: rythmeRecrutement,
           row_color: rowColor,
           delegate_id: salesPlan.delegate_id,
           delegate_name: `${delegate.first_name} ${delegate.last_name}`,
@@ -470,7 +493,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     setSelectedSupervisor('all');
   };
 
-  const getRowColorClass = (color: 'red' | 'yellow' | 'green') => {
+  const getRowColorClass = (color: 'red' | 'yellow' | 'green' | 'gray') => {
     switch (color) {
       case 'green':
         return 'bg-green-50 border-l-4 border-l-green-500';
@@ -478,14 +501,17 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
         return 'bg-yellow-50 border-l-4 border-l-yellow-500';
       case 'red':
         return 'bg-red-50 border-l-4 border-l-red-500';
+      case 'gray':
+        return 'bg-gray-50 border-l-4 border-l-gray-300';
       default:
         return '';
     }
   };
 
-  const getRecruitmentRateColor = (rate: number) => {
-    if (rate >= 80) return 'text-green-600 bg-green-100';
-    if (rate >= 60) return 'text-yellow-600 bg-yellow-100';
+  const getRateColor = (rate: number | null) => {
+    if (rate === null) return 'text-gray-600 bg-gray-100';
+    if (rate >= 100) return 'text-green-600 bg-green-100';
+    if (rate >= 80) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 
@@ -496,56 +522,89 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     return '';
   };
 
-  const renderTable = (data: RecruitmentData[], delegateName?: string) => (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
-            {displayMonths.map((month, index) => (
-              <th 
-                key={month} 
-                className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
-              >
-                {month}
-              </th>
-            ))}
-            <th className="text-center py-3 px-4 font-medium text-gray-700">Rate</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((plan) => (
-            <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
-              <td className="py-4 px-4 font-medium">
-                {plan.product_name}
-              </td>
-              <td className="py-4 px-4">
-                {plan.brick_name}
-              </td>
-              {displayMonths.map((_, index) => (
-                <td 
-                  key={index} 
-                  className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
+  const renderTable = (data: RecruitmentData[], delegateName?: string) => {
+    const currMonthIndex = new Date().getMonth();
+    const displayMonths = monthNames.slice(0, currMonthIndex);
+    
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-3 px-4 font-medium text-gray-700">Product</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-700">Brick</th>
+              {displayMonths.map((month, index) => (
+                <th 
+                  key={month} 
+                  className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
                 >
-                  <div className="text-sm">
-                    <div className="font-medium">
-                      {Math.round(plan.actual_sales[index] || 0).toLocaleString()} / {Math.round(plan.planned_sales[index] || 0).toLocaleString()}
-                    </div>
-                  </div>
-                </td>
+                  {month}
+                </th>
               ))}
-              <td className="py-4 px-4 text-center">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRateColor(plan.recruitment_rate)}`}>
-                  {plan.recruitment_rate}%
-                </span>
-              </td>
+              <th className="text-center py-3 px-4 font-medium text-gray-700">Rate</th>
+              <th className="text-center py-3 px-4 font-medium text-gray-700">
+                <div>Rythme de recrutement</div>
+                <div className="text-xs font-normal text-gray-500 mt-1">
+                  ((Target−moyenne)×12)/((14−m)(13−m)/2)
+                </div>
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+          </thead>
+          <tbody>
+            {data.map((plan) => (
+              <tr key={plan.id} className={getRowColorClass(plan.row_color)}>
+                <td className="py-4 px-4 font-medium">
+                  {plan.product_name}
+                </td>
+                <td className="py-4 px-4">
+                  {plan.brick_name}
+                </td>
+                {displayMonths.map((_, index) => {
+                  const achievement = plan.achievements[index] || 0;
+                  const target = plan.monthly_target;
+                  const ratio = target > 0 ? Math.round((achievement / target) * 100) : 0;
+                  
+                  return (
+                    <td 
+                      key={index} 
+                      className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
+                    >
+                      <div className="text-sm">
+                        <div className="font-medium">
+                          {Math.round(achievement).toLocaleString('fr-FR')} / {Math.round(target).toLocaleString('fr-FR')}
+                        </div>
+                        <div className={`text-xs mt-1 px-1 py-0.5 rounded ${getRateColor(ratio)}`}>
+                          {ratio}%
+                        </div>
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className="py-4 px-4 text-center">
+                  {plan.rate !== null ? (
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRateColor(plan.rate)}`}>
+                      {plan.rate}%
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">–</span>
+                  )}
+                </td>
+                <td className="py-4 px-4 text-center">
+                  {plan.rythme_recrutement !== null ? (
+                    <span className="text-sm font-medium text-gray-900">
+                      {plan.rythme_recrutement.toLocaleString('fr-FR')}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">–</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -724,8 +783,13 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-900">
-                {processedData.length > 0 
-                  ? Math.round(processedData.reduce((sum, item) => sum + item.recruitment_rate, 0) / processedData.length)
+                {processedData.length > 0 && processedData.some(item => item.rate !== null)
+                  ? Math.round(
+                      processedData
+                        .filter(item => item.rate !== null)
+                        .reduce((sum, item) => sum + (item.rate || 0), 0) / 
+                      processedData.filter(item => item.rate !== null).length
+                    )
                   : 0}%
               </div>
               <p className="text-xs text-gray-600 mt-1">Team average</p>
@@ -854,19 +918,23 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             <div className="flex flex-wrap gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
-                <span>Green: Recruitment Rate ≥ 80%</span>
+                <span>Green: Rate ≥ 100%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-50 border-l-4 border-l-yellow-500"></div>
-                <span>Yellow: 60% ≤ Recruitment Rate &lt; 80%</span>
+                <span>Yellow: 80% ≤ Rate &lt; 100%</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-50 border-l-4 border-l-red-500"></div>
-                <span>Red: Recruitment Rate &lt; 60%</span>
+                <span>Red: Rate &lt; 80%</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-50 border-l-4 border-l-gray-300"></div>
+                <span>Gray: No data</span>
               </div>
             </div>
             <div className="mt-4 text-xs text-gray-600">
-              <p><strong>Note:</strong> Shows actual sales vs planned sales per month. Values are in local currency.</p>
+              <p><strong>Note:</strong> Rate = average realization % across past months. Rythme = projected monthly sales needed to reach annual target.</p>
             </div>
           </CardContent>
         </Card>
