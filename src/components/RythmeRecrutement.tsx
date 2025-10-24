@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import BreadcrumbNavigation from './common/BreadcrumbNavigation';
+import SalesPerformanceAnalysis from './SalesPerformanceAnalysis';
 
 interface RythmeRecrutementProps {
   onBack: () => void;
@@ -941,7 +942,10 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           </Card>
         </div>
 
-        {/* Recruitment Analysis content removed */}
+        {/* Sales Performance Analysis */}
+        <div className="mt-8">
+          <SalesPerformanceAnalysis delegateId={delegateIds.length === 1 ? delegateIds[0] : undefined} />
+        </div>
       </div>
     </div>
   );
