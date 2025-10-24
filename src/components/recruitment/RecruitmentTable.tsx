@@ -153,18 +153,11 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                       ))}
                       <TableHead className="text-center">Recruitment Rhythm</TableHead>
                       <TableHead className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          Rythme de recrutement
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p className="text-xs">
-                                ((Monthly Target − moyenne des mois précédents) × 12) ÷ ((14−m)(13−m)/2), m = mois courant (janvier=1)
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
+                        <div className="flex flex-col items-center">
+                          <span>Rythme de recrutement</span>
+                          <span className="text-xs text-muted-foreground font-normal">
+                            ((Target − moyenne des mois précédents) × 12) ÷ ((14−m)(13−m)/2)
+                          </span>
                         </div>
                       </TableHead>
                     </TableRow>
