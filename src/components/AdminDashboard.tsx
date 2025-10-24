@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Building, UserCheck, Calendar, Package, TrendingUp, Users, ArrowLeft, BarChart3 } from 'lucide-react';
+import { Settings, Building, UserCheck, Calendar, Package, TrendingUp, Users, ArrowLeft } from 'lucide-react';
 import { Profile } from '@/types/auth';
 import DoctorsManager from '@/components/admin/DoctorsManager';
 import UsersManager from '@/components/admin/UsersManager';
@@ -12,7 +12,6 @@ import SectorsBricksManager from '@/components/admin/SectorsBricksManager';
 import ReportsManager from '@/components/admin/ReportsManager';
 import ProductsManager from '@/components/ProductsManager';
 import SalesManager from '@/components/SalesManager';
-import SalesPerformanceAnalysis from '@/components/SalesPerformanceAnalysis';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 interface AdminDashboardProps {
@@ -56,29 +55,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
 
   if (currentSection === 'sales') {
     return <SalesManager onBack={handleBackToDashboard} />;
-  }
-
-  if (currentSection === 'sales-performance') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-        <div className="bg-white shadow-lg border-b border-blue-100">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={handleBackToDashboard} className="p-2 hover:bg-blue-50">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Sales Performance Analysis</h1>
-                  <p className="text-sm text-gray-600">Comprehensive sales performance tracking</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <SalesPerformanceAnalysis />
-      </div>
-    );
   }
 
   // Main Admin Dashboard
@@ -235,27 +211,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onSignOut, signOutLoadi
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">{t('admin:clickToManageSales')}</p>
-            </CardContent>
-          </Card>
-
-          {/* Sales Performance Analysis */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-0"
-            onClick={() => handleSectionClick('sales-performance')}
-          >
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-cyan-100 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-cyan-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Sales Performance Analysis</CardTitle>
-                  <CardDescription>View detailed performance metrics</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Click to view sales performance dashboard</p>
             </CardContent>
           </Card>
 
