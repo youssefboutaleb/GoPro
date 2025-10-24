@@ -82,23 +82,27 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
     return new Intl.NumberFormat('fr-FR').format(num);
   };
 
-  const calculateRythmeRecrutement = (achievements: number[], monthlyTarget: number) => {
+  const calculateRythmeRecrutement = (achievements: number[], monthlyTarget: number, isFirstRow: boolean = false) => {
     const m = currentMonthIndex + 1; // month number with Jan=1
     
     if (m <= 1) return null; // No previous months
     
-    const previous = achievements.slice(0, m - 1).map(Number);
-    if (previous.length === 0) return null;
-    
-    const avg_prev = previous.reduce((sum, val) => sum + val, 0) / previous.length;
+    const prev = achievements.slice(0, m - 1).map(x => Number(x ?? 0));
+    const avgPrev = prev.length > 0 
+      ? prev.reduce((a, b) => a + b, 0) / prev.length 
+      : null;
     const denom = ((14 - m) * (13 - m)) / 2;
     
-    if (denom <= 0 || monthlyTarget <= 0) return null;
+    const rythme = (avgPrev !== null && monthlyTarget > 0 && denom > 0)
+      ? Math.max(0, Math.round(((monthlyTarget - avgPrev) * 12) / denom))
+      : null;
     
-    const rythme = ((monthlyTarget - avg_prev) * 12) / denom;
+    // Debug log for first row
+    if (isFirstRow) {
+      console.log('Rythme de recrutement (première ligne):', { m, avgPrev, denom, rythme });
+    }
     
-    // Clamp to 0 if negative
-    return Math.max(0, Math.round(rythme));
+    return rythme;
   };
 
   return (
@@ -166,7 +170,7 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                     </TableRow>
                   </TableHeader>
               <TableBody>
-                {salesPlansData.map((plan) => (
+                {salesPlansData.map((plan, planIndex) => (
                   <TableRow key={plan.id} className={getRowColorClass(plan.row_color)}>
                     <TableCell className="font-medium">
                       {plan.product_name}
@@ -207,7 +211,11 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                     </TableCell>
                     <TableCell className="text-center">
                       {(() => {
-                        const rythme = calculateRythmeRecrutement(plan.monthly_achievements, plan.monthly_target);
+                        const rythme = calculateRythmeRecrutement(
+                          plan.monthly_achievements, 
+                          plan.monthly_target,
+                          planIndex === 0
+                        );
                         if (rythme === null) return <span className="text-muted-foreground">—</span>;
                         return <span className="font-medium">{formatNumber(rythme)}</span>;
                       })()}
