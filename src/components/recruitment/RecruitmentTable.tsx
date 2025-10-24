@@ -91,21 +91,14 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
     if (previous.length === 0) return null;
     
     const avg_prev = previous.reduce((sum, val) => sum + val, 0) / previous.length;
-    const denominator = ((14 - m) * (13 - m)) / 2;
+    const denom = ((14 - m) * (13 - m)) / 2;
     
-    if (denominator <= 0 || monthlyTarget <= 0) return null;
+    if (denom <= 0 || monthlyTarget <= 0) return null;
     
-    const rythme = ((monthlyTarget - avg_prev) * 12) / denominator;
+    const rythme = ((monthlyTarget - avg_prev) * 12) / denom;
     
     // Clamp to 0 if negative
     return Math.max(0, Math.round(rythme));
-  };
-
-  const getRythmeColor = (rythme: number | null, monthlyTarget: number) => {
-    if (rythme === null) return '';
-    if (rythme === 0) return 'text-green-600 bg-green-100';
-    if (rythme <= monthlyTarget * 0.1) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
   };
 
   return (
@@ -164,7 +157,7 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
                               <p className="text-xs">
-                                ((Cible Mensuelle − moyenne des mois précédents) × 12) ÷ ((14−m)(13−m)/2), avec m = mois courant (janvier=1)
+                                ((Monthly Target − moyenne des mois précédents) × 12) ÷ ((14−m)(13−m)/2), m = mois courant (janvier=1)
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -216,11 +209,7 @@ const RecruitmentTable: React.FC<RecruitmentTableProps> = ({
                       {(() => {
                         const rythme = calculateRythmeRecrutement(plan.monthly_achievements, plan.monthly_target);
                         if (rythme === null) return <span className="text-muted-foreground">—</span>;
-                        return (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRythmeColor(rythme, plan.monthly_target)}`}>
-                            {formatNumber(rythme)} / mois
-                          </span>
-                        );
+                        return <span className="font-medium">{formatNumber(rythme)}</span>;
                       })()}
                     </TableCell>
                   </TableRow>
