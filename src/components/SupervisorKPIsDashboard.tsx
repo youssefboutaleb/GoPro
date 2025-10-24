@@ -222,7 +222,7 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <CardTitle className="text-lg mb-2">Team Quantitative Return Index Dashboard</CardTitle>
+                  <CardTitle className="text-lg mb-2">Team Qualitative Return Index Dashboard</CardTitle>
                   <p className="text-gray-600 text-sm mb-4">
                     Comprehensive visit effectiveness analysis for your team
                   </p>

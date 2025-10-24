@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { ArrowLeft, TrendingUp, Calendar, Filter, Target, Package, Building, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -23,8 +21,8 @@ interface RecruitmentData {
   id: string;
   product_name: string;
   brick_name: string;
-  monthly_achievements: number[];
-  monthly_target: number;
+  planned_sales: number[];
+  actual_sales: number[];
   recruitment_rate: number;
   row_color: 'red' | 'yellow' | 'green';
   delegate_id: string;
@@ -104,7 +102,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const [selectedBrick, setSelectedBrick] = useState<string>('all');
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
   const [selectedSupervisor, setSelectedSupervisor] = useState<string>('all');
-  const [showBadges, setShowBadges] = useState(true);
 
   // Use provided delegateIds or fallback to current user
   const baseDelegateIds = delegateIds.length > 0 ? delegateIds : [profile?.id].filter(Boolean);
@@ -122,98 +119,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 
   const getMonthNames = () => {
     return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  };
-
-  // Deterministic pseudo-random generator for achievements
-  const generateAchievements = (productName: string, brickName: string, monthlyTarget: number): number[] => {
-    const achievements: number[] = [];
-    for (let month = 1; month <= 12; month++) {
-      // Create a simple hash from product, brick, and month
-      const seed = `${productName}|${brickName}|${month}`.split('').reduce((acc, char) => {
-        return ((acc << 5) - acc) + char.charCodeAt(0);
-      }, 0);
-      
-      // Generate pseudo-random factor between 0.65 and 1.25
-      const normalizedSeed = Math.abs(seed % 10000) / 10000;
-      const factor = 0.65 + (normalizedSeed * 0.6); // 0.65 to 1.25 range
-      
-      const achievement = Math.round(monthlyTarget * factor);
-      achievements.push(achievement);
-    }
-    return achievements;
-  };
-
-  // Upsert sales data for missing rows
-  const ensureSalesData = async (delegateId: string, salesPlans: any[], products: any[], bricks: any[]) => {
-    const defaultTargets: { [key: string]: number } = {
-      'Ranexa': 14000,
-      'Nebilet': 600,
-      'Enantyum': 250
-    };
-
-    const targetProducts = ['Ranexa', 'Nebilet', 'Enantyum'];
-    
-    // Get existing sales records
-    const salesPlanIds = salesPlans.map(sp => sp.id);
-    const { data: existingSales } = await supabase
-      .from('sales')
-      .select('*')
-      .in('sales_plan_id', salesPlanIds)
-      .eq('year', currentYear);
-
-    const existingSalesMap = new Map(
-      (existingSales || []).map(s => [s.sales_plan_id, s])
-    );
-
-    // Process each sales plan
-    for (const salesPlan of salesPlans) {
-      const product = products.find(p => p.id === salesPlan.product_id);
-      const brick = bricks.find(b => b.id === salesPlan.brick_id);
-      
-      if (!product || !brick || !targetProducts.includes(product.name)) {
-        continue;
-      }
-
-      // Check if sales record exists
-      if (!existingSalesMap.has(salesPlan.id)) {
-        const monthlyTarget = defaultTargets[product.name] || 0;
-        const achievements = generateAchievements(product.name, brick.name, monthlyTarget);
-
-        // Insert new sales record
-        const { error } = await supabase
-          .from('sales')
-          .insert({
-            sales_plan_id: salesPlan.id,
-            year: currentYear,
-            'monthly target': monthlyTarget,
-            achievements: achievements
-          });
-
-        if (error) {
-          console.error('Error inserting sales record:', error);
-        } else {
-          console.log(`Created sales record for ${product.name} in ${brick.name}`);
-        }
-      } else {
-        // Update if achievements are missing or invalid
-        const existing = existingSalesMap.get(salesPlan.id);
-        if (!existing.achievements || existing.achievements.length !== 12) {
-          const monthlyTarget = existing['monthly target'] || defaultTargets[product.name] || 0;
-          const achievements = generateAchievements(product.name, brick.name, monthlyTarget);
-
-          const { error } = await supabase
-            .from('sales')
-            .update({ achievements })
-            .eq('id', existing.id);
-
-          if (error) {
-            console.error('Error updating achievements:', error);
-          } else {
-            console.log(`Updated achievements for ${product.name} in ${brick.name}`);
-          }
-        }
-      }
-    }
   };
 
   // Fetch supervisors for Sales Director filtering
@@ -400,30 +305,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     enabled: isSalesDirectorView && delegateProfiles.length > 0,
   });
 
-  // Ensure sales data exists for Ahmed Gargouri
-  useQuery({
-    queryKey: ['ensure-sales-data-ahmed', salesPlansData.length, allProducts.length, allBricks.length],
-    queryFn: async () => {
-      if (salesPlansData.length === 0 || allProducts.length === 0 || allBricks.length === 0) {
-        return null;
-      }
-
-      // Check if current user or any delegate is Ahmed Gargouri
-      const ahmedDelegate = delegateProfiles.find(d => 
-        d.first_name.toLowerCase() === 'ahmed' && d.last_name.toLowerCase() === 'gargouri'
-      );
-
-      if (ahmedDelegate) {
-        const ahmedPlans = salesPlansData.filter(sp => sp.delegate_id === ahmedDelegate.id);
-        await ensureSalesData(ahmedDelegate.id, ahmedPlans, allProducts, allBricks);
-      }
-
-      return null;
-    },
-    enabled: salesPlansData.length > 0 && allProducts.length > 0 && allBricks.length > 0 && delegateProfiles.length > 0,
-    staleTime: Infinity, // Only run once per page load
-  });
-
   const salesPlanIds = salesPlansData.map(plan => plan.id);
 
   // Fetch sales data
@@ -474,11 +355,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           continue;
         }
 
-        // Filter to show only Nebilet product
-        if (product.name !== 'Nebilet') {
-          continue;
-        }
-
         // Apply filters
         if (selectedProduct !== 'all' && product.name !== selectedProduct) {
           continue;
@@ -490,26 +366,21 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 
         const planSales = salesData.filter(s => s.sales_plan_id === salesPlan.id);
         
-        let monthly_achievements = Array(12).fill(0);
-        let monthly_target = 0;
+        let planned_sales = Array(12).fill(0);
+        let actual_sales = Array(12).fill(0);
 
         if (planSales.length > 0) {
           const salesRecord = planSales[0];
-          // Parse achievements array, converting strings to numbers if needed
-          const rawAchievements = salesRecord.achievements || Array(12).fill(0);
-          monthly_achievements = rawAchievements.map((val: any) => 
-            typeof val === 'string' ? parseFloat(val) || 0 : (val || 0)
-          );
-          // Get monthly target (constant for all months)
-          monthly_target = salesRecord['monthly target'] || 0;
+          planned_sales = salesRecord.targets || Array(12).fill(0);
+          actual_sales = salesRecord.achievements || Array(12).fill(0);
         }
 
         let totalPlanned = 0;
         let totalActual = 0;
 
         for (let i = 0; i < selectedMonth; i++) {
-          totalPlanned += monthly_target;
-          totalActual += monthly_achievements[i] || 0;
+          totalPlanned += planned_sales[i] || 0;
+          totalActual += actual_sales[i] || 0;
         }
 
         const recruitmentRate = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
@@ -525,8 +396,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
           id: salesPlan.id,
           product_name: product.name,
           brick_name: brick.name,
-          monthly_achievements,
-          monthly_target,
+          planned_sales,
+          actual_sales,
           recruitment_rate: recruitmentRate,
           row_color: rowColor,
           delegate_id: salesPlan.delegate_id,
@@ -617,22 +488,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     return 'text-red-600 bg-red-100';
   };
 
-  const getCompletionRatio = (actual: number, target: number) => {
-    if (!target || target <= 0) return null;
-    return Math.round((actual / target) * 100);
-  };
-
-  const getRatioColor = (ratio: number | null) => {
-    if (ratio === null) return 'bg-gray-100 text-gray-600';
-    if (ratio > 100) return 'bg-green-100 text-green-700';
-    if (ratio >= 80) return 'bg-yellow-100 text-yellow-700';
-    return 'bg-red-100 text-red-700';
-  };
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('fr-FR').format(Math.round(num));
-  };
-
   const getMonthHighlightClass = (monthIndex: number) => {
     if (monthIndex < selectedMonth) {
       return 'bg-blue-50 border-2 border-blue-200';
@@ -642,37 +497,6 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
 
   const renderTable = (data: RecruitmentData[], delegateName?: string) => (
     <div className="overflow-x-auto">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 text-xs">
-          <span className="font-medium">Legend:</span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span>
-            &lt;80%
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
-            80-100%
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
-            &gt;100%
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span>
-            no target
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id={`show-badges-${delegateName || 'main'}`}
-            checked={showBadges}
-            onCheckedChange={setShowBadges}
-          />
-          <Label htmlFor={`show-badges-${delegateName || 'main'}`} className="text-xs cursor-pointer">
-            Show %
-          </Label>
-        </div>
-      </div>
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200">
@@ -681,7 +505,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
             {displayMonths.map((month, index) => (
               <th 
                 key={month} 
-                className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[120px] ${getMonthHighlightClass(index)}`}
+                className={`text-center py-3 px-4 font-medium text-gray-700 min-w-[80px] ${getMonthHighlightClass(index)}`}
               >
                 {month}
               </th>
@@ -698,37 +522,18 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
               <td className="py-4 px-4">
                 {plan.brick_name}
               </td>
-              {displayMonths.map((_, index) => {
-                const actual = plan.monthly_achievements[index] || 0;
-                const target = plan.monthly_target;
-                const ratio = getCompletionRatio(actual, target);
-                
-                return (
-                  <td 
-                    key={index} 
-                    className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
-                  >
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-sm">
-                        <span className="font-medium text-foreground">
-                          {formatNumber(actual)}
-                        </span>
-                        <span className="text-muted-foreground mx-1">/</span>
-                        <span className="text-muted-foreground">
-                          {formatNumber(target)}
-                        </span>
-                      </span>
-                      {showBadges && (
-                        <span 
-                          className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${getRatioColor(ratio)}`}
-                        >
-                          {ratio !== null ? `${ratio}%` : '–'}
-                        </span>
-                      )}
+              {displayMonths.map((_, index) => (
+                <td 
+                  key={index} 
+                  className={`py-4 px-4 text-center ${getMonthHighlightClass(index)}`}
+                >
+                  <div className="text-sm">
+                    <div className="font-medium">
+                      {Math.round(plan.actual_sales[index] || 0).toLocaleString()} / {Math.round(plan.planned_sales[index] || 0).toLocaleString()}
                     </div>
-                  </td>
-                );
-              })}
+                  </div>
+                </td>
+              ))}
               <td className="py-4 px-4 text-center">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRecruitmentRateColor(plan.recruitment_rate)}`}>
                   {plan.recruitment_rate}%
@@ -1061,8 +866,7 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
               </div>
             </div>
             <div className="mt-4 text-xs text-gray-600">
-              <p><strong>Note:</strong> Shows Achievement / Monthly Target for each month. Monthly Target is constant across all months. Values are in local currency.</p>
-              <p className="mt-2"><strong>Monthly completion ratio:</strong> (Achievement / Monthly Target) × 100</p>
+              <p><strong>Note:</strong> Shows actual sales vs planned sales per month. Values are in local currency.</p>
             </div>
           </CardContent>
         </Card>

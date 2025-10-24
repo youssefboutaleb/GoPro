@@ -300,8 +300,8 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
             <CardTitle className="text-xl">Interactive Visit Plans</CardTitle>
             <p className="text-sm text-gray-600">
               {supervisorName 
-                ? `Track team visits, record new visits by swiping right, and monitor team quantitative return index`
-                : 'Track your visits, record new visits by swiping right, and monitor your quantitative return index'
+                ? `Track team visits, record new visits by swiping right, and monitor team qualitative return index`
+                : 'Track your visits, record new visits by swiping right, and monitor your qualitative return index'
               }
             </p>
           </CardHeader>

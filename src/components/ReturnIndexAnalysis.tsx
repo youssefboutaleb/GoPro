@@ -401,7 +401,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
                           {month}
                         </th>
                       ))}
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Quantitative Return Index</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Qualitative Return Index</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -450,7 +450,7 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
           <CardContent>
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Quantitative Return Index Colors:</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">Qualitative Return Index Colors:</p>
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 bg-green-50 border-l-4 border-l-green-500"></div>
