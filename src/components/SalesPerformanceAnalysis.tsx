@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Package, Calendar } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SalesPerformanceAnalysisProps {
   delegateId?: string;
@@ -57,66 +58,137 @@ const SalesPerformanceAnalysis: React.FC<SalesPerformanceAnalysisProps> = ({ del
   const currentMonth = currentMonthIndex + 1;
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  const { data: salesData = [], isLoading } = useQuery({
-    queryKey: ['sales-performance', delegateId],
-    queryFn: async () => {
-      let salesPlansQuery = supabase
-        .from('sales_plans')
-        .select(`
-          id,
-          product_id,
-          brick_id,
-          delegate_id,
-          products (name),
-          bricks (name),
-          profiles (first_name, last_name)
-        `);
+  const targetBricks = ['Gabes 2', 'Kebili', '2A1', '2B1', '3A1', '1A4'];
+  const targetProduct = 'Nebilet';
+  const defaultMonthlyTarget = 600;
 
-      // Filter by delegateId if provided
-      if (delegateId) {
-        salesPlansQuery = salesPlansQuery.eq('delegate_id', delegateId);
+  const { data: salesData = [], isLoading } = useQuery({
+    queryKey: ['sales-performance', delegateId, targetProduct],
+    queryFn: async () => {
+      // Get delegate profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .eq('id', delegateId)
+        .single();
+
+      if (!profile) throw new Error('Delegate not found');
+
+      const delegateName = `${profile.first_name} ${profile.last_name}`;
+
+      // Get product and brick IDs
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name')
+        .eq('name', targetProduct);
+
+      const { data: bricks } = await supabase
+        .from('bricks')
+        .select('id, name')
+        .in('name', targetBricks);
+
+      if (!products || products.length === 0) throw new Error('Product not found');
+      if (!bricks || bricks.length === 0) throw new Error('Bricks not found');
+
+      const productId = products[0].id;
+      const brickMap = new Map(bricks.map(b => [b.name, b.id]));
+
+      const result: SalesData[] = [];
+      let dataCreated = false;
+
+      // For each brick in the specific order
+      for (const brickName of targetBricks) {
+        const brickId = brickMap.get(brickName);
+        if (!brickId) continue;
+
+        // Check if sales_plan exists
+        let { data: salesPlan } = await supabase
+          .from('sales_plans')
+          .select('id')
+          .eq('delegate_id', delegateId)
+          .eq('product_id', productId)
+          .eq('brick_id', brickId)
+          .maybeSingle();
+
+        // Create sales_plan if it doesn't exist
+        if (!salesPlan) {
+          const { data: newPlan } = await supabase
+            .from('sales_plans')
+            .insert({
+              delegate_id: delegateId,
+              product_id: productId,
+              brick_id: brickId
+            })
+            .select('id')
+            .single();
+          
+          salesPlan = newPlan;
+          dataCreated = true;
+        }
+
+        if (!salesPlan) continue;
+
+        // Check if sales record exists
+        let { data: salesRecord } = await supabase
+          .from('sales')
+          .select('*')
+          .eq('sales_plan_id', salesPlan.id)
+          .eq('year', 2025)
+          .maybeSingle();
+
+        // Create or update sales record
+        if (!salesRecord) {
+          const achievements = Array.from({ length: 12 }, () => {
+            const variation = 0.7 + Math.random() * 0.6;
+            return Math.round(defaultMonthlyTarget * variation);
+          });
+
+          const { data: newSales } = await supabase
+            .from('sales')
+            .insert({
+              sales_plan_id: salesPlan.id,
+              year: 2025,
+              achievements,
+              'monthly target': defaultMonthlyTarget
+            })
+            .select('*')
+            .single();
+
+          salesRecord = newSales;
+          dataCreated = true;
+        }
+
+        if (salesRecord) {
+          let achievements = salesRecord.achievements || [];
+          if (typeof achievements === 'string') {
+            achievements = JSON.parse(achievements);
+          }
+          achievements = Array.isArray(achievements) 
+            ? achievements.map(v => Number(v ?? 0))
+            : [];
+          
+          while (achievements.length < 12) {
+            achievements.push(0);
+          }
+
+          result.push({
+            id: salesPlan.id,
+            product_name: targetProduct,
+            brick_name: brickName,
+            achievements,
+            monthly_target: Number(salesRecord['monthly target'] ?? defaultMonthlyTarget),
+            delegate_name: delegateName,
+          });
+        }
       }
 
-      const { data: salesPlans, error: plansError } = await salesPlansQuery;
+      if (dataCreated) {
+        setTimeout(() => {
+          toast.success('Sales data populated successfully');
+        }, 100);
+      }
 
-      if (plansError) throw plansError;
-
-      const { data: sales, error: salesError } = await supabase
-        .from('sales')
-        .select('*');
-
-      if (salesError) throw salesError;
-
-      const combinedData: SalesData[] = salesPlans.map(plan => {
-        const planSales = sales?.find(s => s.sales_plan_id === plan.id);
-        
-        // Ensure achievements is always an array of 12 numbers
-        let achievements = planSales?.achievements || [];
-        if (typeof achievements === 'string') {
-          achievements = JSON.parse(achievements);
-        }
-        achievements = Array.isArray(achievements) 
-          ? achievements.map(v => Number(v ?? 0))
-          : [];
-        
-        // Pad with zeros if less than 12 months
-        while (achievements.length < 12) {
-          achievements.push(0);
-        }
-
-        return {
-          id: plan.id,
-          product_name: (plan.products as any)?.name || 'Unknown',
-          brick_name: (plan.bricks as any)?.name || 'Unknown',
-          achievements,
-          monthly_target: Number(planSales?.['monthly target'] ?? 0),
-          delegate_name: plan.profiles 
-            ? `${(plan.profiles as any).first_name} ${(plan.profiles as any).last_name}`
-            : undefined,
-        };
-      });
-
-      return combinedData;
+      return result;
     },
   });
 
