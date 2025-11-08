@@ -1,0 +1,14 @@
+{
+  "metric": "Indicatore",
+  "currentValue": "Valore attuale",
+  "targetValue": "Valore obiettivo",
+  "change": "Variazione",
+  "status": "Stato",
+  "actions": "Azioni",
+  "name": "Nome",
+  "id": "ID",
+  "date": "Data",
+  "time": "Ora",
+  "department": "Reparto",
+  "notes": "Note"
+}

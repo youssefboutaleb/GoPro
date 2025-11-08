@@ -1,0 +1,33 @@
+package com.medico.entities;
+
+public enum TherapeuticClass {
+    cardiology,
+    neurology,
+    gastroenterology,
+    pulmonology,
+    endocrinology,
+    rheumatology,
+    dermatology,
+    ophthalmology,
+    otolaryngology,
+    urology,
+    gynecology,
+    pediatrics,
+    geriatrics,
+    oncology,
+    hematology,
+    infectious_disease,
+    psychiatry,
+    orthopedics,
+    emergency_medicine,
+    critical_care,
+    anesthesiology,
+    radiology,
+    pathology,
+    nuclear_medicine,
+    rehabilitation,
+    sports_medicine,
+    family_medicine,
+    internal_medicine,
+    general_practice
+}

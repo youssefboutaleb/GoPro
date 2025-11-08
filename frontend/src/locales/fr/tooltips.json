@@ -1,0 +1,13 @@
+{
+  "refresh": "Actualiser les données",
+  "settings": "Paramètres",
+  "profile": "Profil",
+  "logout": "Déconnexion",
+  "edit": "Modifier",
+  "delete": "Supprimer",
+  "export": "Exporter les données",
+  "moreInfo": "Plus d'infos",
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "close": "Fermer"
+}

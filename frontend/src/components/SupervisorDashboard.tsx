@@ -1,0 +1,580 @@
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  User,
+  BarChart3,
+  TrendingUp,
+  ArrowRight,
+  ClipboardList,
+  FileText,
+  MessageCircle,
+  LineChart,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import VisitPlansManagement from "./VisitPlansManagement";
+import RythmeRecrutement from "./RythmeRecrutement";
+import ActionPlansList from "./action-plans/ActionPlansList";
+import VisitReport from "./VisitReport";
+import MenaConnect from "./MenaConnect";
+import SalesForecasting from "./SalesForecasting";
+import LanguageSwitcher from "./LanguageSwitcher";
+
+interface SupervisorDashboardProps {
+  onSignOut: () => void;
+  signOutLoading: boolean;
+  profile: any;
+}
+
+const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
+  onSignOut,
+  signOutLoading,
+  profile,
+}) => {
+  const { user } = useAuth();
+  const [showVisitPlansManagement, setShowVisitPlansManagement] =
+    useState(false);
+  const [showRythmeRecrutement, setShowRythmeRecrutement] = useState(false);
+  const [showActionPlans, setShowActionPlans] = useState(false);
+  const [showVisitReport, setShowVisitReport] = useState(false);
+  const [showMenaConnect, setShowMenaConnect] = useState(false);
+  const [showSalesForecasting, setShowSalesForecasting] = useState(false);
+
+  const handleNavigateToRecruitmentRate = () => {
+    setShowRythmeRecrutement(true);
+  };
+
+  const handleNavigateToActionPlans = () => {
+    setShowActionPlans(true);
+  };
+
+  // Helper function to get the last day of a month
+  const getLastDayOfMonth = (year: number, month: number) => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  // Fetch supervised delegates
+  const { data: supervisedDelegates = [] } = useQuery({
+    queryKey: ["supervised-delegates", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id || profile.role !== "Supervisor") {
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .eq("supervisor_id", profile.id)
+        .eq("role", "Delegate");
+
+      if (error) {
+        console.error("Error fetching supervised delegates:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: !!profile?.id && profile?.role === "Supervisor",
+  });
+
+  const delegateIds = supervisedDelegates.map((d) => d.id);
+
+  // Fetch aggregated dashboard stats for all supervised delegates
+  const { data: dashboardStats, isLoading: statsLoading } = useQuery({
+    queryKey: [
+      "supervisor-dashboard-stats",
+      delegateIds.join(","),
+      profile?.id,
+    ],
+    queryFn: async () => {
+      if (delegateIds.length === 0 && !profile?.id) return null;
+
+      try {
+        // Fetch visit plans count for all supervised delegates
+        const { data: visitPlans, error: visitPlansError } = await supabase
+          .from("visit_plans")
+          .select("id")
+          .in("delegate_id", delegateIds);
+
+        if (visitPlansError) throw visitPlansError;
+
+        // Fetch sales plans count for all supervised delegates
+        const { data: salesPlans, error: salesPlansError } = await supabase
+          .from("sales_plans")
+          .select("id")
+          .in("delegate_id", delegateIds);
+
+        if (salesPlansError) throw salesPlansError;
+
+        // Fetch action plans for supervisor and their delegates
+        const allUserIds = profile?.id
+          ? [profile.id, ...delegateIds]
+          : delegateIds;
+        const { data: actionPlans, error: actionPlansError } = await supabase
+          .from("action_plans")
+          .select(
+            "id, supervisor_status, sales_director_status, marketing_manager_status"
+          )
+          .in("created_by", allUserIds);
+
+        if (actionPlansError) throw actionPlansError;
+
+        // Count pending approvals
+        const pendingApprovals =
+          actionPlans?.filter(
+            (plan) =>
+              plan.supervisor_status === "Pending" ||
+              plan.sales_director_status === "Pending" ||
+              plan.marketing_manager_status === "Pending"
+          ).length || 0;
+
+        // Calculate proper date range for current month
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+        const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
+
+        const startDate = `${currentYear}-${currentMonth
+          .toString()
+          .padStart(2, "0")}-01`;
+        const endDate = `${currentYear}-${currentMonth
+          .toString()
+          .padStart(2, "0")}-${lastDayOfMonth.toString().padStart(2, "0")}`;
+
+        console.log(
+          "Fetching visits for date range:",
+          startDate,
+          "to",
+          endDate
+        );
+
+        const { data: thisMonthVisits, error: visitsError } = await supabase
+          .from("visits")
+          .select("id, visit_plan_id, visit_date")
+          .gte("visit_date", startDate)
+          .lte("visit_date", endDate);
+
+        if (visitsError) {
+          console.error("Error fetching visits:", visitsError);
+          throw visitsError;
+        }
+
+        // Calculate return index (simplified aggregation)
+        const returnIndex =
+          visitPlans && visitPlans.length > 0
+            ? Math.round(
+                ((thisMonthVisits?.length || 0) / (visitPlans.length * 2)) * 100
+              )
+            : 0;
+
+        return {
+          visitPlansCount: visitPlans?.length || 0,
+          salesPlansCount: salesPlans?.length || 0,
+          thisMonthVisits: thisMonthVisits?.length || 0,
+          returnIndex,
+          recruitmentRate:
+            salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0, // Placeholder calculation
+          actionPlansCount: actionPlans?.length || 0,
+          pendingApprovals,
+        };
+      } catch (error) {
+        console.error("Error fetching supervisor dashboard stats:", error);
+        return null;
+      }
+    },
+    enabled: delegateIds.length > 0 || !!profile?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const getPerformanceColor = (
+    value: number,
+    type: "return" | "recruitment"
+  ) => {
+    if (type === "return") {
+      if (value >= 80) return "text-green-600 bg-green-50 border-green-200";
+      if (value >= 50) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      return "text-red-600 bg-red-50 border-red-200";
+    } else {
+      if (value >= 80) return "text-green-600 bg-green-50 border-green-200";
+      if (value >= 60) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+      return "text-red-600 bg-red-50 border-red-200";
+    }
+  };
+
+  const getActionPlansColor = (pendingCount: number) => {
+    if (pendingCount === 0)
+      return "text-green-600 bg-green-50 border-green-200";
+    if (pendingCount <= 2)
+      return "text-yellow-600 bg-yellow-50 border-yellow-200";
+    return "text-red-600 bg-red-50 border-red-200";
+  };
+
+  // Show Visit Plans Management interface
+  if (showVisitPlansManagement) {
+    return (
+      <VisitPlansManagement
+        onBack={() => setShowVisitPlansManagement(false)}
+        delegateIds={delegateIds}
+        supervisorName={`${profile?.first_name} ${profile?.last_name}`}
+      />
+    );
+  }
+
+  // Show Rythme Recrutement interface
+  if (showRythmeRecrutement) {
+    return (
+      <RythmeRecrutement
+        onBack={() => setShowRythmeRecrutement(false)}
+        delegateIds={delegateIds}
+        supervisorName={`${profile?.first_name} ${profile?.last_name}`}
+      />
+    );
+  }
+
+  // Show Action Plans interface
+  if (showActionPlans) {
+    return <ActionPlansList onBack={() => setShowActionPlans(false)} />;
+  }
+
+  // Show Visit Report interface
+  if (showVisitReport) {
+    return (
+      <VisitReport
+        onBack={() => setShowVisitReport(false)}
+      />
+    );
+  }
+
+  // Show MenaConnect interface
+  if (showMenaConnect) {
+    return <MenaConnect onBack={() => setShowMenaConnect(false)} />;
+  }
+
+  // Show Sales Forecasting interface
+  if (showSalesForecasting) {
+    return <SalesForecasting onBack={() => setShowSalesForecasting(false)} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Header */}
+      <div className="bg-white shadow-lg border-b border-blue-100">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg">
+                <User className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Supervisor Dashboard
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Welcome back, {profile?.first_name} {profile?.last_name}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
+              <Button
+                variant="outline"
+                onClick={onSignOut}
+                disabled={signOutLoading}
+              >
+                {signOutLoading ? "Signing out..." : "Sign Out"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Team Overview */}
+        <div className="mb-6">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Managing Team Performance
+                </h3>
+                <p className="text-gray-600 mt-2">
+                  Supervising {supervisedDelegates.length} delegate
+                  {supervisedDelegates.length !== 1 ? "s" : ""}
+                </p>
+                {supervisedDelegates.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-2 mt-3">
+                    {supervisedDelegates.map((delegate) => (
+                      <span
+                        key={delegate.id}
+                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                      >
+                        {delegate.first_name} {delegate.last_name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* KPI Cards Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+          {/* Return Index Card */}
+          <Card
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats
+                ? getPerformanceColor(dashboardStats.returnIndex, "return")
+                : "border-gray-200"
+            }`}
+            onClick={() => setShowVisitPlansManagement(true)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Team Qualitative Return Index</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? "..." : `${dashboardStats?.returnIndex || 0}%`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Team visit effectiveness this month
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading
+                  ? "Loading..."
+                  : `${
+                      dashboardStats?.thisMonthVisits || 0
+                    } total visits completed`}
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to manage team visits →
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recruitment Rate Card */}
+          <Card
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats
+                ? getPerformanceColor(
+                    dashboardStats.recruitmentRate,
+                    "recruitment"
+                  )
+                : "border-gray-200"
+            }`}
+            onClick={handleNavigateToRecruitmentRate}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">
+                Team Recruitment Rate
+              </CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading
+                  ? "..."
+                  : `${dashboardStats?.recruitmentRate || 0}%`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Team sales plan achievement rate
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading
+                  ? "Loading..."
+                  : `${
+                      dashboardStats?.salesPlansCount || 0
+                    } active sales plans`}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Plans Card */}
+          <Card
+            className={`bg-white/80 backdrop-blur-sm border-2 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+              dashboardStats
+                ? getActionPlansColor(dashboardStats.pendingApprovals)
+                : "border-gray-200"
+            }`}
+            onClick={handleNavigateToActionPlans}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg">
+                  <ClipboardList className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Action Plans</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading ? "..." : dashboardStats?.actionPlansCount || 0}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Total action plans (team + yours)
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                {statsLoading
+                  ? "Loading..."
+                  : `${
+                      dashboardStats?.pendingApprovals || 0
+                    } pending approvals`}
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to manage action plans →
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Report Card */}
+          <Card
+            className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            onClick={() => setShowVisitReport(true)}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-gradient-to-r from-teal-600 to-teal-700 rounded-lg">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-teal-600 transition-colors" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardTitle className="text-lg mb-2">Team Visit Report</CardTitle>
+              <div className="text-3xl font-bold mb-2">
+                {statsLoading
+                  ? "..."
+                  : `${dashboardStats?.thisMonthVisits || 0}`}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Team monthly visit calendar
+              </p>
+              <div className="mt-3 text-xs text-gray-500">
+                View detailed team visit records
+              </div>
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                Click to view calendar →
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* MENACONNECT Card */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-red-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-red-300"
+                  onClick={() => setShowMenaConnect(true)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-gradient-to-r from-red-600 to-red-700 rounded-lg">
+                        <MessageCircle className="h-6 w-6 text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-red-600 transition-colors" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-lg mb-1 text-red-700">MENACONNECT</CardTitle>
+                    <p className="text-xs text-red-600 font-semibold mb-3 italic">
+                      Connecter. Vendre. Performer.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Assistant intelligent pour l'équipe
+                    </p>
+                    <div className="mt-2 text-xs text-blue-600 font-medium">
+                      Cliquer pour accéder →
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Chatbot intelligent pour connecter l'équipe de vente Menarini et accéder rapidement aux infos essentielles.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Sales Forecasting Card */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-blue-300"
+                  onClick={() => setShowSalesForecasting(true)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg">
+                        <LineChart className="h-6 w-6 text-white" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardTitle className="text-lg mb-1 text-blue-700">Sales Forecasting</CardTitle>
+                    <p className="text-xs text-blue-600 font-semibold mb-3 italic">
+                      Predict. Plan. Perform.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      Prévisions intelligentes des ventes
+                    </p>
+                    <div className="mt-2 text-xs text-blue-600 font-medium">
+                      Cliquer pour analyser →
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">
+                  Analysez les tendances et prédisez vos ventes avec précision grâce à l'IA.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
+        {/* Performance Legend */}
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-sm">Performance Indicators</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
+                <span>Excellent Performance (≥80% / No Pending)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-50 border-2 border-yellow-200 rounded"></div>
+                <span>Good Performance (50-79% / Few Pending)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
+                <span>Needs Improvement (&lt;50% / Many Pending)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default SupervisorDashboard;

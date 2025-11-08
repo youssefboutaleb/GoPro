@@ -1,0 +1,23 @@
+{
+  "adminDashboard": "Dashboard Admin",
+  "profilesManagement": "Gestione Profili",
+  "sectorsAndBricks": "Settori e Mattoni",
+  "doctorsManagement": "Gestione Medici",
+  "productsManagement": "Gestione Prodotti",
+  "salesManagement": "Gestione Vendite",
+  "visitsManagement": "Gestione Visite",
+  "reportsGeneration": "Generazione Report",
+  "manageUsers": "Gestisci utenti e i loro ruoli",
+  "clickToManageProfiles": "Clicca per gestire i profili",
+  "manageSectorsBricks": "Gestisci settori e mattoni",
+  "clickToManageSectorsBricks": "Clicca per gestire settori e mattoni",
+  "manageDoctors": "Gestisci medici",
+  "clickToManageDoctors": "Clicca per gestire i medici",
+  "manageVisits": "Gestisci visite",
+  "clickToManageVisits": "Clicca per gestire le visite",
+  "manageProducts": "Gestisci prodotti",
+  "clickToManageProducts": "Clicca per gestire i prodotti",
+  "manageSales": "Gestisci vendite",
+  "clickToManageSales": "Clicca per gestire le vendite",
+  "administrator": "Amministratore"
+}
