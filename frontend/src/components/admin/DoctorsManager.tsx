@@ -236,7 +236,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
           <Card className="bg-yellow-50 border-yellow-200 mb-6">
             <CardContent className="pt-6">
               <p className="text-yellow-800">
-                Debug: No data found in the 'doctors' table. 
+                Debug: No data found in the &apos;doctors&apos; table. 
                 Check that data exists in Supabase.
               </p>
             </CardContent>

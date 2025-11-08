@@ -73,7 +73,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
       setSelectedDelegueId('');
       toast({
         title: "Succès",
-        description: "Délégué assigné à l'équipe avec succès",
+        description: "Délégué assigné à l&apos;équipe avec succès",
       });
     },
     onError: (error) => {
@@ -100,7 +100,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
       queryClient.invalidateQueries({ queryKey: ['unassigned-delegues'] });
       toast({
         title: "Succès",
-        description: "Délégué retiré de l'équipe avec succès",
+        description: "Délégué retiré de l&apos;équipe avec succès",
       });
     },
     onError: (error) => {
@@ -169,7 +169,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Ajouter un délégué à l'équipe</DialogTitle>
+                    <DialogTitle>Ajouter un délégué à l&apos;équipe</DialogTitle>
                     <DialogDescription>
                       Sélectionnez un délégué à ajouter à cette équipe.
                     </DialogDescription>

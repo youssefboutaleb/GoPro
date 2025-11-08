@@ -550,7 +550,7 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
                       Connecter. Vendre. Performer.
                     </p>
                     <p className="text-gray-600 text-sm">
-                      Assistant intelligent pour l'équipe
+                      Assistant intelligent pour l&apos;équipe
                     </p>
                     <div className="mt-2 text-xs text-blue-600 font-medium">
                       Cliquer pour accéder →
@@ -560,7 +560,7 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
-                  Chatbot intelligent pour connecter l'équipe de vente Menarini et accéder rapidement aux infos essentielles.
+                  Chatbot intelligent pour connecter l&apos;équipe de vente Menarini et accéder rapidement aux infos essentielles.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -598,7 +598,7 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-xs">
                 <p className="text-sm">
-                  Analysez les tendances et prédisez vos ventes avec précision grâce à l'IA.
+                  Analysez les tendances et prédisez vos ventes avec précision grâce à l&apos;IA.
                 </p>
               </TooltipContent>
             </Tooltip>

@@ -100,7 +100,7 @@ public class ActionPlan {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", insertable = false, updatable = false)
-    private Profile createdBy;
+    private Profile createdByProfile;
     
     // Constructors
     public ActionPlan() {
@@ -251,11 +251,11 @@ public class ActionPlan {
         this.updatedAt = updatedAt;
     }
     
-    public Profile getCreatedBy() {
-        return createdBy;
+    public Profile getCreatedByProfile() {
+        return createdByProfile;
     }
     
-    public void setCreatedBy(Profile createdBy) {
-        this.createdBy = createdBy;
+    public void setCreatedByProfile(Profile createdByProfile) {
+        this.createdByProfile = createdByProfile;
     }
 }

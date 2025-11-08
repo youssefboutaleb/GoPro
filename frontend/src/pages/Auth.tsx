@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ const Auth = () => {
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, user, session } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     console.log('Auth page - user state changed:', { 
@@ -32,9 +32,9 @@ const Auth = () => {
     
     if (user && session) {
       console.log('User authenticated, redirecting to index from Auth page');
-      navigate('/', { replace: true });
+      router.replace('/');
     }
-  }, [user, session, navigate]);
+  }, [user, session, router]);
 
   const handleQuickLogin = (quickEmail: string, quickPassword: string) => {
     setEmail(quickEmail);
@@ -59,7 +59,7 @@ const Auth = () => {
       // Fallback redirect - give AuthContext time to update, then force redirect
       setTimeout(() => {
         console.log('Fallback redirect after successful sign in');
-        navigate('/', { replace: true });
+        router.replace('/');
       }, 1000);
     }
     setLoading(false);
@@ -82,7 +82,7 @@ const Auth = () => {
       // Fallback redirect for sign up as well
       setTimeout(() => {
         console.log('Fallback redirect after successful sign up');
-        navigate('/', { replace: true });
+        router.replace('/');
       }, 1000);
     }
     setLoading(false);
@@ -100,7 +100,7 @@ const Auth = () => {
         {/* GOPRO Branding */}
         <div className="mb-8 text-center space-y-2">
           <img 
-            src={goproLogo} 
+            src={typeof goproLogo === 'string' ? goproLogo : goproLogo.src} 
             alt="GOPRO Logo" 
             className="h-16 mx-auto mb-3"
           />

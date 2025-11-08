@@ -135,7 +135,7 @@ const SalesDirectorKPIsDashboard: React.FC<SalesDirectorKPIsDashboardProps> = ({
               <Building className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Supervisors Found</h3>
               <p className="text-gray-600">
-                You don't have any supervised supervisors yet.
+                You don&apos;t have any supervised supervisors yet.
               </p>
             </CardContent>
           </Card>

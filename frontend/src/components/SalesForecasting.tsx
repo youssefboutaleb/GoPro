@@ -184,7 +184,7 @@ const SalesForecasting: React.FC<SalesForecastingProps> = ({ onBack }) => {
 
             <div className="p-4 bg-yellow-50 border-l-4 border-yellow-600 rounded">
               <p className="text-sm text-gray-700">
-                <span className="font-semibold text-yellow-700">Points d'Attention:</span> La saisonnalité peut impacter les ventes. 
+                <span className="font-semibold text-yellow-700">Points d&apos;Attention:</span> La saisonnalité peut impacter les ventes. 
                 Adaptez votre stratégie en conséquence pour maintenir la trajectoire.
               </p>
             </div>

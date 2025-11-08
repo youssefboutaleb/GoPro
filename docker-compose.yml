@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgresql:
@@ -17,6 +15,11 @@ services:
       - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - medico-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medico_user -d medico_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Keycloak Authentication Server
   keycloak:
@@ -35,12 +38,21 @@ services:
       KC_HTTP_ENABLED: true
       KC_HTTP_PORT: 8080
       KC_HTTPS_PORT: 8443
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
     ports:
       - "8080:8080"
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     networks:
       - medico-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /realms/medico HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && timeout 1 cat <&3 | grep -q 'HTTP' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # Quarkus Backend
   backend:
@@ -54,25 +66,34 @@ services:
       QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/medico
       QUARKUS_OIDC_CLIENT_ID: medico-backend
       QUARKUS_OIDC_CREDENTIALS_SECRET: secret
-      QUARKUS_HTTP_CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      QUARKUS_HTTP_CORS_ORIGINS: http://localhost:3000
     ports:
       - "8081:8080"
     depends_on:
-      - postgresql
-      - keycloak
+      postgresql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     networks:
       - medico-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && timeout 1 cat <&3 | grep -q 'HTTP' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
-  # React Frontend
+  # Next.js Frontend
   frontend:
     build: ./frontend
     container_name: medico-frontend
     restart: unless-stopped
     environment:
-      REACT_APP_API_URL: http://localhost:8081
-      REACT_APP_KEYCLOAK_URL: http://localhost:8080
-      REACT_APP_KEYCLOAK_REALM: medico
-      REACT_APP_KEYCLOAK_CLIENT_ID: medico-frontend
+      NEXT_PUBLIC_API_URL: http://localhost:8081
+      NEXT_PUBLIC_KEYCLOAK_URL: http://localhost:8080
+      NEXT_PUBLIC_KEYCLOAK_REALM: medico
+      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: medico-frontend
+      NODE_ENV: production
     ports:
       - "3000:3000"
     depends_on:

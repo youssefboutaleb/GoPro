@@ -1,6 +1,8 @@
+'use client'
 
 import { useAuth } from "@/hooks/useAuth";
-import { Navigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import AdminDashboard from "@/components/AdminDashboard";
 import SupervisorDashboard from "@/components/SupervisorDashboard";
 import SalesDirectorDashboard from "@/components/SalesDirectorDashboard";
@@ -9,6 +11,7 @@ import ProgressiveAuthLoader from "@/components/common/ProgressiveAuthLoader";
 
 const Index = () => {
   const { user, profile, loading, signOut, signOutLoading } = useAuth();
+  const router = useRouter();
 
   console.log('Index page - Auth state:', {
     userExists: !!user,
@@ -17,6 +20,14 @@ const Index = () => {
     loading,
     timestamp: new Date().toISOString()
   });
+
+  // Redirect to auth if no user
+  useEffect(() => {
+    if (!loading && !user) {
+      console.log('No user found, redirecting to auth');
+      router.replace('/auth');
+    }
+  }, [user, loading, router]);
 
   // Show loading state only for initial auth check
   if (loading) {
@@ -30,10 +41,9 @@ const Index = () => {
     );
   }
 
-  // Redirect to auth if no user
+  // Return null while redirecting
   if (!user) {
-    console.log('No user found, redirecting to auth');
-    return <Navigate to="/auth" replace />;
+    return null;
   }
 
   // Progressive loading - show UI immediately when user exists

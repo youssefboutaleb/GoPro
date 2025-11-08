@@ -807,7 +807,7 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            💡 Tip: Click the "Record Visit" button to log a visit
+            💡 Tip: Click the &quot;Record Visit&quot; button to log a visit
           </p>
         </CardContent>
       </Card>

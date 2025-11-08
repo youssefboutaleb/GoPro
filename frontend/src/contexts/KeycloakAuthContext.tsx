@@ -28,9 +28,9 @@ export const KeycloakAuthProvider: React.FC<KeycloakAuthProviderProps> = ({ chil
     const initKeycloak = async () => {
       try {
         const keycloakConfig = {
-          url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080',
-          realm: import.meta.env.VITE_KEYCLOAK_REALM || 'medico',
-          clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'medico-frontend'
+          url: process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080',
+          realm: process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'medico',
+          clientId: process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'medico-frontend'
         };
 
         const keycloakInstance = new Keycloak(keycloakConfig);

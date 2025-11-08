@@ -1,8 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { Profile } from '@/types/auth';
+import { User, Session, Profile } from '@/types/auth';
 import { fetchProfile, clearAllSessionData } from '@/utils/authUtils';
 
 export const useAuthState = () => {
@@ -13,7 +11,7 @@ export const useAuthState = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
 
-  const fetchUserProfile = async (userId: string, retryCount = 0) => {
+  const fetchUserProfile = async (token: string, retryCount = 0) => {
     if (profileLoading) {
       console.log('⏳ Profile fetch already in progress, skipping...');
       return;
@@ -22,11 +20,11 @@ export const useAuthState = () => {
     setProfileLoading(true);
     try {
       const timeoutPromise = new Promise<Profile | null>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000); // Reduced from 5000ms
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000);
       });
       
       const userProfile = await Promise.race([
-        fetchProfile(userId),
+        fetchProfile(token),
         timeoutPromise
       ]);
       
@@ -44,7 +42,7 @@ export const useAuthState = () => {
         const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         console.log(`🔄 Retrying profile fetch in ${delay}ms (attempt ${retryCount + 1})`);
         setTimeout(() => {
-          fetchUserProfile(userId, retryCount + 1);
+          fetchUserProfile(token, retryCount + 1);
         }, delay);
       } else {
         console.error('❌ Max retries reached for profile fetch');
@@ -59,94 +57,85 @@ export const useAuthState = () => {
     console.log('🚀 AuthProvider initializing...');
     setSignOutLoading(false);
     
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event, 'Session exists:', !!session);
-      
-      if (event === 'SIGNED_OUT') {
-        console.log('👋 SIGNED_OUT event detected');
-        clearAllSessionData();
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setProfileLoading(false);
-        setSignOutLoading(false);
-        setTimeout(() => {
-          window.location.href = '/auth';
-        }, 100);
-        return;
-      }
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        console.log('✅ Setting session and user state after successful auth');
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Non-blocking profile fetch
-        if (session?.user) {
-          console.log('👤 Starting background profile fetch...');
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
-      }
-      
-      if (event === 'INITIAL_SESSION') {
-        console.log('🔧 INITIAL_SESSION event detected - session exists:', !!session);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Non-blocking profile fetch for initial session
-        if (session?.user) {
-          console.log('👤 Starting initial profile fetch...');
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
-      }
-      
-      setLoading(false);
-    });
-
-    // Simplified initialization - rely primarily on auth state change events
     const initializeAuth = async () => {
       try {
-        console.log('🔍 Getting initial session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('🔍 Checking for existing session...');
         
-        if (error) {
-          console.error('❌ Error getting session:', error);
-          setLoading(false);
-          return;
-        }
-
-        console.log('📊 Initial session status:', session ? 'Found' : 'Not found');
+        // Check for stored token
+        const token = localStorage.getItem('keycloak_token');
+        const storedProfile = localStorage.getItem('user_profile');
         
-        // Let auth state change events handle the session setup
-        if (!session) {
-          setLoading(false);
+        if (token) {
+          console.log('📊 Found stored token');
+          
+          // Create session from stored token
+          const sessionData: Session = {
+            accessToken: token,
+            refreshToken: localStorage.getItem('keycloak_refresh_token') || undefined,
+          };
+          setSession(sessionData);
+          
+          // Try to get user info from token (basic implementation)
+          // In a real scenario, you'd decode the JWT token
+          const userData: User = {
+            id: 'user-id', // Would be extracted from token
+            email: 'user@example.com', // Would be extracted from token
+          };
+          setUser(userData);
+          
+          // Load profile from localStorage or fetch from API
+          if (storedProfile) {
+            try {
+              const profileData = JSON.parse(storedProfile);
+              setProfile(profileData);
+              console.log('✅ Profile loaded from localStorage');
+            } catch (e) {
+              console.error('❌ Error parsing stored profile:', e);
+            }
+          }
+          
+          // Fetch fresh profile from API
+          if (token) {
+            console.log('👤 Fetching fresh profile from API...');
+            fetchUserProfile(token);
+          }
+        } else {
+          console.log('📊 No stored session found');
+          setUser(null);
+          setSession(null);
+          setProfile(null);
         }
+        
+        setLoading(false);
       } catch (error) {
         console.error('💥 Failed to initialize auth:', error);
         setLoading(false);
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      console.log('⏰ Auth initialization timeout reached');
-      setLoading(false);
-    }, 2000); // Reduced from 3000ms
-
     initializeAuth();
-
+    
+    // Listen for storage changes (for multi-tab support)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'keycloak_token') {
+        if (e.newValue) {
+          console.log('🔄 Token updated in another tab, refreshing...');
+          window.location.reload();
+        } else {
+          console.log('🔄 Token removed in another tab, signing out...');
+          clearAllSessionData();
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          window.location.href = '/auth';
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
     return () => {
-      clearTimeout(timeoutId);
-      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -160,20 +149,28 @@ export const useAuthState = () => {
       setSignOutLoading(true);
       console.log('🚪 Starting sign out process...');
       
+      // Call backend logout if token exists
+      const token = localStorage.getItem('keycloak_token');
+      if (token) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'}/auth/logout`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch (error) {
+          console.error('❌ Logout API error (continuing anyway):', error);
+        }
+      }
+      
       clearAllSessionData();
       setUser(null);
       setSession(null);
       setProfile(null);
       setProfileLoading(false);
       setSignOutLoading(false);
-      
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('❌ Supabase signOut API returned error:', error);
-      } else {
-        console.log('✅ Supabase signOut API call successful');
-      }
       
       setTimeout(() => {
         window.location.href = '/auth';

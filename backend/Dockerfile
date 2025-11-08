@@ -1,15 +1,33 @@
-FROM openjdk:17-jdk-slim
+# Build stage
+FROM eclipse-temurin:17-jdk-alpine AS build
+
+WORKDIR /build
+
+# Install Maven
+RUN apk add --no-cache maven
+
+# Copy Maven configuration file first (for better layer caching)
+COPY pom.xml .
+
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
+RUN mvn dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN mvn clean package -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install necessary packages (Alpine uses apk, not apt-get)
+RUN apk add --no-cache curl
 
-# Copy the application files
-COPY target/medico-backend-1.0.0-SNAPSHOT-runner.jar /app/app.jar
-COPY target/lib/* /app/lib/
+# Copy the Quarkus application files from build stage
+COPY --from=build /build/target/quarkus-app /app/quarkus-app
 
 # Expose the application port
 EXPOSE 8080
@@ -17,5 +35,5 @@ EXPOSE 8080
 # Set the JVM options
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
 
-# Run the application
-CMD ["java", "-jar", "/app/app.jar"]
+# Run the application using quarkus-run.jar
+CMD ["java", "-jar", "/app/quarkus-app/quarkus-run.jar"]

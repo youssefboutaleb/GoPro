@@ -6,7 +6,7 @@ A comprehensive medical KPI metrics tracking application built with React, Quark
 
 This application has been migrated from React + Supabase to a modern microservices architecture:
 
-- **Frontend**: React + TypeScript + Vite
+- **Frontend**: Next.js + React + TypeScript
 - **Backend**: Quarkus (Java) with REST APIs
 - **Database**: PostgreSQL
 - **Authentication**: Keycloak (OIDC/OAuth2)
@@ -105,6 +105,9 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Start production server
+npm start
 ```
 
 ## Configuration
@@ -124,18 +127,18 @@ quarkus.oidc.client-id=medico-backend
 quarkus.oidc.credentials.secret=secret
 
 # CORS
-quarkus.http.cors.origins=http://localhost:3000,http://localhost:5173
+quarkus.http.cors.origins=http://localhost:3000
 ```
 
 #### Frontend Configuration
 ```env
 # API Configuration
-VITE_API_URL=http://localhost:8081
+NEXT_PUBLIC_API_URL=http://localhost:8081
 
 # Keycloak Configuration
-VITE_KEYCLOAK_URL=http://localhost:8080
-VITE_KEYCLOAK_REALM=medico
-VITE_KEYCLOAK_CLIENT_ID=medico-frontend
+NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
+NEXT_PUBLIC_KEYCLOAK_REALM=medico
+NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=medico-frontend
 ```
 
 ### Keycloak Realm Setup
@@ -291,7 +294,7 @@ The application uses the following main entities:
 - **Database**: Use connection pooling and read replicas
 - **Keycloak**: Configure clustering for high availability
 - **Backend**: Enable horizontal scaling with load balancing
-- **Frontend**: Serve static files via CDN
+- **Frontend**: Next.js supports static export or server-side rendering
 
 ## Contributing
 

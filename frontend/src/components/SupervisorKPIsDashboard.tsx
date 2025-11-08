@@ -194,7 +194,7 @@ const SupervisorKPIsDashboard: React.FC<SupervisorKPIsDashboardProps> = ({ onBac
               <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Team Members Found</h3>
               <p className="text-gray-600">
-                You don't have any supervised delegates yet.
+                You don&apos;t have any supervised delegates yet.
               </p>
             </CardContent>
           </Card>
