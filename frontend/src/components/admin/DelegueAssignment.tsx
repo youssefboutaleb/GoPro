@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, UserMinus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
+import { Profile } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Tables } from '@/integrations/supabase/types';
 
 type Profile = Tables<'profiles'>;
 
@@ -28,43 +28,25 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
   const { data: assignedDelegues, isLoading: loadingAssigned } = useQuery({
     queryKey: ['assigned-delegues', equipe.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('supervisor_id', equipe.id)
-        .eq('role', 'Delegate')
-        .order('first_name');
-      
-      if (error) throw error;
-      return data as Profile[];
+      // TODO: get token from user/session context, if needed
+      return await apiService.getProfilesBySupervisor(equipe.id);
     },
   });
 
-  // Fetch unassigned delegates (profiles with role 'Delegate' and no supervisor)
+  // Fetch unassigned delegates (role Delegate, no supervisor)
   const { data: unassignedDelegues, isLoading: loadingUnassigned } = useQuery({
     queryKey: ['unassigned-delegues'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'Delegate')
-        .is('supervisor_id', null)
-        .order('first_name');
-      
-      if (error) throw error;
-      return data as Profile[];
+      const allDelegues = await apiService.getProfilesByRole('Delegate');
+      return (allDelegues as Profile[]).filter(d => !d.supervisor_id);
     },
   });
 
   // Assign delegue mutation
   const assignDelegue = useMutation({
     mutationFn: async (delegueId: string) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ supervisor_id: equipe.id })
-        .eq('id', delegueId);
-      
-      if (error) throw error;
+      // TODO: get token from user/session context, if needed
+      return apiService.updateProfile(delegueId, { supervisor_id: equipe.id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assigned-delegues'] });
@@ -73,7 +55,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
       setSelectedDelegueId('');
       toast({
         title: "Succès",
-        description: "Délégué assigné à l&apos;équipe avec succès",
+        description: "Délégué assigné à l'équipe avec succès"
       });
     },
     onError: (error) => {
@@ -82,25 +64,21 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
         description: "Erreur lors de l'assignation du délégué",
         variant: "destructive",
       });
-    },
+    }
   });
 
   // Unassign delegue mutation
   const unassignDelegue = useMutation({
     mutationFn: async (delegueId: string) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ supervisor_id: null })
-        .eq('id', delegueId);
-      
-      if (error) throw error;
+      // TODO: get token from user/session context, if needed
+      return apiService.updateProfile(delegueId, { supervisor_id: null });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assigned-delegues'] });
       queryClient.invalidateQueries({ queryKey: ['unassigned-delegues'] });
       toast({
         title: "Succès",
-        description: "Délégué retiré de l&apos;équipe avec succès",
+        description: "Délégué retiré de l'équipe avec succès"
       });
     },
     onError: (error) => {
@@ -109,7 +87,7 @@ const DelegueAssignment: React.FC<DelegueAssignmentProps> = ({ equipe, onBack })
         description: "Erreur lors du retrait du délégué",
         variant: "destructive",
       });
-    },
+    }
   });
 
   const handleAssign = () => {

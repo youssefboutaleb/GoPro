@@ -7,6 +7,7 @@ ENV POSTGRES_PASSWORD=medico_password
 
 # Copy initialization scripts
 COPY init.sql /docker-entrypoint-initdb.d/
+COPY migrations/*.sql /docker-entrypoint-initdb.d/
 
 # Expose PostgreSQL port
 EXPOSE 5432

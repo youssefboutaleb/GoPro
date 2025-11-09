@@ -20,7 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import java.time.LocalDate;
+// ...existing code...
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;

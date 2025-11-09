@@ -7,7 +7,9 @@ import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText, Messa
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { profileService } from '@/services/profileService';
+import { delegateService } from '@/services/delegateService';
+import { visitService } from '@/services/visitService';
 import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
@@ -45,17 +47,9 @@ const DelegateDashboard: React.FC = () => {
     queryKey: ['supervisor-info', profile?.supervisor_id],
     queryFn: async () => {
       if (!profile?.supervisor_id) return null;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, supervisor_id')
-        .eq('id', profile.supervisor_id)
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await profileService.getSupervisorInfo(profile.supervisor_id);
     },
-    enabled: !!profile?.supervisor_id,
+    enabled: !!profile?.supervisor_id
   });
 
   // Fetch quick stats for dashboard cards
@@ -65,28 +59,6 @@ const DelegateDashboard: React.FC = () => {
       if (!profile?.id) return null;
 
       try {
-        // Fetch visit plans count
-        const { data: visitPlans, error: visitPlansError } = await supabase
-          .from('visit_plans')
-          .select('id')
-          .eq('delegate_id', profile.id);
-
-        if (visitPlansError) throw visitPlansError;
-
-        // Fetch sales plans count
-        const { data: salesPlans, error: salesPlansError } = await supabase
-          .from('sales_plans')
-          .select('id')
-          .eq('delegate_id', profile.id);
-
-        if (salesPlansError) throw salesPlansError;
-
-        // Fetch action plans - include created by delegate and targeting delegate
-        let actionPlansQuery = supabase
-          .from('action_plans')
-          .select('id, supervisor_status, sales_director_status, marketing_manager_status, created_by, targeted_delegates');
-
-        // Get plans created by delegate OR targeting delegate
         const creatorIds = [profile.id];
         if (profile.supervisor_id) {
           creatorIds.push(profile.supervisor_id);
@@ -95,61 +67,27 @@ const DelegateDashboard: React.FC = () => {
           creatorIds.push(supervisorInfo.supervisor_id);
         }
 
-        const { data: allActionPlans, error: actionPlansError } = await actionPlansQuery
-          .in('created_by', creatorIds);
-
-        if (actionPlansError) throw actionPlansError;
-
-        // Filter action plans to include only:
-        // 1. Plans created by the delegate
-        // 2. Plans created by supervisor/sales director that target this delegate
-        const relevantActionPlans = allActionPlans?.filter(plan => 
-          plan.created_by === profile.id || 
-          (plan.targeted_delegates && plan.targeted_delegates.includes(profile.id))
-        ) || [];
-
         // Calculate proper date range for current month
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+        const currentMonth = currentDate.getMonth() + 1;
         const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
         
         const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
         const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
-        
-        console.log('Fetching visits for date range:', startDate, 'to', endDate);
-        
-        const { data: thisMonthVisits, error: visitsError } = await supabase
-          .from('visits')
-          .select('id, visit_plan_id, visit_date')
-          .gte('visit_date', startDate)
-          .lte('visit_date', endDate);
 
-        if (visitsError) {
-          console.error('Error fetching visits:', visitsError);
-          throw visitsError;
-        }
+        // Fetch all stats in parallel
+        const [visitStats, delegateStats] = await Promise.all([
+          visitService.getVisitStats(profile.id, startDate, endDate),
+          delegateService.getDashboardStats(profile.id, creatorIds)
+        ]);
 
-        // Calculate return index (simplified)
-        const returnIndex = visitPlans && visitPlans.length > 0 
-          ? Math.round((thisMonthVisits?.length || 0) / (visitPlans.length * 2) * 100)
-          : 0;
-
-        // Calculate pending action plans (including those targeting the delegate)
-        const pendingActionPlans = relevantActionPlans.filter(plan => 
-          plan.supervisor_status === 'Pending' || 
-          plan.sales_director_status === 'Pending' || 
-          plan.marketing_manager_status === 'Pending'
-        ).length;
+        if (!visitStats || !delegateStats) return null;
 
         return {
-          visitPlansCount: visitPlans?.length || 0,
-          salesPlansCount: salesPlans?.length || 0,
-          actionPlansCount: relevantActionPlans.length,
-          pendingActionPlans,
-          thisMonthVisits: thisMonthVisits?.length || 0,
-          returnIndex,
-          recruitmentRate: salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
+          ...visitStats,
+          ...delegateStats,
+          recruitmentRate: delegateStats.salesPlansCount > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
         };
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);

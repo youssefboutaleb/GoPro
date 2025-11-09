@@ -14,10 +14,10 @@ import {
   Building,
   Gauge,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { visitPlanService } from "@/services/visitPlanService";
 import { Button } from "@/components/ui/button";
 import { StatusBird } from "@/components/common/StatusBird";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

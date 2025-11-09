@@ -1,7 +1,7 @@
 package com.medico.entities;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
+// ...existing code...
 
 import java.util.List;
 import java.util.UUID;

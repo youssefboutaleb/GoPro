@@ -1,0 +1,91 @@
+services:
+  # PostgreSQL Database
+  postgresql:
+    build: ./postgresql
+    container_name: medico-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: medico_db
+      POSTGRES_USER: medico_user
+      POSTGRES_PASSWORD: medico_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - medico-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medico_user -d medico_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keycloak Authentication Server
+  keycloak:
+    build: ./keycloak
+    container_name: medico-keycloak
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresql:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: keycloak_password
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: false
+      KC_HTTP_ENABLED: true
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - medico-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /realms/medico HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && timeout 1 cat <&3 | grep -q 'HTTP' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Quarkus Backend
+  backend:
+    build: ./backend
+    container_name: medico-backend
+    restart: unless-stopped
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgresql:5432/medico_db
+      QUARKUS_DATASOURCE_USERNAME: medico_user
+      QUARKUS_DATASOURCE_PASSWORD: medico_password
+      QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/medico
+      QUARKUS_OIDC_CLIENT_ID: medico-backend
+      QUARKUS_OIDC_CREDENTIALS_SECRET: secret
+      QUARKUS_HTTP_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - medico-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && timeout 1 cat <&3 | grep -q 'HTTP' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgresql_data:
+    driver: local
+
+networks:
+  medico-network:
+    driver: bridge

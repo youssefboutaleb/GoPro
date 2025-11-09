@@ -10,7 +10,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.util.Base64;
+// ...existing code...
 
 @ApplicationScoped
 public class KeycloakService {
