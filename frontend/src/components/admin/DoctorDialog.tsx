@@ -18,12 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { apiService } from "@/services/apiService";
 import { useToast } from "@/hooks/use-toast";
-import { Tables } from "@/integrations/supabase/types";
+import { Doctor, Brick } from "@/types/backend";
 
-type Doctor = Tables<"doctors">;
-type Brick = Tables<"bricks">;
+const getToken = () => localStorage.getItem('keycloak_token') || undefined;
 
 interface DoctorDialogProps {
   open: boolean;
@@ -50,23 +49,18 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({
   const { data: bricks, isLoading: bricksLoading } = useQuery({
     queryKey: ["bricks"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bricks")
-        .select("id, name")
-        .order("name");
-
-      if (error) throw error;
-      return data.filter((brick) => brick.id && brick.name) as Brick[];
+      const data = await apiService.getBricks(getToken());
+      return data.filter((brick: any) => brick.id && brick.name) as Brick[];
     },
   });
 
   React.useEffect(() => {
     if (doctor) {
       setFormData({
-        first_name: doctor.first_name || "",
-        last_name: doctor.last_name || "",
+        first_name: doctor.firstName || "",
+        last_name: doctor.lastName || "",
         specialty: doctor.specialty || "",
-        brick_id: doctor.brick_id || "",
+        brick_id: doctor.brickId || "",
       });
     } else {
       setFormData(initialFormData);
@@ -75,14 +69,12 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from("doctors").insert({
-        first_name: data.first_name,
-        last_name: data.last_name,
+      await apiService.createDoctor({
+        firstName: data.first_name,
+        lastName: data.last_name,
         specialty: data.specialty || null,
-        brick_id: data.brick_id === "none" ? null : data.brick_id || null,
-      });
-
-      if (error) throw error;
+        brickId: data.brick_id === "none" ? null : data.brick_id || null,
+      }, getToken());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["doctors"] });
@@ -106,17 +98,12 @@ const DoctorDialog: React.FC<DoctorDialogProps> = ({
     mutationFn: async (data: typeof formData) => {
       if (!doctor) return;
 
-      const { error } = await supabase
-        .from("doctors")
-        .update({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          specialty: data.specialty || null,
-          brick_id: data.brick_id === "none" ? null : data.brick_id || null,
-        })
-        .eq("id", doctor.id);
-
-      if (error) throw error;
+      await apiService.updateDoctor(doctor.id, {
+        firstName: data.first_name,
+        lastName: data.last_name,
+        specialty: data.specialty || null,
+        brickId: data.brick_id === "none" ? null : data.brick_id || null,
+      }, getToken());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["doctors"] });

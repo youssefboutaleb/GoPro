@@ -15,8 +15,10 @@ RUN mvn dependency:go-offline -B
 # Copy source code
 COPY src ./src
 
+# Allow passing extra Maven args at build time (useful to disable build-time features in dev)
+ARG MAVEN_ARGS=""
 # Build the application
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests ${MAVEN_ARGS}
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine

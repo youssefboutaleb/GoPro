@@ -6,17 +6,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Search, Filter, User, Stethoscope, Plus, Edit, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import DoctorDialog from './DoctorDialog';
-import { Tables } from '@/integrations/supabase/types';
+import { Doctor, Brick, Sector } from '@/types/backend';
 
 interface DoctorsManagerProps {
   onBack: () => void;
 }
 
-type Doctor = Tables<'doctors'> & {
+type DoctorWithRelations = Doctor & {
   bricks?: {
     name: string;
     sectors?: {
@@ -24,6 +24,8 @@ type Doctor = Tables<'doctors'> & {
     };
   };
 };
+
+const getToken = () => localStorage.getItem('keycloak_token') || undefined;
 
 const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,47 +36,60 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
 
   const queryClient = useQueryClient();
 
-  const { data: doctors = [], isLoading, error } = useQuery({
+  // Fetch doctors, bricks, and sectors separately
+  const { data: doctorsData = [], isLoading: doctorsLoading } = useQuery({
     queryKey: ['doctors'],
     queryFn: async () => {
-      console.log('Fetching doctors from Supabase...');
-      
-      const { data, error } = await supabase
-        .from('doctors')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          specialty,
-          brick_id,
-          bricks:brick_id (
-            name,
-            sectors:sector_id (
-              name
-            )
-          )
-        `)
-        .order('last_name', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching doctors:', error);
-        throw error;
-      }
-
-      console.log('Fetched doctors:', data);
-      console.log('Number of doctors fetched:', data?.length || 0);
-      return data as Doctor[];
+      const data = await apiService.getDoctors(getToken());
+      return data.map((d: any) => ({
+        id: d.id,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        specialty: d.specialty,
+        brickId: d.brickId,
+      })) as Doctor[];
     }
   });
 
+  const { data: bricksData = [] } = useQuery({
+    queryKey: ['bricks'],
+    queryFn: async () => {
+      const data = await apiService.getBricks(getToken());
+      return data as Brick[];
+    }
+  });
+
+  const { data: sectorsData = [] } = useQuery({
+    queryKey: ['sectors'],
+    queryFn: async () => {
+      const data = await apiService.getSectors(getToken());
+      return data as Sector[];
+    }
+  });
+
+  // Join data to create doctors with relations
+  const doctors: DoctorWithRelations[] = doctorsData.map(doctor => {
+    const brick = bricksData.find(b => b.id === doctor.brickId);
+    const sector = brick?.sectorId ? sectorsData.find(s => s.id === brick.sectorId) : undefined;
+    
+    return {
+      ...doctor,
+      first_name: doctor.firstName,
+      last_name: doctor.lastName,
+      brick_id: doctor.brickId,
+      bricks: brick ? {
+        name: brick.name,
+        sectors: sector ? { name: sector.name } : undefined,
+      } : undefined,
+    } as DoctorWithRelations;
+  });
+
+  const isLoading = doctorsLoading;
+  const error = null; // Error handling can be added if needed
+
   const deleteMutation = useMutation({
     mutationFn: async (doctorId: string) => {
-      const { error } = await supabase
-        .from('doctors')
-        .delete()
-        .eq('id', doctorId);
-      
-      if (error) throw error;
+      await apiService.deleteDoctor(doctorId, getToken());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['doctors'] });
@@ -103,8 +118,15 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
   const specialties = [...new Set(doctors.map(d => d.specialty).filter(Boolean))];
   const bricks = [...new Set(doctors.map(d => d.bricks?.name).filter(Boolean))];
 
-  const handleEdit = (doctor: Doctor) => {
-    setEditingDoctor(doctor);
+  const handleEdit = (doctor: DoctorWithRelations) => {
+    // Convert to Doctor format for dialog
+    setEditingDoctor({
+      id: doctor.id,
+      firstName: doctor.firstName || doctor.first_name || '',
+      lastName: doctor.lastName || doctor.last_name || '',
+      specialty: doctor.specialty || undefined,
+      brickId: doctor.brickId || doctor.brick_id || undefined,
+    });
     setDialogOpen(true);
   };
 
@@ -282,8 +304,8 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
                 <TableBody>
                   {filteredDoctors.map((doctor) => (
                     <TableRow key={doctor.id}>
-                      <TableCell className="font-medium">{doctor.first_name}</TableCell>
-                      <TableCell>{doctor.last_name}</TableCell>
+                      <TableCell className="font-medium">{doctor.first_name || doctor.firstName}</TableCell>
+                      <TableCell>{doctor.last_name || doctor.lastName}</TableCell>
                       <TableCell>{doctor.specialty || 'Not specified'}</TableCell>
                       <TableCell>{doctor.bricks?.name || 'Not assigned'}</TableCell>
                       <TableCell>{doctor.bricks?.sectors?.name || 'Not assigned'}</TableCell>

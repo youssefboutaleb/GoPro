@@ -373,17 +373,7 @@
     }
   ],
   "authenticatorConfig": [],
-  "requiredActions": [
-    {
-      "alias": "VERIFY_EMAIL",
-      "name": "Verify Email",
-      "providerId": "email-verification",
-      "enabled": true,
-      "defaultAction": false,
-      "priority": 50,
-      "config": {}
-    }
-  ],
+  "requiredActions": [],
   "webAuthnPolicyRpEntityName": "keycloak",
   "webAuthnPolicySignatureAlgorithms": ["ES256"],
   "webAuthnPolicyRpId": "",

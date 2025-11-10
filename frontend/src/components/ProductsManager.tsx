@@ -9,17 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit, Trash2, Package } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { toast } from 'sonner';
+import { Product } from '@/types/backend';
 
 interface ProductsManagerProps {
   onBack: () => void;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  therapeutic_class: 'Cardiology' | 'Fever' | 'Pain Killer' | null;
 }
 
 const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
@@ -32,34 +27,35 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
 
   const queryClient = useQueryClient();
 
+  // Get authentication token
+  const getToken = () => localStorage.getItem('keycloak_token') || undefined;
+
   // Fetch products
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      return data as Product[];
+      const data = await apiService.getProducts(getToken());
+      // Transform backend format to frontend format
+      return data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        therapeutic_class: p.therapeuticClass || null,
+      })) as Product[];
     },
   });
 
   // Create product mutation
   const createProductMutation = useMutation({
     mutationFn: async (productData: { name: string; therapeutic_class?: 'Cardiology' | 'Fever' | 'Pain Killer' }) => {
-      const { data, error } = await supabase
-        .from('products')
-        .insert({
-          name: productData.name,
-          therapeutic_class: productData.therapeutic_class || null
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const data = await apiService.createProduct({
+        name: productData.name,
+        therapeuticClass: productData.therapeutic_class || null,
+      }, getToken());
+      return {
+        id: data.id,
+        name: data.name,
+        therapeutic_class: data.therapeuticClass || null,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -75,18 +71,15 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   // Update product mutation
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, ...productData }: { id: string; name: string; therapeutic_class?: 'Cardiology' | 'Fever' | 'Pain Killer' }) => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          name: productData.name,
-          therapeutic_class: productData.therapeutic_class || null
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const data = await apiService.updateProduct(id, {
+        name: productData.name,
+        therapeuticClass: productData.therapeutic_class || null,
+      }, getToken());
+      return {
+        id: data.id,
+        name: data.name,
+        therapeutic_class: data.therapeuticClass || null,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -102,12 +95,7 @@ const ProductsManager: React.FC<ProductsManagerProps> = ({ onBack }) => {
   // Delete product mutation
   const deleteProductMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await apiService.deleteProduct(id, getToken());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });

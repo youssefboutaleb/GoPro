@@ -55,17 +55,22 @@ services:
 
   # Quarkus Backend
   backend:
-    build: ./backend
     container_name: medico-backend
     restart: unless-stopped
+    build:
+      context: ./backend
+      args:
+        MAVEN_ARGS: "-Dquarkus.oidc.enabled=false -Dquarkus.oidc.auth-server-url=http://keycloak:8080/realms/medico"
     environment:
       QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgresql:5432/medico_db
       QUARKUS_DATASOURCE_USERNAME: medico_user
       QUARKUS_DATASOURCE_PASSWORD: medico_password
       QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/medico
       QUARKUS_OIDC_CLIENT_ID: medico-backend
+      QUARKUS_OIDC_ENABLED: "false"
       QUARKUS_OIDC_CREDENTIALS_SECRET: secret
       QUARKUS_HTTP_CORS_ORIGINS: http://localhost:3000
+      QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION: update
     ports:
       - "8081:8080"
     depends_on:
