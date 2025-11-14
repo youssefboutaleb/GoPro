@@ -7,11 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit, Trash2, Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { toast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types';
+import { Visit, Doctor } from '@/types/backend';
 
-type Visit = Database['public']['Tables']['visits']['Row'] & {
+type VisitWithDetails = Visit & {
   visit_plan?: {
     doctor?: { last_name: string; first_name: string };
     delegate?: { last_name: string; first_name: string };
@@ -19,8 +19,10 @@ type Visit = Database['public']['Tables']['visits']['Row'] & {
   brick?: { name: string };
 };
 
-type Doctor = Database['public']['Tables']['doctors']['Row'];
-type VisitPlan = Database['public']['Tables']['visit_plans']['Row'] & {
+type VisitPlan = {
+  id: string;
+  doctorId?: string;
+  delegateId?: string;
   doctor?: { last_name: string; first_name: string };
   delegate?: { last_name: string; first_name: string };
 };
@@ -30,16 +32,25 @@ interface VisitsManagerProps {
 }
 
 const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
-  const [visits, setVisits] = useState<Visit[]>([]);
+  const [visits, setVisits] = useState<VisitWithDetails[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [visitPlans, setVisitPlans] = useState<VisitPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
+  const [editingVisit, setEditingVisit] = useState<VisitWithDetails | null>(null);
   const [formData, setFormData] = useState({
     visit_date: '',
     visit_plan_id: '',
   });
+
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
 
   // Delegate colors for grouping
   const delegateColors = [
@@ -60,92 +71,78 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
   const fetchData = async () => {
     try {
       console.log('Fetching ALL visits for admin...');
+      const token = getToken();
       
-      // Fetch ALL visits - admin should see everyone's visits  
-      const { data: visitsData, error: visitsError } = await supabase
-        .from('visits')
-        .select('*')
-        .order('visit_date', { ascending: false });
-
-      if (visitsError) throw visitsError;
-
+      // Fetch ALL visits - admin should see everyone's visits
+      const visitsData = await apiService.getVisits(token);
+      
       // Fetch doctors
-      const { data: doctorsData, error: doctorsError } = await supabase
-        .from('doctors')
-        .select('*')
-        .order('last_name', { ascending: true });
-
-      if (doctorsError) throw doctorsError;
-
-      // Fetch ALL visit_plans - admin should see all
-      const { data: visitPlansData, error: visitPlansError } = await supabase
-        .from('visit_plans')
-        .select('*')
-        .order('id', { ascending: true });
-
-      if (visitPlansError) throw visitPlansError;
-
+      const doctorsData = await apiService.getDoctors(token);
+      
       // Fetch ALL profiles - admin should see all delegates
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name');
-
-      if (profilesError) throw profilesError;
-
+      const profilesData = await apiService.getProfiles(token);
+      
       // Fetch bricks information
-      const { data: bricksData, error: bricksError } = await supabase
-        .from('bricks')
-        .select('*');
-
-      if (bricksError) throw bricksError;
+      const bricksData = await apiService.getBricks(token);
+      
+      // Note: visit_plans endpoint may not exist yet
+      const visitPlansData: VisitPlan[] = [];
 
       // Enrich visit plans with doctor and delegate information
-      const visitPlansWithDetails = visitPlansData?.map(plan => {
-        const doctor = doctorsData?.find(d => d.id === plan.doctor_id);
-        const delegate = profilesData?.find(p => p.id === plan.delegate_id);
+      const visitPlansWithDetails: VisitPlan[] = [];
+
+      // Enrich visits with complete information including brick and delegate
+      const visitsWithDetails = (visitsData || []).map((visit: any) => {
+        // Find doctor from visit
+        const doctor = (doctorsData || []).find((d: any) => d.id === visit.doctorId);
         
+        // Get brick information from doctor
+        let brick = null;
+        if (doctor?.brickId) {
+          brick = (bricksData || []).find((b: any) => b.id === doctor.brickId);
+        }
+        
+        // Find delegate from visit
+        const delegate = (profilesData || []).find((p: any) => p.id === visit.delegateId);
+
         return {
-          ...plan,
-          doctor: doctor ? { 
-            last_name: doctor.last_name, 
-            first_name: doctor.first_name 
-          } : null,
-          delegate: delegate ? { 
-            last_name: delegate.last_name, 
-            first_name: delegate.first_name 
-          } : null
-        };
-      }) || [];
-
-      // Enrich visits with complete information including brick and delegate from visit_plan
-      const visitsWithDetails = await Promise.all(
-        (visitsData || []).map(async (visit) => {
-          const visitPlan = visitPlansWithDetails.find(vp => vp.id === visit.visit_plan_id);
-          
-          // Get brick information from doctor
-          let brick = null;
-          if (visitPlan?.doctor_id) {
-            const doctor = doctorsData?.find(d => d.id === visitPlan.doctor_id);
-            if (doctor?.brick_id) {
-              brick = bricksData?.find(b => b.id === doctor.brick_id);
-            }
-          }
-
-          return {
-            ...visit,
-            visit_plan: visitPlan ? {
-              doctor: visitPlan.doctor,
-              delegate: visitPlan.delegate
+          ...visit,
+          visit_date: visit.visitDate,
+          visit_plan_id: visit.visitPlanId || null,
+          visit_plan: {
+            doctor: doctor ? {
+              last_name: doctor.lastName,
+              first_name: doctor.firstName
             } : null,
-            brick: brick ? { name: brick.name } : null
-          };
-        })
-      );
+            delegate: delegate ? {
+              last_name: delegate.lastName,
+              first_name: delegate.firstName
+            } : null
+          },
+          brick: brick ? { name: brick.name } : null
+        };
+      });
 
       console.log('Enriched visits with details:', visitsWithDetails);
 
+      // Sort visits by date descending
+      visitsWithDetails.sort((a: any, b: any) => 
+        new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime()
+      );
+      
+      // Sort doctors by last name
+      const sortedDoctors = (doctorsData || []).sort((a: any, b: any) => 
+        a.lastName.localeCompare(b.lastName)
+      );
+
       setVisits(visitsWithDetails);
-      setDoctors(doctorsData || []);
+      setDoctors(sortedDoctors.map((d: any) => ({
+        id: d.id,
+        first_name: d.firstName,
+        last_name: d.lastName,
+        specialty: d.specialty,
+        brick_id: d.brickId
+      })));
       setVisitPlans(visitPlansWithDetails);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -179,24 +176,22 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
         visit_plan_id: formData.visit_plan_id,
       };
 
-      if (editingVisit) {
-        const { error } = await supabase
-          .from('visits')
-          .update(submitData)
-          .eq('id', editingVisit.id);
+      const token = getToken();
+      const visitData = {
+        visitDate: formData.visit_date,
+        visitPlanId: formData.visit_plan_id || null,
+        // TODO: Add other required fields when available
+      };
 
-        if (error) throw error;
+      if (editingVisit) {
+        await apiService.updateVisit(editingVisit.id, visitData, token);
         
         toast({
           title: "Succès",
           description: "Visite mise à jour avec succès",
         });
       } else {
-        const { error } = await supabase
-          .from('visits')
-          .insert([submitData]);
-
-        if (error) throw error;
+        await apiService.createVisit(visitData, token);
         
         toast({
           title: "Succès",
@@ -220,15 +215,11 @@ const VisitsManager: React.FC<VisitsManagerProps> = ({ onBack }) => {
     }
   };
 
-  const handleDelete = async (visit: Visit) => {
+  const handleDelete = async (visit: VisitWithDetails) => {
     if (confirm(`Êtes-vous sûr de vouloir supprimer cette visite ?`)) {
       try {
-        const { error } = await supabase
-          .from('visits')
-          .delete()
-          .eq('id', visit.id);
-
-        if (error) throw error;
+        const token = getToken();
+        await apiService.deleteVisit(visit.id, token);
         
         toast({
           title: "Succès",

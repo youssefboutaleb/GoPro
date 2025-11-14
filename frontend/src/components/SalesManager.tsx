@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface SalesManagerProps {
@@ -50,6 +51,7 @@ const delegateColors = [
 ];
 
 const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
+  const { getToken } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSales, setEditingSales] = useState<Sales | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
@@ -62,63 +64,52 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const queryClient = useQueryClient();
 
+  // Helper to get token
+  const getTokenValue = () => {
+    try {
+      return getToken?.() || undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   // Fetch ALL sales plans with related data (admin can see all)
   const { data: salesPlans = [] } = useQuery({
     queryKey: ['admin-sales-plans-with-details'],
     queryFn: async () => {
       console.log('Admin fetching ALL sales plans...');
+      const token = getTokenValue();
       
-      // Admin can see all sales plans due to updated RLS policies
-      const { data: salesPlansData, error: salesPlansError } = await supabase
-        .from('sales_plans')
-        .select('*');
-
-      if (salesPlansError) {
-        console.error('Error fetching sales plans:', salesPlansError);
-        throw salesPlansError;
-      }
-
-      console.log('Fetched sales plans:', salesPlansData);
-
-      // Admin can see all related data due to updated RLS policies
-      const [profilesResult, productsResult, bricksResult] = await Promise.all([
-        supabase.from('profiles').select('id, first_name, last_name'),
-        supabase.from('products').select('id, name'),
-        supabase.from('bricks').select('id, name')
+      // Fetch all data in parallel
+      const [salesPlansData, profilesData, productsData, bricksData] = await Promise.all([
+        apiService.getSalesPlans(token),
+        apiService.getProfiles(token),
+        apiService.getProducts(token),
+        apiService.getBricks(token)
       ]);
 
-      if (profilesResult.error) {
-        console.error('Error fetching profiles:', profilesResult.error);
-        throw profilesResult.error;
-      }
-      if (productsResult.error) {
-        console.error('Error fetching products:', productsResult.error);
-        throw productsResult.error;
-      }
-      if (bricksResult.error) {
-        console.error('Error fetching bricks:', bricksResult.error);
-        throw bricksResult.error;
-      }
-
       console.log('Fetched related data:', { 
-        profiles: profilesResult.data, 
-        products: productsResult.data, 
-        bricks: bricksResult.data 
+        profiles: profilesData, 
+        products: productsData, 
+        bricks: bricksData 
       });
 
       // Map the data together
-      const enrichedPlans = salesPlansData?.map(plan => {
-        const profile = profilesResult.data?.find(p => p.id === plan.delegate_id);
-        const product = productsResult.data?.find(p => p.id === plan.product_id);
-        const brick = bricksResult.data?.find(b => b.id === plan.brick_id);
+      const enrichedPlans = (salesPlansData || []).map((plan: any) => {
+        const profile = (profilesData || []).find((p: any) => p.id === plan.delegateId);
+        const product = (productsData || []).find((p: any) => p.id === plan.productId);
+        const brick = (bricksData || []).find((b: any) => b.id === plan.brickId);
 
         return {
-          ...plan,
-          delegate_name: profile ? `${profile.first_name} ${profile.last_name}` : '',
+          id: plan.id,
+          delegate_id: plan.delegateId,
+          product_id: plan.productId,
+          brick_id: plan.brickId,
+          delegate_name: profile ? `${profile.firstName} ${profile.lastName}` : '',
           product_name: product?.name || '',
           brick_name: brick?.name || ''
         };
-      }) as SalesPlan[] || [];
+      }) as SalesPlan[];
 
       console.log('Enriched sales plans:', enrichedPlans);
       return enrichedPlans;
@@ -130,27 +121,30 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     queryKey: ['admin-sales-data-with-plans', selectedYear],
     queryFn: async () => {
       console.log('Admin fetching ALL sales data...');
+      const token = getTokenValue();
       
-      let query = supabase.from('sales').select('*');
+      const allSales = await apiService.getSales(token);
       
+      // Filter by year if selected
+      let filteredSales = allSales || [];
       if (selectedYear) {
-        query = query.eq('year', parseInt(selectedYear));
+        filteredSales = filteredSales.filter((sale: any) => sale.year === parseInt(selectedYear));
       }
+      
+      // Sort by year descending
+      filteredSales.sort((a: any, b: any) => b.year - a.year);
 
-      const { data, error } = await query.order('year', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching sales data:', error);
-        throw error;
-      }
-
-      console.log('Fetched sales data:', data);
+      console.log('Fetched sales data:', filteredSales);
 
       // Enrich with sales plan information
-      const salesWithPlans = (data as Sales[]).map(sale => {
-        const salesPlan = salesPlans.find(sp => sp.id === sale.sales_plan_id);
+      const salesWithPlans = filteredSales.map((sale: any) => {
+        const salesPlan = salesPlans.find(sp => sp.id === sale.salesPlanId);
         return {
-          ...sale,
+          id: sale.id,
+          sales_plan_id: sale.salesPlanId,
+          year: sale.year,
+          targets: sale.targets || Array(12).fill(0),
+          achievements: sale.achievements || Array(12).fill(0),
           sales_plan: salesPlan
         };
       });
@@ -163,14 +157,14 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const createSalesMutation = useMutation({
     mutationFn: async (salesData: { sales_plan_id: string; year: number; targets: number[]; achievements: number[] }) => {
-      const { data, error } = await supabase
-        .from('sales')
-        .insert([salesData])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const token = getTokenValue();
+      const data = {
+        salesPlanId: salesData.sales_plan_id,
+        year: salesData.year,
+        targets: salesData.targets,
+        achievements: salesData.achievements
+      };
+      return await apiService.createSales(data, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-sales-data-with-plans'] });
@@ -185,15 +179,14 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const updateSalesMutation = useMutation({
     mutationFn: async ({ id, ...salesData }: { id: string; sales_plan_id: string; year: number; targets: number[]; achievements: number[] }) => {
-      const { data, error } = await supabase
-        .from('sales')
-        .update(salesData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const token = getTokenValue();
+      const data = {
+        salesPlanId: salesData.sales_plan_id,
+        year: salesData.year,
+        targets: salesData.targets,
+        achievements: salesData.achievements
+      };
+      return await apiService.updateSales(id, data, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-sales-data-with-plans'] });
@@ -208,12 +201,8 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
 
   const deleteSalesMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('sales')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const token = getTokenValue();
+      await apiService.deleteSales(id, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-sales-data-with-plans'] });

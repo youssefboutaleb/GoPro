@@ -9,7 +9,7 @@ import InteractiveVisitTable from './InteractiveVisitTable';
 import ReturnIndexAnalysis from './ReturnIndexAnalysis';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 
 interface VisitPlansManagementProps {
   onBack: () => void;
@@ -35,20 +35,28 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
   // Check if this is a Sales Director view (multiple supervisors)
   const isSalesDirectorView = profile?.role === 'Sales Director' && delegateIds.length > 0;
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Fetch supervisors for Sales Director filtering
   const { data: supervisors = [] } = useQuery({
     queryKey: ['supervisors-for-filter', profile?.id],
     queryFn: async () => {
       if (!isSalesDirectorView || !profile?.id) return [];
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .eq('supervisor_id', profile.id)
-        .eq('role', 'Supervisor');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      const profiles = await apiService.getProfilesBySupervisor(profile.id, token);
+      return (profiles || []).filter((p: any) => p.role === 'Supervisor').map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
     },
     enabled: isSalesDirectorView,
   });
@@ -59,20 +67,23 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
     queryFn: async () => {
       if (effectiveDelegateIds.length === 0) return [];
       
-      let query = supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id')
-        .in('id', effectiveDelegateIds)
-        .eq('role', 'Delegate');
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      let filtered = (allProfiles || []).filter((p: any) => 
+        effectiveDelegateIds.includes(p.id) && p.role === 'Delegate'
+      );
 
       // If a specific supervisor is selected, filter delegates by that supervisor
       if (selectedSupervisor !== 'all') {
-        query = query.eq('supervisor_id', selectedSupervisor);
+        filtered = filtered.filter((p: any) => p.supervisorId === selectedSupervisor);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return filtered.map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId
+      }));
     },
     enabled: effectiveDelegateIds.length > 0,
   });
@@ -81,12 +92,8 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
   const { data: bricks = [] } = useQuery({
     queryKey: ['bricks-for-filter'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bricks')
-        .select('id, name');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      return await apiService.getBricks(token) || [];
     },
   });
 
@@ -94,15 +101,9 @@ const VisitPlansManagement: React.FC<VisitPlansManagementProps> = ({
   const { data: specialties = [] } = useQuery({
     queryKey: ['doctor-specialties-for-filter'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('doctors')
-        .select('specialty')
-        .not('specialty', 'is', null);
-
-      if (error) throw error;
-      
-      // Get unique specialties
-      const uniqueSpecialties = [...new Set(data?.map(d => d.specialty).filter(Boolean))];
+      const token = getToken();
+      const doctors = await apiService.getDoctors(token);
+      const uniqueSpecialties = [...new Set((doctors || []).map((d: any) => d.specialty).filter(Boolean))];
       return uniqueSpecialties || [];
     },
   });

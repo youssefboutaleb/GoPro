@@ -8,12 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Plus, Edit, Trash, Users } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useToast } from '@/hooks/use-toast';
-import { Tables } from '@/integrations/supabase/types';
+import { Profile } from '@/types/backend';
 import DelegueAssignment from './DelegueAssignment';
-
-type Profile = Tables<'profiles'>;
 
 interface EquipesManagerProps {
   onBack: () => void;
@@ -26,18 +24,30 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Fetch supervisors (profiles with role 'Supervisor')
   const { data: superviseurs, isLoading } = useQuery({
     queryKey: ['supervisors'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'Supervisor')
-        .order('first_name');
-      
-      if (error) throw error;
-      return data as Profile[];
+      const token = getToken();
+      const data = await apiService.getProfilesByRole('Supervisor', token);
+      return (data || []).sort((a: any, b: any) => a.firstName.localeCompare(b.firstName))
+        .map((p: any) => ({
+          id: p.id,
+          first_name: p.firstName,
+          last_name: p.lastName,
+          role: p.role,
+          sector_id: p.sectorId,
+          supervisor_id: p.supervisorId
+        })) as Profile[];
     },
   });
 
@@ -47,15 +57,18 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
     queryFn: async () => {
       if (!selectedSuperviseur) return [];
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('supervisor_id', selectedSuperviseur.id)
-        .eq('role', 'Delegate')
-        .order('first_name');
-      
-      if (error) throw error;
-      return data as Profile[];
+      const token = getToken();
+      const data = await apiService.getProfilesBySupervisor(selectedSuperviseur.id, token);
+      return (data || []).filter((p: any) => p.role === 'Delegate')
+        .sort((a: any, b: any) => a.firstName.localeCompare(b.firstName))
+        .map((p: any) => ({
+          id: p.id,
+          first_name: p.firstName,
+          last_name: p.lastName,
+          role: p.role,
+          sector_id: p.sectorId,
+          supervisor_id: p.supervisorId
+        })) as Profile[];
     },
     enabled: !!selectedSuperviseur,
   });
@@ -127,7 +140,7 @@ const EquipesManager: React.FC<EquipesManagerProps> = ({ onBack }) => {
                       <TableCell className="font-medium">
                         {superviseur.first_name} {superviseur.last_name}
                       </TableCell>
-                      <TableCell>{superviseur.role}</TableCell>
+                      <TableCell>{superviseur.role || 'Supervisor'}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Button

@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { visitPlanService } from "@/services/visitPlanService";
+import { apiService } from "@/services/apiService";
 import { Button } from "@/components/ui/button";
 import { StatusBird } from "@/components/common/StatusBird";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -108,117 +109,126 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 
       console.log("Fetching visit plans for interactive table...");
 
-      // Fetch visit plans
-      const { data: visitPlans, error: visitPlansError } = await supabase
-        .from("visit_plans")
-        .select("id, delegate_id, visit_frequency, doctor_id")
-        .in("delegate_id", effectiveDelegateIds);
+      // Helper to get token
+      const getToken = () => {
+        try {
+          const keycloak = (window as any).keycloak;
+          if (keycloak?.token) return keycloak.token;
+        } catch {}
+        return undefined;
+      };
+      const token = getToken();
 
-      if (visitPlansError) {
-        console.error("Visit plans error:", visitPlansError);
-        throw visitPlansError;
-      }
+      // Note: visit_plans endpoint may not exist yet, using placeholder
+      const visitPlans: any[] = [];
 
-      // Fetch doctors
-      const doctorIds =
-        visitPlans?.map((p) => p.doctor_id).filter(Boolean) || [];
-      const { data: doctors, error: doctorsError } = await supabase
-        .from("doctors")
-        .select("id, first_name, last_name, specialty, brick_id")
-        .in("id", doctorIds);
+      // Fetch doctors, bricks, profiles, and visits
+      const [doctorsData, bricksData, profilesData, visitsData] = await Promise.all([
+        apiService.getDoctors(token),
+        apiService.getBricks(token),
+        apiService.getProfiles(token),
+        apiService.getVisits(token)
+      ]);
 
-      if (doctorsError) {
-        console.error("Doctors error:", doctorsError);
-        throw doctorsError;
-      }
+      // Filter and transform data
+      const doctors = (doctorsData || []).map((d: any) => ({
+        id: d.id,
+        first_name: d.firstName,
+        last_name: d.lastName,
+        specialty: d.specialty,
+        brick_id: d.brickId
+      }));
 
-      // Fetch bricks
-      const brickIds = doctors?.map((d) => d.brick_id).filter(Boolean) || [];
-      const { data: bricks, error: bricksError } = await supabase
-        .from("bricks")
-        .select("id, name")
-        .in("id", brickIds);
+      const bricks = (bricksData || []).map((b: any) => ({
+        id: b.id,
+        name: b.name
+      }));
 
-      if (bricksError) {
-        console.error("Bricks error:", bricksError);
-        throw bricksError;
-      }
-
-      // Fetch delegate profiles with supervisor info
-      const { data: delegateProfiles, error: delegatesError } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, supervisor_id")
-        .in("id", effectiveDelegateIds);
-
-      if (delegatesError) {
-        console.error("Delegates error:", delegatesError);
-        throw delegatesError;
-      }
+      const delegateProfiles = (profilesData || []).filter((p: any) => 
+        effectiveDelegateIds.includes(p.id)
+      ).map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId
+      }));
 
       // Fetch supervisor profiles if needed
       let supervisorProfiles: any[] = [];
       if (showSupervisorGrouping) {
         const supervisorIds = [
           ...new Set(
-            delegateProfiles?.map((d) => d.supervisor_id).filter(Boolean)
+            delegateProfiles?.map((d: any) => d.supervisor_id).filter(Boolean)
           ),
         ];
         if (supervisorIds.length > 0) {
-          const { data: supervisors, error: supervisorsError } = await supabase
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .in("id", supervisorIds);
-
-          if (supervisorsError) {
-            console.error("Supervisors error:", supervisorsError);
-            throw supervisorsError;
-          }
-          supervisorProfiles = supervisors || [];
+          supervisorProfiles = (profilesData || []).filter((p: any) => 
+            supervisorIds.includes(p.id)
+          ).map((p: any) => ({
+            id: p.id,
+            first_name: p.firstName,
+            last_name: p.lastName
+          }));
         }
       }
 
-      // Fetch visits for this year
-      const visitPlanIds = visitPlans?.map((p) => p.id) || [];
-      const { data: visits, error: visitsError } = await supabase
-        .from("visits")
-        .select("id, visit_plan_id, visit_date")
-        .in("visit_plan_id", visitPlanIds)
-        .gte("visit_date", `${currentYear}-01-01`)
-        .lte("visit_date", `${currentYear}-12-31`);
+      // Filter visits for this year
+      const visits = (visitsData || []).filter((v: any) => {
+        const visitDate = new Date(v.visitDate);
+        return visitDate >= new Date(`${currentYear}-01-01`) &&
+               visitDate <= new Date(`${currentYear}-12-31`);
+      }).map((v: any) => ({
+        id: v.id,
+        visit_plan_id: v.visitPlanId,
+        visit_date: v.visitDate
+      }));
 
-      if (visitsError) {
-        console.error("Visits error:", visitsError);
-        throw visitsError;
-      }
-
-      // Process the data
+      // Process the data - Note: visit_plans not available yet, using visits directly
       const processed: VisitPlanData[] = [];
 
-      for (const visitPlan of visitPlans || []) {
-        const doctor = doctors?.find((d) => d.id === visitPlan.doctor_id);
+      // Group visits by doctor and delegate to simulate visit plans
+      const visitGroups = new Map<string, any>();
+      visits.forEach((visit: any) => {
+        const key = `${visit.visit_plan_id || 'unknown'}`;
+        if (!visitGroups.has(key)) {
+          visitGroups.set(key, {
+            id: visit.visit_plan_id || `temp-${Math.random()}`,
+            delegate_id: effectiveDelegateIds[0], // Fallback
+            doctor_id: null,
+            visit_frequency: '1',
+            visits: []
+          });
+        }
+        visitGroups.get(key)!.visits.push(visit);
+      });
+
+      // Process grouped data
+      for (const [key, visitPlan] of visitGroups.entries()) {
+        // Try to find doctor from visits (if visit has doctorId)
+        const visit = visitPlan.visits[0];
+        const doctor = visit?.doctorId ? doctors?.find((d: any) => d.id === visit.doctorId) : null;
         const brick = doctor
-          ? bricks?.find((b) => b.id === doctor.brick_id)
+          ? bricks?.find((b: any) => b.id === doctor.brick_id)
           : null;
         const delegate = delegateProfiles?.find(
-          (d) => d.id === visitPlan.delegate_id
+          (d: any) => d.id === visitPlan.delegate_id
         );
         const supervisor = showSupervisorGrouping
-          ? supervisorProfiles?.find((s) => s.id === delegate?.supervisor_id)
+          ? supervisorProfiles?.find((s: any) => s.id === delegate?.supervisor_id)
           : null;
 
-        if (!doctor || !delegate) continue;
+        if (!delegate) continue;
 
         // Apply filters
         if (brickFilter !== "all" && brick?.name !== brickFilter) continue;
-        if (specialtyFilter !== "all" && doctor.specialty !== specialtyFilter)
+        if (specialtyFilter !== "all" && doctor?.specialty !== specialtyFilter)
           continue;
 
         const monthlyFrequency = visitPlan.visit_frequency === "1" ? 1 : 2;
 
         // Calculate actual visits per month
         const monthly_visits = Array(12).fill(0);
-        const planVisits =
-          visits?.filter((v) => v.visit_plan_id === visitPlan.id) || [];
+        const planVisits = visitPlan.visits || [];
 
         planVisits.forEach((visit) => {
           const visitDate = new Date(visit.visit_date);
@@ -269,9 +279,9 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
 
         processed.push({
           id: visitPlan.id,
-          doctor_name: `${doctor.first_name} ${doctor.last_name}`,
+          doctor_name: doctor ? `${doctor.first_name} ${doctor.last_name}` : "Unknown Doctor",
           brick_name: brick?.name || "Unknown Brick",
-          specialty: doctor.specialty || "N/A",
+          specialty: doctor?.specialty || "N/A",
           visit_frequency: monthlyFrequency,
           monthly_visits,
           visits_today: visitsToday,
@@ -345,19 +355,23 @@ const InteractiveVisitTable: React.FC<InteractiveVisitTableProps> = ({
     mutationFn: async (visitPlanId: string) => {
       console.log("Recording visit for plan:", visitPlanId);
 
-      const { data, error } = await supabase
-        .from("visits")
-        .insert({
-          visit_plan_id: visitPlanId,
-          visit_date: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      // Helper to get token
+      const getToken = () => {
+        try {
+          const keycloak = (window as any).keycloak;
+          if (keycloak?.token) return keycloak.token;
+        } catch {}
+        return undefined;
+      };
+      const token = getToken();
 
-      if (error) {
-        console.error("Error recording visit:", error);
-        throw error;
-      }
+      const visitData = {
+        visitPlanId: visitPlanId || null,
+        visitDate: new Date().toISOString(),
+        // TODO: Add other required fields when available
+      };
+
+      const data = await apiService.createVisit(visitData, token);
 
       console.log("Visit recorded successfully:", data);
       return data;

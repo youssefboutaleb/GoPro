@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { Badge } from '@/components/ui/badge';
 import { Users, MapPin, Stethoscope, Package } from 'lucide-react';
 
@@ -30,16 +30,22 @@ const TargetedEntities: React.FC<TargetedEntitiesProps> = ({
   const safeSupervisors = targetedSupervisors ?? [];
   const safeSalesDirectors = targetedSalesDirectors ?? [];
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   const { data: productNames } = useQuery({
     queryKey: ['product-names', safeProducts],
     queryFn: async () => {
       if (safeProducts.length === 0) return [];
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name')
-        .in('id', safeProducts);
-      if (error) throw error;
-      return data;
+      const token = getToken();
+      const allProducts = await apiService.getProducts(token);
+      return (allProducts || []).filter((p: any) => safeProducts.includes(p.id));
     },
     enabled: safeProducts.length > 0
   });
@@ -48,12 +54,9 @@ const TargetedEntities: React.FC<TargetedEntitiesProps> = ({
     queryKey: ['brick-names', safeBricks],
     queryFn: async () => {
       if (safeBricks.length === 0) return [];
-      const { data, error } = await supabase
-        .from('bricks')
-        .select('id, name')
-        .in('id', safeBricks);
-      if (error) throw error;
-      return data;
+      const token = getToken();
+      const allBricks = await apiService.getBricks(token);
+      return (allBricks || []).filter((b: any) => safeBricks.includes(b.id));
     },
     enabled: safeBricks.length > 0
   });
@@ -62,12 +65,10 @@ const TargetedEntities: React.FC<TargetedEntitiesProps> = ({
     queryKey: ['doctor-names', safeDoctors],
     queryFn: async () => {
       if (safeDoctors.length === 0) return [];
-      const { data, error } = await supabase
-        .from('doctors')
-        .select('id, first_name, last_name')
-        .in('id', safeDoctors);
-      if (error) throw error;
-      return data;
+      const token = getToken();
+      const allDoctors = await apiService.getDoctors(token);
+      return (allDoctors || []).filter((d: any) => safeDoctors.includes(d.id))
+        .map((d: any) => ({ id: d.id, first_name: d.firstName, last_name: d.lastName }));
     },
     enabled: safeDoctors.length > 0
   });
@@ -76,12 +77,10 @@ const TargetedEntities: React.FC<TargetedEntitiesProps> = ({
     queryKey: ['delegate-names', safeDelegates],
     queryFn: async () => {
       if (safeDelegates.length === 0) return [];
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', safeDelegates);
-      if (error) throw error;
-      return data;
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      return (allProfiles || []).filter((p: any) => safeDelegates.includes(p.id))
+        .map((p: any) => ({ id: p.id, first_name: p.firstName, last_name: p.lastName }));
     },
     enabled: safeDelegates.length > 0
   });

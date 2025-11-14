@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Users, Loader2 } from 'lucide-react';
 
@@ -15,25 +14,14 @@ const CreateTestUsers = () => {
     setResult(null);
 
     try {
-      console.log('Calling create-test-users function...');
-      
-      const { data, error } = await supabase.functions.invoke('create-test-users');
-
-      if (error) {
-        console.error('Function error:', error);
-        toast.error(`Error: ${error.message}`);
-        return;
-      }
-
-      console.log('Function response:', data);
-      setResult(data);
-      
-      if (data.success) {
-        toast.success(`Successfully created ${data.createdUsers} test users!`);
-      } else {
-        toast.error(`Error: ${data.error}`);
-      }
-    } catch (error) {
+      // Note: Test user creation should be done via Keycloak Admin API or backend endpoint
+      // This feature is temporarily disabled during migration
+      toast.info('Test user creation is currently managed through Keycloak Admin Console');
+      setResult({
+        success: false,
+        error: 'This feature is not yet available in the new backend. Please use Keycloak Admin Console to create test users.'
+      });
+    } catch (error: any) {
       console.error('Exception calling function:', error);
       toast.error('Failed to create test users');
     } finally {

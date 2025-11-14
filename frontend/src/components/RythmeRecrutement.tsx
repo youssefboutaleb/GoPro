@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, TrendingUp, Calendar, Filter, Target, Package, Building, Users } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import BreadcrumbNavigation from './common/BreadcrumbNavigation';
@@ -113,6 +113,15 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Helper functions
   const getLastDayOfMonth = (year: number, month: number) => {
     return new Date(year, month, 0).getDate();
@@ -128,14 +137,13 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     queryFn: async () => {
       if (!isSalesDirectorView || !profile?.id) return [];
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .eq('supervisor_id', profile.id)
-        .eq('role', 'Supervisor');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      const profiles = await apiService.getProfilesBySupervisor(profile.id, token);
+      return (profiles || []).filter((p: any) => p.role === 'Supervisor').map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
     },
     enabled: isSalesDirectorView,
   });
@@ -166,19 +174,22 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     queryFn: async () => {
       if (baseDelegateIds.length === 0) return [];
       
-      let query = supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id')
-        .in('id', baseDelegateIds)
-        .eq('role', 'Delegate');
-
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      let filtered = (allProfiles || []).filter((p: any) => 
+        baseDelegateIds.includes(p.id) && p.role === 'Delegate'
+      );
+      
       if (selectedSupervisor !== 'all') {
-        query = query.eq('supervisor_id', selectedSupervisor);
+        filtered = filtered.filter((p: any) => p.supervisorId === selectedSupervisor);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return filtered.map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId
+      }));
     },
     enabled: baseDelegateIds.length > 0,
   });
@@ -187,13 +198,9 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const { data: products = [] } = useQuery({
     queryKey: ['products-for-filter'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name')
-        .eq('name', 'Nebilet');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      const allProducts = await apiService.getProducts(token);
+      return (allProducts || []).filter((p: any) => p.name === 'Nebilet');
     },
   });
 
@@ -201,12 +208,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const { data: bricks = [] } = useQuery({
     queryKey: ['bricks-for-filter'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bricks')
-        .select('id, name');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      return await apiService.getBricks(token) || [];
     },
   });
 
@@ -222,18 +225,19 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
       }
 
       try {
-        const { data, error } = await supabase
-          .from('sales_plans')
-          .select('id, delegate_id, product_id, brick_id')
-          .in('delegate_id', effectiveDelegateIds);
+        const token = getToken();
+        const allSalesPlans = await apiService.getSalesPlans(token);
+        const filtered = (allSalesPlans || []).filter((sp: any) => 
+          effectiveDelegateIds.includes(sp.delegateId)
+        );
 
-        if (error) {
-          console.error('Sales plans query error for recruitment rhythm:', error);
-          throw error;
-        }
-
-        console.log('Sales plans fetched successfully for recruitment rhythm:', data?.length || 0, 'items');
-        return data || [];
+        console.log('Sales plans fetched successfully for recruitment rhythm:', filtered.length, 'items');
+        return filtered.map((sp: any) => ({
+          id: sp.id,
+          delegate_id: sp.delegateId,
+          product_id: sp.productId,
+          brick_id: sp.brickId
+        }));
       } catch (error) {
         console.error('Error in sales plans query for recruitment rhythm:', error);
         throw error;
@@ -248,12 +252,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const { data: allProducts = [] } = useQuery({
     queryKey: ['all-products-recruitment'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      return await apiService.getProducts(token) || [];
     },
   });
 
@@ -261,12 +261,8 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
   const { data: allBricks = [] } = useQuery({
     queryKey: ['all-bricks-recruitment'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bricks')
-        .select('id, name');
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      return await apiService.getBricks(token) || [];
     },
   });
 
@@ -276,13 +272,14 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     queryFn: async () => {
       if (effectiveDelegateIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id')
-        .in('id', effectiveDelegateIds);
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      return (allProfiles || []).filter((p: any) => effectiveDelegateIds.includes(p.id)).map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId
+      }));
     },
     enabled: effectiveDelegateIds.length > 0,
   });
@@ -293,21 +290,21 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     queryFn: async () => {
       if (!isSalesDirectorView || delegateProfiles.length === 0) return [];
       
-      const supervisorIds = [...new Set(delegateProfiles.map(d => d.supervisor_id).filter(Boolean))];
+      const supervisorIds = [...new Set(delegateProfiles.map((d: any) => d.supervisor_id).filter(Boolean))];
       if (supervisorIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', supervisorIds);
-
-      if (error) throw error;
-      return data || [];
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      return (allProfiles || []).filter((p: any) => supervisorIds.includes(p.id)).map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
     },
     enabled: isSalesDirectorView && delegateProfiles.length > 0,
   });
 
-  const salesPlanIds = salesPlansData.map(plan => plan.id);
+  const salesPlanIds = salesPlansData.map((plan: any) => plan.id);
 
   // Fetch sales data
   const { data: salesData = [], isLoading: salesLoading } = useQuery({
@@ -315,18 +312,18 @@ const RythmeRecrutement: React.FC<RythmeRecrutementProps> = ({
     queryFn: async () => {
       if (salesPlanIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('sales')
-        .select('*')
-        .in('sales_plan_id', salesPlanIds)
-        .eq('year', currentYear);
-
-      if (error) {
-        console.error('Sales data query error:', error);
-        throw error;
-      }
-
-      return data || [];
+      const token = getToken();
+      const allSales = await apiService.getSales(token);
+      return (allSales || []).filter((s: any) => 
+        salesPlanIds.includes(s.salesPlanId) && s.year === currentYear
+      ).map((s: any) => ({
+        id: s.id,
+        sales_plan_id: s.salesPlanId,
+        year: s.year,
+        targets: s.targets || Array(12).fill(0),
+        achievements: s.achievements || Array(12).fill(0),
+        'monthly target': s.targets?.[0] || 0 // For compatibility
+      }));
     },
     enabled: salesPlanIds.length > 0,
   });

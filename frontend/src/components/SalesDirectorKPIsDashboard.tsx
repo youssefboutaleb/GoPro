@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, TrendingUp, Users, Target, Award, Building, BarChart3 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useAuth } from '@/hooks/useAuth';
 import SalesDirectorOverview from './sales-director/SalesDirectorOverview';
 import SalesDirectorSalesKPIs from './sales-director/SalesDirectorSalesKPIs';
@@ -34,18 +34,17 @@ const SalesDirectorKPIsDashboard: React.FC<SalesDirectorKPIsDashboardProps> = ({
         return [];
       }
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id, role')
-        .eq('supervisor_id', profile.id)
-        .eq('role', 'Supervisor');
+      const token = getToken();
+      const data = await apiService.getProfilesBySupervisor(profile.id, token);
+      const error = null;
 
-      if (error) {
-        console.error('Error fetching supervised supervisors:', error);
-        throw error;
-      }
-
-      return data || [];
+      return (data || []).filter((p: any) => p.role === 'Supervisor').map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId,
+        role: p.role
+      }));
     },
     enabled: !!profile?.id && profile?.role === 'Sales Director',
   });
@@ -57,19 +56,19 @@ const SalesDirectorKPIsDashboard: React.FC<SalesDirectorKPIsDashboardProps> = ({
       if (supervisedSupervisors.length === 0) return [];
       
       const supervisorIds = supervisedSupervisors.map(s => s.id);
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id')
-        .in('supervisor_id', supervisorIds)
-        .eq('role', 'Delegate');
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      const data = (allProfiles || []).filter((p: any) => 
+        supervisorIds.includes(p.supervisorId) && p.role === 'Delegate'
+      );
+      const error = null;
 
-      if (error) {
-        console.error('Error fetching all delegates:', error);
-        throw error;
-      }
-
-      return data || [];
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId
+      }));
     },
     enabled: supervisedSupervisors.length > 0,
   });

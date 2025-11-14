@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Users, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 
 interface SalesDirectorVisitKPIsProps {
   delegateIds: string[];
@@ -25,26 +25,23 @@ const SalesDirectorVisitKPIs: React.FC<SalesDirectorVisitKPIsProps> = ({
     queryFn: async () => {
       if (delegateIds.length === 0) return null;
 
-      // Fetch visit plans for all delegates
-      const { data: visitPlans, error: plansError } = await supabase
-        .from('visit_plans')
-        .select('id, delegate_id, visit_frequency, doctor_id')
-        .in('delegate_id', delegateIds);
+      const token = getToken();
+      
+      // Note: visit_plans endpoint may not exist yet
+      const visitPlans: any[] = [];
 
-      if (plansError) throw plansError;
-
-      if (!visitPlans || visitPlans.length === 0) return null;
-
-      // Fetch actual visits for these plans
-      const visitPlanIds = visitPlans.map(p => p.id);
-      const { data: visits, error: visitsError } = await supabase
-        .from('visits')
-        .select('visit_plan_id, visit_date')
-        .in('visit_plan_id', visitPlanIds)
-        .gte('visit_date', `${currentYear}-01-01`)
-        .lte('visit_date', `${currentYear}-${selectedMonth.toString().padStart(2, '0')}-31`);
-
-      if (visitsError) throw visitsError;
+      // Fetch visits for delegates
+      const allVisits = await apiService.getVisits(token);
+      const endDate = `${currentYear}-${selectedMonth.toString().padStart(2, '0')}-31`;
+      const visits = (allVisits || []).filter((v: any) => {
+        const visitDate = new Date(v.visitDate);
+        return delegateIds.includes(v.delegateId) &&
+               visitDate >= new Date(`${currentYear}-01-01`) &&
+               visitDate <= new Date(endDate);
+      }).map((v: any) => ({
+        visit_plan_id: v.visitPlanId,
+        visit_date: v.visitDate
+      }));
 
       // Calculate aggregated metrics
       let totalPlannedVisits = 0;

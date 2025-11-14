@@ -1,9 +1,9 @@
 
 import { useMemo } from 'react';
 import { useAuth } from './useAuth';
-import { Database } from '@/integrations/supabase/types';
+import { ActionPlan } from '@/types/backend';
 
-type ActionPlan = Database['public']['Tables']['action_plans']['Row'] & {
+type ActionPlanWithCreator = ActionPlan & {
   creator?: {
     id: string;
     first_name: string;
@@ -12,7 +12,7 @@ type ActionPlan = Database['public']['Tables']['action_plans']['Row'] & {
   };
 };
 
-export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
+export const useActionPlanCategories = (actionPlans: ActionPlanWithCreator[] = []) => {
   const { profile } = useAuth();
 
   return useMemo(() => {
@@ -39,36 +39,36 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
     console.log(`Current user role: ${profile.role}, ID: ${profile.id}`);
 
     const categories = {
-      own: [] as ActionPlan[],
-      supervisorInvolvingMe: [] as ActionPlan[],
-      salesDirectorInvolvingMe: [] as ActionPlan[],
-      delegate: [] as ActionPlan[],
-      supervisor: [] as ActionPlan[],
-      salesDirector: [] as ActionPlan[],
+      own: [] as ActionPlanWithCreator[],
+      supervisorInvolvingMe: [] as ActionPlanWithCreator[],
+      salesDirectorInvolvingMe: [] as ActionPlanWithCreator[],
+      delegate: [] as ActionPlanWithCreator[],
+      supervisor: [] as ActionPlanWithCreator[],
+      salesDirector: [] as ActionPlanWithCreator[],
       // Supervisor-specific categories
-      delegatePlans: [] as ActionPlan[],
-      involvingMe: [] as ActionPlan[],
+      delegatePlans: [] as ActionPlanWithCreator[],
+      involvingMe: [] as ActionPlanWithCreator[],
       // Sales Director-specific categories
-      supervisorPlans: [] as ActionPlan[],
-      salesDirectorDelegatePlans: [] as ActionPlan[],
-      marketingManagerInvolvingMe: [] as ActionPlan[]
+      supervisorPlans: [] as ActionPlanWithCreator[],
+      salesDirectorDelegatePlans: [] as ActionPlanWithCreator[],
+      marketingManagerInvolvingMe: [] as ActionPlanWithCreator[]
     };
 
     actionPlans.forEach(plan => {
-      const isOwnPlan = plan.created_by === profile.id;
-      const isTargeted = plan.targeted_delegates?.includes(profile.id) || false;
-      const isSupervisorTargeted = plan.targeted_supervisors?.includes(profile.id) || false;
+      const isOwnPlan = plan.createdBy === profile.id;
+      const isTargeted = plan.targetedDelegates?.includes(profile.id) || false;
+      const isSupervisorTargeted = plan.targetedSupervisors?.includes(profile.id) || false;
       const creatorRole = plan.creator?.role;
 
       console.log(`Plan ${plan.id} (${plan.location}):`, {
-        createdBy: plan.created_by,
+        createdBy: plan.createdBy,
         isOwnPlan,
         creatorRole,
         creatorName: plan.creator ? `${plan.creator.first_name} ${plan.creator.last_name}` : 'UNKNOWN',
         isTargeted,
         isSupervisorTargeted,
-        targetedDelegates: plan.targeted_delegates,
-        targetedSupervisors: plan.targeted_supervisors
+        targetedDelegates: plan.targetedDelegates,
+        targetedSupervisors: plan.targetedSupervisors
       });
 
       if (isOwnPlan) {
@@ -99,7 +99,7 @@ export const useActionPlanCategories = (actionPlans: ActionPlan[] = []) => {
         } else if (creatorRole === 'Delegate') {
           // Plans from delegates under supervision that need approval
           categories.salesDirectorDelegatePlans.push(plan);
-        } else if (creatorRole === 'Marketing Manager' && plan.targeted_sales_directors?.includes(profile.id)) {
+        } else if (creatorRole === 'Marketing Manager' && plan.targetedSalesDirectors?.includes(profile.id)) {
           // Plans from marketing managers that involve this sales director
           categories.marketingManagerInvolvingMe.push(plan);
         }

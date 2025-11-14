@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, BarChart3, Filter, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useAuth } from '@/hooks/useAuth';
 
 interface SupervisorTeamReturnIndexProps {
@@ -40,13 +40,16 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
     queryFn: async () => {
       if (delegateIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', delegateIds);
+      const token = getToken();
+      const allProfiles = await apiService.getProfiles(token);
+      const data = (allProfiles || []).filter((p: any) => delegateIds.includes(p.id));
+      const error = null;
 
-      if (error) throw error;
-      return data || [];
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
     },
     enabled: delegateIds.length > 0,
   });
@@ -61,44 +64,39 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
         ? delegateIds 
         : [selectedDelegate];
 
-      // First fetch visit plans
-      const { data: visitPlans, error: visitPlansError } = await supabase
-        .from('visit_plans')
-        .select('id, visit_frequency, delegate_id, doctor_id')
-        .in('delegate_id', effectiveDelegateIds);
-
-      if (visitPlansError) throw visitPlansError;
-
-      if (!visitPlans || visitPlans.length === 0) return [];
-
-      // Get unique doctor IDs
-      const doctorIds = [...new Set(visitPlans.map(vp => vp.doctor_id).filter(Boolean))];
+      const token = getToken();
       
-      // Fetch doctors with bricks
-      const { data: doctors, error: doctorsError } = await supabase
-        .from('doctors')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          specialty,
-          brick_id,
-          bricks!doctors_brick_id_fkey(
-            id,
-            name
-          )
-        `)
-        .in('id', doctorIds);
+      // Note: visit_plans endpoint may not exist yet
+      const visitPlans: any[] = [];
 
-      if (doctorsError) throw doctorsError;
+      // Fetch doctors, bricks, profiles, and visits
+      const [doctorsData, bricksData, profilesData, visitsData] = await Promise.all([
+        apiService.getDoctors(token),
+        apiService.getBricks(token),
+        apiService.getProfiles(token),
+        apiService.getVisits(token)
+      ]);
 
-      // Get delegate names
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', effectiveDelegateIds);
+      // Transform data
+      const doctors = (doctorsData || []).map((d: any) => ({
+        id: d.id,
+        first_name: d.firstName,
+        last_name: d.lastName,
+        specialty: d.specialty,
+        brick_id: d.brickId,
+        bricks: bricksData?.find((b: any) => b.id === d.brickId) ? {
+          id: bricksData.find((b: any) => b.id === d.brickId).id,
+          name: bricksData.find((b: any) => b.id === d.brickId).name
+        } : null
+      }));
 
-      if (profilesError) throw profilesError;
+      const profiles = (profilesData || []).filter((p: any) => 
+        effectiveDelegateIds.includes(p.id)
+      ).map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
 
       // Get visits for this month
       const currentDate = new Date();
@@ -108,26 +106,43 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
       const lastDayOfMonth = new Date(currentYear, currentMonth, 0).getDate();
       const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
 
-      const visitPlanIds = visitPlans.map(vp => vp.id);
-      const { data: visits, error: visitsError } = await supabase
-        .from('visits')
-        .select('id, visit_plan_id, visit_date')
-        .in('visit_plan_id', visitPlanIds)
-        .gte('visit_date', startDate)
-        .lte('visit_date', endDate);
+      const visits = (visitsData || []).filter((v: any) => {
+        const visitDate = new Date(v.visitDate);
+        return visitDate >= new Date(startDate) && visitDate <= new Date(endDate) &&
+               effectiveDelegateIds.includes(v.delegateId);
+      }).map((v: any) => ({
+        id: v.id,
+        visit_plan_id: v.visitPlanId,
+        visit_date: v.visitDate
+      }));
 
-      if (visitsError) throw visitsError;
-
-      // Process data
+      // Process data - Note: visit_plans not available, using visits directly
       const processed: VisitPlanData[] = [];
 
-      for (const plan of visitPlans) {
-        const doctor = doctors?.find(d => d.id === plan.doctor_id);
-        const delegate = profiles?.find(p => p.id === plan.delegate_id);
-        
-        if (!doctor || !delegate) continue;
+      // Group visits by delegate and doctor
+      const visitGroups = new Map<string, any>();
+      visits.forEach((visit: any) => {
+        const key = `${visit.visit_plan_id || 'unknown'}`;
+        if (!visitGroups.has(key)) {
+          visitGroups.set(key, {
+            id: visit.visit_plan_id || `temp-${Math.random()}`,
+            delegate_id: effectiveDelegateIds[0],
+            doctor_id: null,
+            visit_frequency: '1',
+            visits: []
+          });
+        }
+        visitGroups.get(key)!.visits.push(visit);
+      });
 
-        const planVisits = visits?.filter(v => v.visit_plan_id === plan.id) || [];
+      for (const [key, plan] of visitGroups.entries()) {
+        const visit = plan.visits[0];
+        const doctor = visit?.doctorId ? doctors?.find((d: any) => d.id === visit.doctorId) : null;
+        const delegate = profiles?.find((p: any) => p.id === plan.delegate_id);
+        
+        if (!delegate) continue;
+
+        const planVisits = plan.visits || [];
         const frequency = parseInt(plan.visit_frequency);
         const requiredVisits = frequency;
         const actualVisits = planVisits.length;
@@ -149,9 +164,9 @@ const SupervisorTeamReturnIndex: React.FC<SupervisorTeamReturnIndexProps> = ({
 
         processed.push({
           id: plan.id,
-          doctor_name: `${doctor.first_name} ${doctor.last_name}`,
-          brick_name: doctor.bricks?.name || 'N/A',
-          specialty: doctor.specialty || 'N/A',
+          doctor_name: doctor ? `${doctor.first_name} ${doctor.last_name}` : 'Unknown Doctor',
+          brick_name: doctor?.bricks?.name || 'N/A',
+          specialty: doctor?.specialty || 'N/A',
           delegate_name: `${delegate.first_name} ${delegate.last_name}`,
           visit_frequency: plan.visit_frequency,
           last_visit_date: lastVisit?.visit_date || null,

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Users, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 
 interface SupervisorVisitKPIsProps {
   delegateIds: string[];
@@ -24,39 +24,42 @@ const SupervisorVisitKPIs: React.FC<SupervisorVisitKPIsProps> = ({
   selectedMonth,
   currentYear
 }) => {
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Fetch visit data for all delegates
   const { data: visitData = [], isLoading } = useQuery({
     queryKey: ['supervisor-visit-kpis', delegateIds, selectedMonth, currentYear],
     queryFn: async () => {
       if (delegateIds.length === 0) return [];
 
-      // Fetch visit plans for all delegates
-      const { data: visitPlans, error: plansError } = await supabase
-        .from('visit_plans')
-        .select('id, delegate_id, visit_frequency, doctor_id')
-        .in('delegate_id', delegateIds);
+      const token = getToken();
+      
+      // Fetch actual visits for delegates
+      const allVisits = await apiService.getVisits(token);
+      
+      // Filter visits by delegate and date range
+      const endDate = `${currentYear}-${selectedMonth.toString().padStart(2, '0')}-31`;
+      const visits = (allVisits || []).filter((v: any) => {
+        const visitDate = new Date(v.visitDate);
+        return delegateIds.includes(v.delegateId) &&
+               visitDate >= new Date(`${currentYear}-01-01`) &&
+               visitDate <= new Date(endDate);
+      });
 
-      if (plansError) throw plansError;
-
-      if (!visitPlans || visitPlans.length === 0) return [];
-
-      // Fetch actual visits for these plans
-      const visitPlanIds = visitPlans.map(p => p.id);
-      const { data: visits, error: visitsError } = await supabase
-        .from('visits')
-        .select('visit_plan_id, visit_date')
-        .in('visit_plan_id', visitPlanIds)
-        .gte('visit_date', `${currentYear}-01-01`)
-        .lte('visit_date', `${currentYear}-${selectedMonth.toString().padStart(2, '0')}-31`);
-
-      if (visitsError) throw visitsError;
+      // Note: visit_plans endpoint may not exist yet, using placeholder
+      const visitPlans: any[] = [];
 
       // Process data by delegate
       const processedData: ProcessedVisitData[] = delegateIds.map(delegateId => {
-        const delegatePlans = visitPlans.filter(p => p.delegate_id === delegateId);
-        const delegateVisits = visits?.filter(v => 
-          delegatePlans.some(p => p.id === v.visit_plan_id)
-        ) || [];
+        const delegatePlans = visitPlans.filter((p: any) => p.delegate_id === delegateId);
+        const delegateVisits = visits.filter((v: any) => v.delegateId === delegateId) || [];
 
         // Calculate planned visits based on frequency and months
         let plannedVisits = 0;

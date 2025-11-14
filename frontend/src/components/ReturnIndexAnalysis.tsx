@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, BarChart3, Calendar, TrendingUp, Target } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { StatusBird } from '@/components/common/StatusBird';
@@ -47,7 +47,17 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const displayMonths = monthNames.slice(0, currentMonth);
 
-  // Fetch visit plans with separate queries to avoid relationship conflicts
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
+  // Fetch visit plans - NOTE: visit_plans endpoint not yet available in backend
+  // Using placeholder for now
   const { data: visitPlans = [], isLoading: visitPlansLoading, error: visitPlansError } = useQuery({
     queryKey: ['return-index-visit-plans', effectiveDelegateIds.join(',')],
     queryFn: async () => {
@@ -59,30 +69,9 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
         return [];
       }
 
-      try {
-        const { data, error } = await supabase
-          .from('visit_plans')
-          .select('id, delegate_id, visit_frequency, doctor_id')
-          .in('delegate_id', effectiveDelegateIds);
-
-        if (error) {
-          console.error('Visit plans query error for return index:', error);
-          console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-          });
-          throw error;
-        }
-
-        console.log('Visit plans fetched successfully for return index:', data?.length || 0, 'items');
-        console.log('Visit plans data:', data);
-        return data || [];
-      } catch (error) {
-        console.error('Error in visit plans query for return index:', error);
-        throw error;
-      }
+      // TODO: Implement when visit_plans endpoint is available
+      console.warn('visit_plans endpoint not yet available in backend');
+      return [];
     },
     enabled: effectiveDelegateIds.length > 0,
     retry: 2,
@@ -91,57 +80,49 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
 
   // Fetch doctors data separately
   const { data: doctorsData = [], isLoading: doctorsLoading } = useQuery({
-    queryKey: ['doctors-for-visit-plans', visitPlans.map(p => p.doctor_id)],
+    queryKey: ['doctors-for-visit-plans', visitPlans.map((p: any) => p.doctor_id)],
     queryFn: async () => {
       if (visitPlans.length === 0) return [];
       
-      const doctorIds = visitPlans.map(plan => plan.doctor_id).filter(Boolean);
+      const doctorIds = visitPlans.map((plan: any) => plan.doctor_id).filter(Boolean);
       
       if (doctorIds.length === 0) return [];
 
-      const { data, error } = await supabase
-        .from('doctors')
-        .select('id, first_name, last_name, brick_id')
-        .in('id', doctorIds);
-
-      if (error) {
-        console.error('Doctors query error:', error);
-        throw error;
-      }
-
-      return data || [];
+      const token = getToken();
+      const allDoctors = await apiService.getDoctors(token);
+      return (allDoctors || []).filter((d: any) => doctorIds.includes(d.id)).map((d: any) => ({
+        id: d.id,
+        first_name: d.firstName,
+        last_name: d.lastName,
+        brick_id: d.brickId
+      }));
     },
     enabled: visitPlans.length > 0,
   });
 
   // Fetch bricks data separately
   const { data: bricksData = [], isLoading: bricksLoading } = useQuery({
-    queryKey: ['bricks-for-doctors', doctorsData.map(d => d.brick_id)],
+    queryKey: ['bricks-for-doctors', doctorsData.map((d: any) => d.brick_id)],
     queryFn: async () => {
       if (doctorsData.length === 0) return [];
       
-      const brickIds = doctorsData.map(doctor => doctor.brick_id).filter(Boolean);
+      const brickIds = doctorsData.map((doctor: any) => doctor.brick_id).filter(Boolean);
       
       if (brickIds.length === 0) return [];
 
-      const { data, error } = await supabase
-        .from('bricks')
-        .select('id, name')
-        .in('id', brickIds);
-
-      if (error) {
-        console.error('Bricks query error:', error);
-        throw error;
-      }
-
-      return data || [];
+      const token = getToken();
+      const allBricks = await apiService.getBricks(token);
+      return (allBricks || []).filter((b: any) => brickIds.includes(b.id)).map((b: any) => ({
+        id: b.id,
+        name: b.name
+      }));
     },
     enabled: doctorsData.length > 0,
   });
 
   // Fetch actual visits data
   const { data: visitsData = [], isLoading: visitsLoading } = useQuery({
-    queryKey: ['visits-data', visitPlans.map(p => p.id), currentYear],
+    queryKey: ['visits-data', visitPlans.map((p: any) => p.id), currentYear],
     queryFn: async () => {
       console.log('Fetching visits data for plans:', visitPlans.length);
       
@@ -151,22 +132,23 @@ const ReturnIndexAnalysis: React.FC<ReturnIndexAnalysisProps> = ({
       }
 
       try {
-        const visitPlanIds = visitPlans.map(plan => plan.id);
+        const token = getToken();
+        const allVisits = await apiService.getVisits(token);
         
-        const { data, error } = await supabase
-          .from('visits')
-          .select('id, visit_plan_id, visit_date')
-          .in('visit_plan_id', visitPlanIds)
-          .gte('visit_date', `${currentYear}-01-01`)
-          .lte('visit_date', `${currentYear}-12-31`);
+        // Filter by year and visit_plan_id (note: visit_plan_id may not exist in backend yet)
+        const visitPlanIds = visitPlans.map((plan: any) => plan.id);
+        const filtered = (allVisits || []).filter((v: any) => {
+          const visitDate = new Date(v.visitDate);
+          return visitDate.getFullYear() === currentYear;
+          // TODO: Filter by visit_plan_id when available
+        });
 
-        if (error) {
-          console.error('Visits data query error:', error);
-          throw error;
-        }
-
-        console.log('Visits data fetched:', data?.length || 0);
-        return data || [];
+        console.log('Visits data fetched:', filtered.length);
+        return filtered.map((v: any) => ({
+          id: v.id,
+          visit_plan_id: v.visitPlanId || null, // May not exist yet
+          visit_date: v.visitDate
+        }));
       } catch (error) {
         console.error('Error in visits data query:', error);
         throw error;

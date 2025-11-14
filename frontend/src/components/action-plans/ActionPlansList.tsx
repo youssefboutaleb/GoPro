@@ -12,15 +12,15 @@ import {
 } from '@/components/ui/select';
 import { Plus, Search, ArrowLeft, Users, User, UserCheck, Building } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useAuth } from '@/hooks/useAuth';
 import { useActionPlans } from '@/hooks/useActionPlans';
 import { useActionPlanCategories } from '@/hooks/useActionPlanCategories';
 import ActionPlanCard from './ActionPlanCard';
 import ActionPlanDialog from './ActionPlanDialog';
-import { Database } from '@/integrations/supabase/types';
+import { ActionPlan as BackendActionPlan } from '@/types/backend';
 
-type ActionPlan = Database['public']['Tables']['action_plans']['Row'] & {
+type ActionPlan = BackendActionPlan & {
   creator?: {
     id: string;
     first_name: string;
@@ -47,15 +47,27 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   const { data: actionPlans, isLoading } = useActionPlans();
   const groupedPlans = useActionPlanCategories(actionPlans);
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Mutation for updating supervisor status to Approved
   const approvePlanMutation = useMutation({
     mutationFn: async (planId: string) => {
-      const { error } = await supabase
-        .from('action_plans')
-        .update({ supervisor_status: 'Approved' })
-        .eq('id', planId);
+      const token = getToken();
+      const plan = actionPlans?.find(p => p.id === planId);
+      if (!plan) throw new Error('Action plan not found');
       
-      if (error) throw error;
+      // Note: status fields may not be in backend DTO yet
+      await apiService.updateActionPlan(planId, {
+        ...plan,
+        // TODO: Add supervisorStatus field when available in backend
+      }, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['action-plans'] });
@@ -65,12 +77,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   // Mutation for updating supervisor status to Rejected
   const rejectPlanMutation = useMutation({
     mutationFn: async (planId: string) => {
-      const { error } = await supabase
-        .from('action_plans')
-        .update({ supervisor_status: 'Rejected' })
-        .eq('id', planId);
+      const token = getToken();
+      const plan = actionPlans?.find(p => p.id === planId);
+      if (!plan) throw new Error('Action plan not found');
       
-      if (error) throw error;
+      await apiService.updateActionPlan(planId, {
+        ...plan,
+        // TODO: Add supervisorStatus field when available in backend
+      }, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['action-plans'] });
@@ -80,12 +94,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   // Mutation for updating sales director status to Approved
   const approveSalesDirectorPlanMutation = useMutation({
     mutationFn: async (planId: string) => {
-      const { error } = await supabase
-        .from('action_plans')
-        .update({ sales_director_status: 'Approved' })
-        .eq('id', planId);
+      const token = getToken();
+      const plan = actionPlans?.find(p => p.id === planId);
+      if (!plan) throw new Error('Action plan not found');
       
-      if (error) throw error;
+      await apiService.updateActionPlan(planId, {
+        ...plan,
+        // TODO: Add salesDirectorStatus field when available in backend
+      }, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['action-plans'] });
@@ -95,12 +111,14 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   // Mutation for updating sales director status to Rejected
   const rejectSalesDirectorPlanMutation = useMutation({
     mutationFn: async (planId: string) => {
-      const { error } = await supabase
-        .from('action_plans')
-        .update({ sales_director_status: 'Rejected' })
-        .eq('id', planId);
+      const token = getToken();
+      const plan = actionPlans?.find(p => p.id === planId);
+      if (!plan) throw new Error('Action plan not found');
       
-      if (error) throw error;
+      await apiService.updateActionPlan(planId, {
+        ...plan,
+        // TODO: Add salesDirectorStatus field when available in backend
+      }, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['action-plans'] });
@@ -108,7 +126,7 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
   });
 
   // Helper functions for filtering
-  const isOwnPlan = (plan: ActionPlan) => plan.created_by === profile?.id;
+  const isOwnPlan = (plan: ActionPlan) => plan.createdBy === profile?.id;
   
   const handleApprove = async (planId: string) => {
     if (!window.confirm('Are you sure you want to approve this action plan?')) return;
@@ -184,12 +202,8 @@ const ActionPlansList: React.FC<ActionPlansListProps> = ({ onBack }) => {
     if (!window.confirm('Are you sure you want to delete this action plan?')) return;
     
     try {
-      const { error } = await supabase
-        .from('action_plans')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      const token = getToken();
+      await apiService.deleteActionPlan(id, token);
       queryClient.invalidateQueries({ queryKey: ['action-plans'] });
     } catch (error) {
       console.error('Error deleting action plan:', error);

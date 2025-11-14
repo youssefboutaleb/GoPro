@@ -7,9 +7,9 @@ import { User, BarChart3, TrendingUp, ClipboardList, ArrowRight, FileText, Messa
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { profileService } from '@/services/profileService';
+import { apiService } from '@/services/apiService';
 import { delegateService } from '@/services/delegateService';
-import { visitService } from '@/services/visitService';
+import { VisitService} from '@/services/visitService';
 import VisitPlansManagement from './VisitPlansManagement';
 import RythmeRecrutement from './RythmeRecrutement';
 import ActionPlansList from './action-plans/ActionPlansList';
@@ -42,57 +42,84 @@ const DelegateDashboard: React.FC = () => {
     return new Date(year, month, 0).getDate();
   };
 
-  // Fetch supervisor info to get sales director ID
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
+  // Fetch supervisor info (used for sales director ID, display, etc)
   const { data: supervisorInfo } = useQuery({
     queryKey: ['supervisor-info', profile?.supervisor_id],
     queryFn: async () => {
       if (!profile?.supervisor_id) return null;
-      return await profileService.getSupervisorInfo(profile.supervisor_id);
+      return await apiService.getProfileById(profile.supervisor_id, getToken());
     },
     enabled: !!profile?.supervisor_id
   });
 
-  // Fetch quick stats for dashboard cards
+  // Fetch visits, action plans, sales plans for dashboard cards (unified logic)
   const { data: dashboardStats, isLoading: statsLoading } = useQuery({
-    queryKey: ['delegate-dashboard-stats', profile?.id, profile?.supervisor_id, supervisorInfo?.supervisor_id],
+    queryKey: ['delegate-dashboard-stats', profile?.id, profile?.supervisor_id, supervisorInfo?.id],
     queryFn: async () => {
       if (!profile?.id) return null;
+      const token = getToken();
 
-      try {
-        const creatorIds = [profile.id];
-        if (profile.supervisor_id) {
-          creatorIds.push(profile.supervisor_id);
-        }
-        if (supervisorInfo?.supervisor_id) {
-          creatorIds.push(supervisorInfo.supervisor_id);
-        }
+      // Supervisor chain (delegate's supervisor, supervisor's own supervisor, etc)
+      const creatorIds = [profile.id];
+      if (profile.supervisor_id) creatorIds.push(profile.supervisor_id);
+      if (supervisorInfo?.id) creatorIds.push(supervisorInfo.id);
 
-        // Calculate proper date range for current month
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1;
-        const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
-        
-        const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
-        const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
+      // Date range for monthly aggregation
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      const lastDayOfMonth = new Date(currentYear, currentMonth, 0).getDate();
+      const startDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`;
+      const endDate = `${currentYear}-${currentMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
 
-        // Fetch all stats in parallel
-        const [visitStats, delegateStats] = await Promise.all([
-          visitService.getVisitStats(profile.id, startDate, endDate),
-          delegateService.getDashboardStats(profile.id, creatorIds)
-        ]);
+      // Fetch all necessary data in parallel
+      const [visits, actionPlans, salesPlans] = await Promise.all([
+        apiService.getVisits(token),
+        apiService.getActionPlans(token),
+        apiService.getSalesPlans(token)
+      ]);
 
-        if (!visitStats || !delegateStats) return null;
+      // Visits by delegate this month
+      const thisMonthVisits = (visits || []).filter((v) => {
+        return v.delegateId === profile.id &&
+          v.visitDate >= startDate &&
+          v.visitDate <= endDate;
+      });
 
-        return {
-          ...visitStats,
-          ...delegateStats,
-          recruitmentRate: delegateStats.salesPlansCount > 0 ? Math.round(Math.random() * 40 + 60) : 0 // Placeholder calculation
-        };
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-        return null;
-      }
+      // Action plans created by me or involving me
+      const myActionPlans = (actionPlans || []).filter((a) =>
+        creatorIds.includes(a.createdBy) || (a.targetedDelegates || []).includes(profile.id)
+      );
+      // Count pending approvals if status fields exist
+      const pendingActionPlans = myActionPlans.filter((plan) => plan.supervisorStatus === 'Pending' || plan.salesDirectorStatus === 'Pending').length;
+
+      // Return index = ratio of actual visits to expected visits (example algorithm - adapt as needed)
+      const expectedVisitsThisMonth = 4; // TODO: If you want, fetch visit plan frequency; placeholder
+      const returnIndex = expectedVisitsThisMonth > 0 ? Math.round((thisMonthVisits.length / expectedVisitsThisMonth) * 100) : 0;
+
+      // Sales plan count
+      const salesPlansCount = (salesPlans || []).filter((sp) => sp.delegateId === profile.id).length;
+
+      // Recruitment rate placeholder
+      const recruitmentRate = salesPlansCount > 0 ? Math.round(Math.random() * 40 + 60) : 0;
+
+      return {
+        returnIndex,
+        thisMonthVisits: thisMonthVisits.length,
+        actionPlansCount: myActionPlans.length,
+        pendingActionPlans, // If status fields/config available
+        salesPlansCount,
+        recruitmentRate
+      };
     },
     enabled: !!profile?.id,
     staleTime: 5 * 60 * 1000,

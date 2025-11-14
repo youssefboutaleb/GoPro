@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, TrendingUp, Users, Target, Calendar, BarChart3, Download, RefreshCw, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useAuth } from '@/hooks/useAuth';
 import BreadcrumbNavigation from '../common/BreadcrumbNavigation';
 import SearchBar from '../common/SearchBar';
@@ -44,18 +44,17 @@ const EnhancedSupervisorDashboard: React.FC<EnhancedSupervisorDashboardProps> = 
         return [];
       }
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, supervisor_id, role')
-        .eq('supervisor_id', profile.id)
-        .eq('role', 'Delegate');
+      const token = getToken();
+      const data = await apiService.getProfilesBySupervisor(profile.id, token);
+      const error = null;
 
-      if (error) {
-        console.error('Error fetching supervised delegates:', error);
-        throw error;
-      }
-
-      return data || [];
+      return (data || []).filter((p: any) => p.role === 'Delegate').map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName,
+        supervisor_id: p.supervisorId,
+        role: p.role
+      }));
     },
     enabled: !!profile?.id && profile?.role === 'Supervisor',
   });

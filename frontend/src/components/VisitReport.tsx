@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar as CalendarIcon, Clock, User, MapPin } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { format, parseISO, isSameDay } from 'date-fns';
 
 interface VisitReportProps {
@@ -26,34 +26,45 @@ const VisitReport: React.FC<VisitReportProps> = ({ onBack }) => {
   const { profile } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Fetch visit records for the current delegate
   const { data: visitRecords, isLoading } = useQuery({
     queryKey: ['visit-records', profile?.id],
     queryFn: async () => {
       if (!profile?.id) return [];
 
-      // Use the RPC function to get visit records with proper joins
-      const { data, error } = await supabase.rpc('get_visit_records_for_delegate', {
-        delegate_user_id: profile.id
-      });
+      const token = getToken();
+      
+      // Fetch visits, doctors, and bricks separately and join in frontend
+      const [visits, doctors, bricks] = await Promise.all([
+        apiService.getVisitsByDelegate(profile.id, token),
+        apiService.getDoctors(token),
+        apiService.getBricks(token)
+      ]);
 
-      if (error) {
-        console.error('Supabase RPC error:', error);
-        throw error;
-      }
-
-      console.log('RPC visit data:', data);
-
-      // Transform the RPC data to match our interface
-      return (data || []).map((visit: any) => ({
-        id: visit.visit_id,
-        visit_date: visit.visit_date,
-        visit_plan_id: visit.visit_plan_id,
-        doctor_first_name: visit.doctor_first_name || 'Unknown',
-        doctor_last_name: visit.doctor_last_name || 'Doctor',
-        doctor_specialty: visit.doctor_specialty || 'Not specified',
-        brick_name: visit.brick_name || 'Unknown Brick',
-      })) as VisitRecord[];
+      // Transform and join data
+      return (visits || []).map((visit: any) => {
+        const doctor = (doctors || []).find((d: any) => d.id === visit.doctorId);
+        const brick = doctor ? (bricks || []).find((b: any) => b.id === doctor.brickId) : null;
+        
+        return {
+          id: visit.id,
+          visit_date: visit.visitDate,
+          visit_plan_id: visit.visitPlanId || null, // May not exist yet
+          doctor_first_name: doctor?.firstName || 'Unknown',
+          doctor_last_name: doctor?.lastName || 'Doctor',
+          doctor_specialty: doctor?.specialty || 'Not specified',
+          brick_name: brick?.name || 'Unknown Brick',
+        };
+      }) as VisitRecord[];
     },
     enabled: !!profile?.id,
   });

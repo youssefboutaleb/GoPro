@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { apiService } from "@/services/apiService";
 import VisitPlansManagement from "./VisitPlansManagement";
 import RythmeRecrutement from "./RythmeRecrutement";
 import ActionPlansList from "./action-plans/ActionPlansList";
@@ -43,6 +43,16 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
   const [showMenaConnect, setShowMenaConnect] = useState(false);
   const [showSalesForecasting, setShowSalesForecasting] = useState(false);
 
+  // Helper to get token - try to get from Keycloak or session
+  const getToken = () => {
+    // Try to get from Keycloak if available
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   const handleNavigateToRecruitmentRate = () => {
     setShowRythmeRecrutement(true);
   };
@@ -60,18 +70,15 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
         return [];
       }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name")
-        .eq("supervisor_id", profile.id)
-        .eq("role", "Supervisor");
-
-      if (error) {
-        console.error("Error fetching supervised supervisors:", error);
-        throw error;
-      }
-
-      return data || [];
+      const token = getToken();
+      const profiles = await apiService.getProfilesBySupervisor(profile.id, token);
+      
+      // Filter for supervisors and transform to snake_case for compatibility
+      return (profiles || []).filter((p: any) => p.role === "Supervisor").map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
     },
     enabled: !!profile?.id && profile?.role === "Sales Director",
   });
@@ -84,18 +91,18 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
     queryFn: async () => {
       if (supervisorIds.length === 0) return [];
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, supervisor_id")
-        .in("supervisor_id", supervisorIds)
-        .eq("role", "Delegate");
-
-      if (error) {
-        console.error("Error fetching all delegates:", error);
-        throw error;
-      }
-
-      return data || [];
+      const token = getToken();
+      // Fetch all profiles and filter
+      const allProfiles = await apiService.getProfiles(token);
+      
+      return (allProfiles || [])
+        .filter((p: any) => supervisorIds.includes(p.supervisorId) && p.role === "Delegate")
+        .map((p: any) => ({
+          id: p.id,
+          first_name: p.firstName,
+          last_name: p.lastName,
+          supervisor_id: p.supervisorId
+        }));
     },
     enabled: supervisorIds.length > 0,
   });
@@ -109,26 +116,18 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
       if (delegateIds.length === 0) return null;
 
       try {
-        // Fetch visit plans count for all supervised delegates
-        const { data: visitPlans, error: visitPlansError } = await supabase
-          .from("visit_plans")
-          .select("id")
-          .in("delegate_id", delegateIds);
-
-        if (visitPlansError) throw visitPlansError;
-
+        const token = getToken();
+        
         // Fetch sales plans count for all supervised delegates
-        const { data: salesPlans, error: salesPlansError } = await supabase
-          .from("sales_plans")
-          .select("id")
-          .in("delegate_id", delegateIds);
-
-        if (salesPlansError) throw salesPlansError;
+        const allSalesPlans = await apiService.getSalesPlans(token);
+        const salesPlans = (allSalesPlans || []).filter((sp: any) => 
+          delegateIds.includes(sp.delegateId)
+        );
 
         // Calculate proper date range for current month
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+        const currentMonth = currentDate.getMonth() + 1;
         const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
 
         const startDate = `${currentYear}-${currentMonth
@@ -138,39 +137,28 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
           .toString()
           .padStart(2, "0")}-${lastDayOfMonth.toString().padStart(2, "0")}`;
 
-        console.log(
-          "Fetching visits for date range:",
-          startDate,
-          "to",
-          endDate
-        );
+        // Fetch visits for current month
+        const allVisits = await apiService.getVisits(token);
+        const thisMonthVisits = (allVisits || []).filter((v: any) => {
+          const visitDate = new Date(v.visitDate);
+          return visitDate >= new Date(startDate) && visitDate <= new Date(endDate) &&
+                 delegateIds.includes(v.delegateId);
+        });
 
-        const { data: thisMonthVisits, error: visitsError } = await supabase
-          .from("visits")
-          .select("id, visit_plan_id, visit_date")
-          .gte("visit_date", startDate)
-          .lte("visit_date", endDate);
-
-        if (visitsError) {
-          console.error("Error fetching visits:", visitsError);
-          throw visitsError;
-        }
-
-        // Calculate return index (simplified aggregation)
-        const returnIndex =
-          visitPlans && visitPlans.length > 0
-            ? Math.round(
-                ((thisMonthVisits?.length || 0) / (visitPlans.length * 2)) * 100
-              )
-            : 0;
+        // Note: visit_plans not yet available in backend, using placeholder
+        const visitPlansCount = 0; // TODO: Implement when visit_plans endpoint is available
+        
+        // Calculate return index (simplified - using visits directly)
+        const returnIndex = thisMonthVisits.length > 0
+          ? Math.round((thisMonthVisits.length / (delegateIds.length * 2)) * 100)
+          : 0;
 
         return {
-          visitPlansCount: visitPlans?.length || 0,
-          salesPlansCount: salesPlans?.length || 0,
-          thisMonthVisits: thisMonthVisits?.length || 0,
+          visitPlansCount,
+          salesPlansCount: salesPlans.length,
+          thisMonthVisits: thisMonthVisits.length,
           returnIndex,
-          recruitmentRate:
-            salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0, // Placeholder calculation
+          recruitmentRate: salesPlans.length > 0 ? Math.round(Math.random() * 40 + 60) : 0,
         };
       } catch (error) {
         console.error("Error fetching sales director dashboard stats:", error);
@@ -194,34 +182,27 @@ const SalesDirectorDashboard: React.FC<SalesDirectorDashboardProps> = ({
         if (!profile?.id) return null;
 
         try {
+          const token = getToken();
           const creatorIds = [profile.id, ...supervisorIds, ...delegateIds];
+          
+          // Fetch all action plans and filter
+          const allActionPlans = await apiService.getActionPlans(token);
+          const actionPlans = (allActionPlans || []).filter((plan: any) =>
+            creatorIds.includes(plan.createdBy)
+          );
 
-          const { data: actionPlans, error } = await supabase
-            .from("action_plans")
-            .select("id, created_by, sales_director_status")
-            .in("created_by", creatorIds);
-
-          if (error) throw error;
-
-          const ownPlans =
-            actionPlans?.filter((plan) => plan.created_by === profile.id) || [];
-          const supervisorPlans =
-            actionPlans?.filter((plan) =>
-              supervisorIds.includes(plan.created_by)
-            ) || [];
-          const delegatePlans =
-            actionPlans?.filter((plan) =>
-              delegateIds.includes(plan.created_by)
-            ) || [];
-          const pendingApproval =
-            actionPlans?.filter(
-              (plan) =>
-                plan.created_by !== profile.id &&
-                plan.sales_director_status === "Pending"
-            ) || [];
+          const ownPlans = actionPlans.filter((plan: any) => plan.createdBy === profile.id);
+          const supervisorPlans = actionPlans.filter((plan: any) =>
+            supervisorIds.includes(plan.createdBy)
+          );
+          const delegatePlans = actionPlans.filter((plan: any) =>
+            delegateIds.includes(plan.createdBy)
+          );
+          // Note: sales_director_status not yet in backend DTO
+          const pendingApproval: any[] = []; // TODO: Implement when status field is available
 
           return {
-            totalPlans: actionPlans?.length || 0,
+            totalPlans: actionPlans.length,
             ownPlans: ownPlans.length,
             supervisorPlans: supervisorPlans.length,
             delegatePlans: delegatePlans.length,

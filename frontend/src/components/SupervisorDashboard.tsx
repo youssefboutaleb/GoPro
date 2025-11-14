@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { apiService } from "@/services/apiService";
 import VisitPlansManagement from "./VisitPlansManagement";
 import RythmeRecrutement from "./RythmeRecrutement";
 import ActionPlansList from "./action-plans/ActionPlansList";
@@ -43,6 +43,15 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
   const [showMenaConnect, setShowMenaConnect] = useState(false);
   const [showSalesForecasting, setShowSalesForecasting] = useState(false);
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   const handleNavigateToRecruitmentRate = () => {
     setShowRythmeRecrutement(true);
   };
@@ -64,18 +73,13 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
         return [];
       }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name")
-        .eq("supervisor_id", profile.id)
-        .eq("role", "Delegate");
-
-      if (error) {
-        console.error("Error fetching supervised delegates:", error);
-        throw error;
-      }
-
-      return data || [];
+      const token = getToken();
+      const profiles = await apiService.getProfilesBySupervisor(profile.id, token);
+      return (profiles || []).filter((p: any) => p.role === "Delegate").map((p: any) => ({
+        id: p.id,
+        first_name: p.firstName,
+        last_name: p.lastName
+      }));
     },
     enabled: !!profile?.id && profile?.role === "Supervisor",
   });
@@ -93,48 +97,33 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
       if (delegateIds.length === 0 && !profile?.id) return null;
 
       try {
-        // Fetch visit plans count for all supervised delegates
-        const { data: visitPlans, error: visitPlansError } = await supabase
-          .from("visit_plans")
-          .select("id")
-          .in("delegate_id", delegateIds);
-
-        if (visitPlansError) throw visitPlansError;
+        const token = getToken();
+        
+        // Note: visit_plans not yet available in backend
+        const visitPlansCount = 0; // TODO: Implement when visit_plans endpoint is available
 
         // Fetch sales plans count for all supervised delegates
-        const { data: salesPlans, error: salesPlansError } = await supabase
-          .from("sales_plans")
-          .select("id")
-          .in("delegate_id", delegateIds);
-
-        if (salesPlansError) throw salesPlansError;
+        const allSalesPlans = await apiService.getSalesPlans(token);
+        const salesPlans = (allSalesPlans || []).filter((sp: any) => 
+          delegateIds.includes(sp.delegateId)
+        );
 
         // Fetch action plans for supervisor and their delegates
         const allUserIds = profile?.id
           ? [profile.id, ...delegateIds]
           : delegateIds;
-        const { data: actionPlans, error: actionPlansError } = await supabase
-          .from("action_plans")
-          .select(
-            "id, supervisor_status, sales_director_status, marketing_manager_status"
-          )
-          .in("created_by", allUserIds);
+        const allActionPlans = await apiService.getActionPlans(token);
+        const actionPlans = (allActionPlans || []).filter((plan: any) =>
+          allUserIds.includes(plan.createdBy)
+        );
 
-        if (actionPlansError) throw actionPlansError;
-
-        // Count pending approvals
-        const pendingApprovals =
-          actionPlans?.filter(
-            (plan) =>
-              plan.supervisor_status === "Pending" ||
-              plan.sales_director_status === "Pending" ||
-              plan.marketing_manager_status === "Pending"
-          ).length || 0;
+        // Count pending approvals - Note: status fields may not be in backend DTO yet
+        const pendingApprovals = 0; // TODO: Implement when status fields are available
 
         // Calculate proper date range for current month
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+        const currentMonth = currentDate.getMonth() + 1;
         const lastDayOfMonth = getLastDayOfMonth(currentYear, currentMonth);
 
         const startDate = `${currentYear}-${currentMonth
@@ -144,40 +133,26 @@ const SupervisorDashboard: React.FC<SupervisorDashboardProps> = ({
           .toString()
           .padStart(2, "0")}-${lastDayOfMonth.toString().padStart(2, "0")}`;
 
-        console.log(
-          "Fetching visits for date range:",
-          startDate,
-          "to",
-          endDate
-        );
+        // Fetch visits for current month
+        const allVisits = await apiService.getVisits(token);
+        const thisMonthVisits = (allVisits || []).filter((v: any) => {
+          const visitDate = new Date(v.visitDate);
+          return visitDate >= new Date(startDate) && visitDate <= new Date(endDate) &&
+                 delegateIds.includes(v.delegateId);
+        });
 
-        const { data: thisMonthVisits, error: visitsError } = await supabase
-          .from("visits")
-          .select("id, visit_plan_id, visit_date")
-          .gte("visit_date", startDate)
-          .lte("visit_date", endDate);
-
-        if (visitsError) {
-          console.error("Error fetching visits:", visitsError);
-          throw visitsError;
-        }
-
-        // Calculate return index (simplified aggregation)
-        const returnIndex =
-          visitPlans && visitPlans.length > 0
-            ? Math.round(
-                ((thisMonthVisits?.length || 0) / (visitPlans.length * 2)) * 100
-              )
-            : 0;
+        // Calculate return index (simplified - using visits directly)
+        const returnIndex = thisMonthVisits.length > 0
+          ? Math.round((thisMonthVisits.length / (delegateIds.length * 2)) * 100)
+          : 0;
 
         return {
-          visitPlansCount: visitPlans?.length || 0,
-          salesPlansCount: salesPlans?.length || 0,
-          thisMonthVisits: thisMonthVisits?.length || 0,
+          visitPlansCount,
+          salesPlansCount: salesPlans.length,
+          thisMonthVisits: thisMonthVisits.length,
           returnIndex,
-          recruitmentRate:
-            salesPlans?.length > 0 ? Math.round(Math.random() * 40 + 60) : 0, // Placeholder calculation
-          actionPlansCount: actionPlans?.length || 0,
+          recruitmentRate: salesPlans.length > 0 ? Math.round(Math.random() * 40 + 60) : 0,
+          actionPlansCount: actionPlans.length,
           pendingApprovals,
         };
       } catch (error) {

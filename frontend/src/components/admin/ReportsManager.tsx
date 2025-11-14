@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, BarChart3, TrendingUp, Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
@@ -14,18 +14,28 @@ interface ReportsManagerProps {
 const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const [selectedDelegate, setSelectedDelegate] = useState<string>('all');
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   // Fetch delegates for the dropdown (profiles with role 'Delegate')
   const { data: delegates = [] } = useQuery({
     queryKey: ['delegates_for_reports'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, first_name, last_name')
-        .eq('role', 'Delegate')
-        .order('first_name');
-
-      if (error) throw error;
-      return data;
+      const token = getToken();
+      const data = await apiService.getProfilesByRole('Delegate', token);
+      return (data || []).sort((a: any, b: any) => a.firstName.localeCompare(b.firstName))
+        .map((p: any) => ({
+          id: p.id,
+          first_name: p.firstName,
+          last_name: p.lastName,
+          role: p.role
+        }));
     }
   });
 
@@ -33,58 +43,35 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const { data: visitsData = [] } = useQuery({
     queryKey: ['visits_data', selectedDelegate],
     queryFn: async () => {
-      let query = supabase
-        .from('visits')
-        .select(`
-          *,
-          visit_plans:visit_plan_id(
-            delegate_id,
-            doctor_id,
-            visit_frequency,
-            doctors:doctor_id(first_name, last_name)
-          )
-        `)
-        .gte('visit_date', '2024-01-01');
+      const token = getToken();
+      const allVisits = await apiService.getVisits(token);
+      
+      // Filter by date and delegate
+      let filtered = (allVisits || []).filter((v: any) => {
+        const visitDate = new Date(v.visitDate);
+        return visitDate >= new Date('2024-01-01');
+      });
 
       if (selectedDelegate !== 'all') {
-        // We need to filter by delegate through the visit_plans relation
-        const { data: planIds } = await supabase
-          .from('visit_plans')
-          .select('id')
-          .eq('delegate_id', selectedDelegate);
-        
-        if (planIds && planIds.length > 0) {
-          const ids = planIds.map(obj => obj.id);
-          query = query.in('visit_plan_id', ids);
-        } else {
-          return [];
-        }
+        filtered = filtered.filter((v: any) => v.delegateId === selectedDelegate);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      // Transform to match expected format
+      return filtered.map((v: any) => ({
+        visit_date: v.visitDate,
+        visit_plan_id: v.visitPlanId,
+        id: v.id
+      }));
     }
   });
 
   // Fetch visit_plans data for indice calculation
+  // Note: visit_plans endpoint may not exist yet, using placeholder
   const { data: visitPlansData = [] } = useQuery({
     queryKey: ['visit_plans_data', selectedDelegate],
     queryFn: async () => {
-      let query = supabase
-        .from('visit_plans')
-        .select(`
-          *,
-          doctors:doctor_id(first_name, last_name)
-        `);
-
-      if (selectedDelegate !== 'all') {
-        query = query.eq('delegate_id', selectedDelegate);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      // TODO: Implement when visit_plans endpoint is available
+      return [];
     }
   });
 
@@ -94,14 +81,15 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
     const currentMonth = new Date().getMonth() + 1;
     
     // n = number of visits done by selected delegate to his associated doctors in current year
-    const visitsThisYear = visitsData.filter(visit => {
+    const visitsThisYear = visitsData.filter((visit: any) => {
       const visitYear = new Date(visit.visit_date).getFullYear();
       return visitYear === currentYear;
     });
     const n = visitsThisYear.length;
     
     // f = sum of (visit_frequency * number of current month) for all corresponding doctors
-    const f = visitPlansData.reduce((sum, plan) => {
+    // TODO: Update when visit_plans endpoint is available
+    const f = visitPlansData.reduce((sum: number, plan: any) => {
       const frequencyValue = parseInt(plan.visit_frequency) || 1;
       return sum + (frequencyValue * currentMonth);
     }, 0);
@@ -114,19 +102,19 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
 
   // Process data for quarterly chart
   const quarterlyData = [
-    { quarter: 'Q1 2024', visites: visitsData.filter(v => {
+    { quarter: 'Q1 2024', visites: visitsData.filter((v: any) => {
       const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 1 && month <= 3;
     }).length },
-    { quarter: 'Q2 2024', visites: visitsData.filter(v => {
+    { quarter: 'Q2 2024', visites: visitsData.filter((v: any) => {
       const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 4 && month <= 6;
     }).length },
-    { quarter: 'Q3 2024', visites: visitsData.filter(v => {
+    { quarter: 'Q3 2024', visites: visitsData.filter((v: any) => {
       const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 7 && month <= 9;
     }).length },
-    { quarter: 'Q4 2024', visites: visitsData.filter(v => {
+    { quarter: 'Q4 2024', visites: visitsData.filter((v: any) => {
       const month = new Date(v.visit_date).getMonth() + 1;
       return month >= 10 && month <= 12;
     }).length },
@@ -136,7 +124,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({ onBack }) => {
   const monthlyData = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const monthName = new Date(2024, i, 1).toLocaleDateString('fr-FR', { month: 'short' });
-    const visites = visitsData.filter(v => {
+    const visites = visitsData.filter((v: any) => {
       const visitMonth = new Date(v.visit_date).getMonth() + 1;
       return visitMonth === month;
     }).length;

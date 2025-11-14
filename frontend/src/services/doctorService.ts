@@ -142,23 +142,4 @@ export class DoctorService {
     return specialties.map(row => row.specialty);
   }
 }
-    try {
-      return await db.any('SELECT * FROM bricks ORDER BY name');
-    } catch (error) {
-      console.error('Error fetching bricks:', error);
-      return [];
-    }
-  },
-
-  async getSpecialties(): Promise<string[]> {
-    try {
-      const result = await db.any(
-        'SELECT DISTINCT specialty FROM doctors WHERE specialty IS NOT NULL ORDER BY specialty'
-      );
-      return result.map(row => row.specialty);
-    } catch (error) {
-      console.error('Error fetching specialties:', error);
-      return [];
-    }
-  }
-};
+    

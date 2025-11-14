@@ -87,7 +87,7 @@ export interface Sales {
   salesPlanId: string;
 }
 
-// Legacy types for compatibility (snake_case from Supabase)
+// Legacy types for compatibility (snake_case format)
 export interface LegacyProfile {
   id: string;
   first_name: string;

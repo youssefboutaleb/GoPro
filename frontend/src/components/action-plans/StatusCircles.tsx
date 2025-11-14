@@ -1,9 +1,8 @@
 
 import React from 'react';
 import { Check } from 'lucide-react';
-import { Database } from '@/integrations/supabase/types';
 
-type ActionStatus = Database['public']['Enums']['action_status'];
+type ActionStatus = 'Approved' | 'Rejected' | 'Pending';
 
 interface StatusCirclesProps {
   supervisorStatus: ActionStatus;

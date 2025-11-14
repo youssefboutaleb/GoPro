@@ -259,7 +259,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
             <CardContent className="pt-6">
               <p className="text-yellow-800">
                 Debug: No data found in the &apos;doctors&apos; table. 
-                Check that data exists in Supabase.
+                Check that data exists in the database.
               </p>
             </CardContent>
           </Card>
@@ -284,7 +284,7 @@ const DoctorsManager: React.FC<DoctorsManagerProps> = ({ onBack }) => {
                 </h3>
                 <p className="text-gray-600">
                   {doctors.length === 0 
-                    ? 'The doctors table seems to be empty. Add doctors in Supabase.'
+                    ? 'The doctors table seems to be empty. Add doctors using the form above.'
                     : 'Try modifying your search criteria.'
                   }
                 </p>

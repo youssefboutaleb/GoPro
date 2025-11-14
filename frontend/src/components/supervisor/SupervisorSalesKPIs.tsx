@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Target, Users, Award } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 
 interface SupervisorSalesKPIsProps {
   delegateIds: string[];
@@ -32,31 +32,32 @@ const SupervisorSalesKPIs: React.FC<SupervisorSalesKPIsProps> = ({
     queryFn: async () => {
       if (delegateIds.length === 0) return [];
 
-      // Fetch sales plans for all delegates
-      const { data: salesPlans, error: plansError } = await supabase
-        .from('sales_plans')
-        .select('id, delegate_id')
-        .in('delegate_id', delegateIds);
+      const token = getToken();
+      
+      // Fetch sales plans and sales data
+      const [salesPlansData, salesData] = await Promise.all([
+        apiService.getSalesPlans(token),
+        apiService.getSales(token)
+      ]);
 
-      if (plansError) throw plansError;
+      // Filter sales plans by delegates
+      const salesPlans = (salesPlansData || []).filter((p: any) => 
+        delegateIds.includes(p.delegateId)
+      );
 
       if (!salesPlans || salesPlans.length === 0) return [];
 
-      // Fetch sales data for all sales plans
-      const salesPlanIds = salesPlans.map(p => p.id);
-      const { data: sales, error: salesError } = await supabase
-        .from('sales')
-        .select('sales_plan_id, targets, achievements')
-        .in('sales_plan_id', salesPlanIds)
-        .eq('year', currentYear);
-
-      if (salesError) throw salesError;
+      // Filter sales by sales plan IDs and year
+      const salesPlanIds = salesPlans.map((p: any) => p.id);
+      const sales = (salesData || []).filter((s: any) => 
+        salesPlanIds.includes(s.salesPlanId) && s.year === currentYear
+      );
 
       // Process data by delegate
       const processedData: ProcessedSalesData[] = delegateIds.map(delegateId => {
-        const delegatePlans = salesPlans.filter(p => p.delegate_id === delegateId);
-        const delegateSales = sales?.filter(s => 
-          delegatePlans.some(p => p.id === s.sales_plan_id)
+        const delegatePlans = salesPlans.filter((p: any) => p.delegateId === delegateId);
+        const delegateSales = sales?.filter((s: any) => 
+          delegatePlans.some((p: any) => p.id === s.salesPlanId)
         ) || [];
 
         let totalTargetsYTD = 0;

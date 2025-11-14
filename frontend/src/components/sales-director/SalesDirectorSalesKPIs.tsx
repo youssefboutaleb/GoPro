@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Target, Award, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 
 interface SalesDirectorSalesKPIsProps {
   delegateIds: string[];
@@ -25,25 +25,26 @@ const SalesDirectorSalesKPIs: React.FC<SalesDirectorSalesKPIsProps> = ({
     queryFn: async () => {
       if (delegateIds.length === 0) return null;
 
-      // Fetch sales plans for all delegates
-      const { data: salesPlans, error: plansError } = await supabase
-        .from('sales_plans')
-        .select('id, delegate_id')
-        .in('delegate_id', delegateIds);
+      const token = getToken();
+      
+      // Fetch sales plans and sales data
+      const [salesPlansData, salesData] = await Promise.all([
+        apiService.getSalesPlans(token),
+        apiService.getSales(token)
+      ]);
 
-      if (plansError) throw plansError;
+      // Filter sales plans by delegates
+      const salesPlans = (salesPlansData || []).filter((p: any) => 
+        delegateIds.includes(p.delegateId)
+      );
 
       if (!salesPlans || salesPlans.length === 0) return null;
 
-      // Fetch sales data for all sales plans
-      const salesPlanIds = salesPlans.map(p => p.id);
-      const { data: sales, error: salesError } = await supabase
-        .from('sales')
-        .select('sales_plan_id, targets, achievements')
-        .in('sales_plan_id', salesPlanIds)
-        .eq('year', currentYear);
-
-      if (salesError) throw salesError;
+      // Filter sales by sales plan IDs and year
+      const salesPlanIds = salesPlans.map((p: any) => p.id);
+      const sales = (salesData || []).filter((s: any) => 
+        salesPlanIds.includes(s.salesPlanId) && s.year === currentYear
+      );
 
       // Aggregate data
       let totalTargetsYTD = 0;

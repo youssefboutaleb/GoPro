@@ -9,14 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { toast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types';
-
-type Sector = Database['public']['Tables']['sectors']['Row'];
-type Brick = Database['public']['Tables']['bricks']['Row'] & {
-  sector?: { name: string };
-};
+import { Sector, Brick } from '@/types/backend';
 
 interface SectorsBricksManagerProps {
   onBack: () => void;
@@ -34,6 +29,15 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
     sector_id: '',
   });
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -41,40 +45,32 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
   const fetchData = async () => {
     try {
       console.log('Admin fetching sectors and bricks...');
+      const token = getToken();
       
-      // Admin can see all sectors and bricks due to updated RLS policies
-      const { data: sectorsData, error: sectorsError } = await supabase
-        .from('sectors')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (sectorsError) {
-        console.error('Error fetching sectors:', sectorsError);
-        throw sectorsError;
-      }
-
-      const { data: bricksData, error: bricksError } = await supabase
-        .from('bricks')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (bricksError) {
-        console.error('Error fetching bricks:', bricksError);
-        throw bricksError;
-      }
+      const [sectorsData, bricksData] = await Promise.all([
+        apiService.getSectors(token),
+        apiService.getBricks(token)
+      ]);
 
       console.log('Fetched data:', { sectors: sectorsData, bricks: bricksData });
 
       // Get sector details for each brick
-      const bricksWithSectors = (bricksData || []).map((brick) => {
-        const sector = sectorsData?.find(s => s.id === brick.sector_id);
+      const bricksWithSectors = (bricksData || []).map((brick: any) => {
+        const sector = (sectorsData || []).find((s: any) => s.id === brick.sectorId);
         return {
           ...brick,
+          sector_id: brick.sectorId,
           sector: sector ? { name: sector.name } : null
         };
       });
 
-      setSectors(sectorsData || []);
+      // Transform sectors to snake_case
+      const transformedSectors = (sectorsData || []).map((s: any) => ({
+        id: s.id,
+        name: s.name
+      }));
+
+      setSectors(transformedSectors);
       setBricks(bricksWithSectors);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -106,17 +102,11 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
       if (dialogType === 'sector') {
         const submitData = { name: formData.name.trim() };
 
+        const token = getToken();
+        
         if (editingItem && 'id' in editingItem) {
           console.log('Updating sector with ID:', editingItem.id, 'Data:', submitData);
-          const { error } = await supabase
-            .from('sectors')
-            .update(submitData)
-            .eq('id', editingItem.id);
-
-          if (error) {
-            console.error('Error updating sector:', error);
-            throw error;
-          }
+          await apiService.updateSector(editingItem.id, submitData, token);
           
           toast({
             title: "Succès",
@@ -124,14 +114,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
           });
         } else {
           console.log('Creating new sector:', submitData);
-          const { error } = await supabase
-            .from('sectors')
-            .insert([submitData]);
-
-          if (error) {
-            console.error('Error creating sector:', error);
-            throw error;
-          }
+          await apiService.createSector(submitData, token);
           
           toast({
             title: "Succès",
@@ -151,20 +134,14 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
 
         const submitData = { 
           name: formData.name.trim(),
-          sector_id: formData.sector_id
+          sectorId: formData.sector_id
         };
 
-        if (editingItem && 'id' in editingItem && 'sector_id' in editingItem) {
+        const token = getToken();
+        
+        if (editingItem && 'id' in editingItem) {
           console.log('Updating brick with ID:', editingItem.id, 'Data:', submitData);
-          const { error } = await supabase
-            .from('bricks')
-            .update(submitData)
-            .eq('id', editingItem.id);
-
-          if (error) {
-            console.error('Error updating brick:', error);
-            throw error;
-          }
+          await apiService.updateBrick(editingItem.id, submitData, token);
           
           toast({
             title: "Succès",
@@ -172,14 +149,7 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
           });
         } else {
           console.log('Creating new brick:', submitData);
-          const { error } = await supabase
-            .from('bricks')
-            .insert([submitData]);
-
-          if (error) {
-            console.error('Error creating brick:', error);
-            throw error;
-          }
+          await apiService.createBrick(submitData, token);
           
           toast({
             title: "Succès",
@@ -209,15 +179,12 @@ const SectorsBricksManager: React.FC<SectorsBricksManagerProps> = ({ onBack }) =
     if (confirm(`Êtes-vous sûr de vouloir supprimer ce ${type === 'sector' ? 'secteur' : 'brique'} ?`)) {
       try {
         console.log(`Admin deleting ${type}:`, item.id);
+        const token = getToken();
         
-        const { error } = await supabase
-          .from(type === 'sector' ? 'sectors' : 'bricks')
-          .delete()
-          .eq('id', item.id);
-
-        if (error) {
-          console.error(`Error deleting ${type}:`, error);
-          throw error;
+        if (type === 'sector') {
+          await apiService.deleteSector(item.id, token);
+        } else {
+          await apiService.deleteBrick(item.id, token);
         }
         
         toast({

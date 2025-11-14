@@ -6,12 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Shield, User, Crown } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiService } from '@/services/apiService';
 import { toast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types';
+import { Profile } from '@/types/backend';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
-type UserRole = Database['public']['Enums']['role_type'];
+type UserRole = 'Admin' | 'Sales Director' | 'Supervisor' | 'Delegate';
 
 interface ProfileWithMetrics extends Profile {
   return_index?: number;
@@ -30,21 +29,22 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
     fetchUsers();
   }, []);
 
+  // Helper to get token
+  const getToken = () => {
+    try {
+      const keycloak = (window as any).keycloak;
+      if (keycloak?.token) return keycloak.token;
+    } catch {}
+    return undefined;
+  };
+
   const fetchUsers = async () => {
     try {
       console.log('Fetching ALL profiles for admin...');
+      const token = getToken();
       
-      // Admin can see all profiles due to updated RLS policies
-      const { data: profilesData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching profiles:', error);
-        throw error;
-      }
-
+      const profilesData = await apiService.getProfiles(token);
+      
       console.log('Fetched profiles data:', profilesData);
 
       if (!profilesData || profilesData.length === 0) {
@@ -54,19 +54,35 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
         return;
       }
 
-      // Calculate metrics for delegates
+      // Transform to snake_case and calculate metrics for delegates
       const usersWithMetrics = await Promise.all(
-        profilesData.map(async (profile) => {
+        profilesData.map(async (profile: any) => {
+          const transformed = {
+            id: profile.id,
+            first_name: profile.firstName,
+            last_name: profile.lastName,
+            role: profile.role,
+            sector_id: profile.sectorId,
+            supervisor_id: profile.supervisorId,
+            created_at: profile.createdAt,
+            updated_at: profile.updatedAt
+          };
+          
           if (profile.role === 'Delegate') {
-            const metrics = await calculateDelegateMetrics(profile.id);
+            const metrics = await calculateDelegateMetrics(profile.id, token);
             return {
-              ...profile,
+              ...transformed,
               return_index: metrics.returnIndex,
               recruitment_rhythm: metrics.recruitmentRhythm
             };
           }
-          return profile;
+          return transformed;
         })
+      );
+
+      // Sort by created_at descending
+      usersWithMetrics.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
       console.log('Users with metrics:', usersWithMetrics);
@@ -83,29 +99,25 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
     }
   };
 
-  const calculateDelegateMetrics = async (delegateId: string) => {
+  const calculateDelegateMetrics = async (delegateId: string, token?: string) => {
     try {
       // Get sales data for return index calculation
-      const { data: salesData } = await supabase
-        .from('sales')
-        .select(`
-          targets,
-          achievements,
-          year,
-          sales_plans!inner(delegate_id)
-        `)
-        .eq('sales_plans.delegate_id', delegateId)
-        .eq('year', new Date().getFullYear());
+      const allSales = await apiService.getSales(token);
+      const salesPlans = await apiService.getSalesPlans(token);
+      const delegateSalesPlans = (salesPlans || []).filter((sp: any) => sp.delegateId === delegateId);
+      const salesPlanIds = delegateSalesPlans.map((sp: any) => sp.id);
+      const salesData = (allSales || []).filter((s: any) => 
+        salesPlanIds.includes(s.salesPlanId) && s.year === new Date().getFullYear()
+      );
 
       // Get visit data for recruitment rhythm
-      const { data: visitData } = await supabase
-        .from('visits')
-        .select(`
-          visit_date,
-          visit_plans!inner(delegate_id)
-        `)
-        .eq('visit_plans.delegate_id', delegateId)
-        .gte('visit_date', new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
+      const allVisits = await apiService.getVisits(token);
+      const currentYear = new Date().getFullYear();
+      const yearStart = new Date(currentYear, 0, 1).toISOString().split('T')[0];
+      const visitData = (allVisits || []).filter((v: any) => {
+        const visitDate = new Date(v.visitDate);
+        return visitDate >= new Date(yearStart) && v.delegateId === delegateId;
+      });
 
       let returnIndex = 0;
       let recruitmentRhythm = 0;
@@ -116,10 +128,12 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
         let totalTargets = 0;
         let totalAchievements = 0;
 
-        salesData.forEach(sale => {
+        salesData.forEach((sale: any) => {
+          const targets = sale.targets || Array(12).fill(0);
+          const achievements = sale.achievements || Array(12).fill(0);
           for (let i = 0; i <= currentMonth; i++) {
-            totalTargets += sale.targets[i] || 0;
-            totalAchievements += sale.achievements[i] || 0;
+            totalTargets += targets[i] || 0;
+            totalAchievements += achievements[i] || 0;
           }
         });
 
@@ -142,16 +156,13 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     try {
       console.log('Updating user role:', { userId, newRole });
+      const token = getToken();
       
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Error updating user role:', error);
-        throw error;
-      }
+      const profile = await apiService.getProfileById(userId, token);
+      await apiService.updateProfile(userId, {
+        ...profile,
+        role: newRole
+      }, token);
 
       toast({
         title: "Succès",

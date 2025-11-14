@@ -6,9 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, MapPin, Calendar, User, Check, X } from 'lucide-react';
 import StatusCircles from './StatusCircles';
 import TargetedEntities from './TargetedEntities';
-import { Database } from '@/integrations/supabase/types';
-
-type ActionPlan = Database['public']['Tables']['action_plans']['Row'];
+import { ActionPlan } from '@/types/backend';
 
 interface Creator {
   id: string;
