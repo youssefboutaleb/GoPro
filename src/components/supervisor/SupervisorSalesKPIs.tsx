@@ -46,7 +46,7 @@ const SupervisorSalesKPIs: React.FC<SupervisorSalesKPIsProps> = ({
       const salesPlanIds = salesPlans.map(p => p.id);
       const { data: sales, error: salesError } = await supabase
         .from('sales')
-        .select('sales_plan_id, targets, achievements')
+        .select('sales_plan_id, "monthly target", achievements')
         .in('sales_plan_id', salesPlanIds)
         .eq('year', currentYear);
 
@@ -64,13 +64,13 @@ const SupervisorSalesKPIs: React.FC<SupervisorSalesKPIsProps> = ({
         let totalTargetsAnnual = 0;
 
         delegateSales.forEach(sale => {
-          const targets = sale.targets || [];
+          const monthlyTarget = Number(sale['monthly target'] ?? 0);
           const achievements = sale.achievements || [];
           
-          // Sum targets and achievements YTD
-          totalTargetsYTD += targets.slice(0, selectedMonth).reduce((sum, val) => sum + (val || 0), 0);
-          totalAchievementsYTD += achievements.slice(0, selectedMonth).reduce((sum, val) => sum + (val || 0), 0);
-          totalTargetsAnnual += targets.reduce((sum, val) => sum + (val || 0), 0);
+          // Sum targets and achievements YTD - monthly target applies to each month
+          totalTargetsYTD += monthlyTarget * selectedMonth;
+          totalAchievementsYTD += achievements.slice(0, selectedMonth).reduce((sum, val) => sum + (Number(val) || 0), 0);
+          totalTargetsAnnual += monthlyTarget * 12;
         });
 
         const achievementRate = totalTargetsYTD > 0 ? (totalAchievementsYTD / totalTargetsYTD) * 100 : 0;

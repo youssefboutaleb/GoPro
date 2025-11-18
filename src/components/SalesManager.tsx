@@ -29,7 +29,7 @@ interface Sales {
   id: string;
   sales_plan_id: string;
   year: number;
-  targets: number[];
+  'monthly target': number;
   achievements: number[];
 }
 
@@ -56,7 +56,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   const [formData, setFormData] = useState({
     sales_plan_id: '',
     year: new Date().getFullYear(),
-    targets: Array(12).fill(0),
+    monthly_target: 0,
     achievements: Array(12).fill(0)
   });
 
@@ -162,7 +162,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   });
 
   const createSalesMutation = useMutation({
-    mutationFn: async (salesData: { sales_plan_id: string; year: number; targets: number[]; achievements: number[] }) => {
+    mutationFn: async (salesData: { sales_plan_id: string; year: number; 'monthly target': number; achievements: number[] }) => {
       const { data, error } = await supabase
         .from('sales')
         .insert([salesData])
@@ -184,7 +184,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
   });
 
   const updateSalesMutation = useMutation({
-    mutationFn: async ({ id, ...salesData }: { id: string; sales_plan_id: string; year: number; targets: number[]; achievements: number[] }) => {
+    mutationFn: async ({ id, ...salesData }: { id: string; sales_plan_id: string; year: number; 'monthly target': number; achievements: number[] }) => {
       const { data, error } = await supabase
         .from('sales')
         .update(salesData)
@@ -228,7 +228,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     setFormData({
       sales_plan_id: '',
       year: new Date().getFullYear(),
-      targets: Array(12).fill(0),
+      monthly_target: 0,
       achievements: Array(12).fill(0)
     });
     setEditingSales(null);
@@ -245,10 +245,18 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     if (editingSales) {
       updateSalesMutation.mutate({
         id: editingSales.id,
-        ...formData
+        sales_plan_id: formData.sales_plan_id,
+        year: formData.year,
+        'monthly target': formData.monthly_target,
+        achievements: formData.achievements
       });
     } else {
-      createSalesMutation.mutate(formData);
+      createSalesMutation.mutate({
+        sales_plan_id: formData.sales_plan_id,
+        year: formData.year,
+        'monthly target': formData.monthly_target,
+        achievements: formData.achievements
+      });
     }
   };
 
@@ -257,7 +265,7 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     setFormData({
       sales_plan_id: sales.sales_plan_id,
       year: sales.year,
-      targets: sales.targets,
+      monthly_target: Number(sales['monthly target'] ?? 0),
       achievements: sales.achievements
     });
     setIsDialogOpen(true);
@@ -274,10 +282,8 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
     resetForm();
   };
 
-  const handleTargetChange = (index: number, value: string) => {
-    const newTargets = [...formData.targets];
-    newTargets[index] = parseInt(value) || 0;
-    setFormData({ ...formData, targets: newTargets });
+  const handleTargetChange = (value: string) => {
+    setFormData({ ...formData, monthly_target: parseInt(value) || 0 });
   };
 
   const handleAchievementChange = (index: number, value: string) => {
@@ -436,44 +442,50 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
                       </div>
                     </div>
 
-                    {/* Monthly Targets and Achievements */}
+                    {/* Monthly Target and Achievements */}
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Monthly Data</h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr>
-                              <th className="text-left p-2">Month</th>
-                              <th className="text-left p-2">Target</th>
-                              <th className="text-left p-2">Achievement</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {monthNames.map((month, index) => (
-                              <tr key={month}>
-                                <td className="p-2 font-medium">{month}</td>
-                                <td className="p-2">
-                                  <Input
-                                    type="number"
-                                    value={formData.targets[index]}
-                                    onChange={(e) => handleTargetChange(index, e.target.value)}
-                                    min="0"
-                                    className="w-24"
-                                  />
-                                </td>
-                                <td className="p-2">
-                                  <Input
-                                    type="number"
-                                    value={formData.achievements[index]}
-                                    onChange={(e) => handleAchievementChange(index, e.target.value)}
-                                    min="0"
-                                    className="w-24"
-                                  />
-                                </td>
+                      <div className="p-4 bg-muted rounded-lg">
+                        <label className="block text-sm font-medium mb-2">
+                          Monthly Target (Applied to all months)
+                        </label>
+                        <Input
+                          type="number"
+                          value={formData.monthly_target}
+                          onChange={(e) => handleTargetChange(e.target.value)}
+                          min="0"
+                          className="w-full"
+                          placeholder="Enter monthly target"
+                        />
+                      </div>
+                      
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-3">Monthly Achievements</h4>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr>
+                                <th className="text-left p-2">Month</th>
+                                <th className="text-left p-2">Achievement</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {monthNames.map((month, index) => (
+                                <tr key={month}>
+                                  <td className="p-2 font-medium">{month}</td>
+                                  <td className="p-2">
+                                    <Input
+                                      type="number"
+                                      value={formData.achievements[index]}
+                                      onChange={(e) => handleAchievementChange(index, e.target.value)}
+                                      min="0"
+                                      className="w-24"
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
 
@@ -523,20 +535,25 @@ const SalesManager: React.FC<SalesManagerProps> = ({ onBack }) => {
                             <TableCell>{sales.sales_plan?.product_name || 'N/A'}</TableCell>
                             <TableCell>{sales.sales_plan?.brick_name || 'N/A'}</TableCell>
                             <TableCell>{sales.year}</TableCell>
-                            {Array.from({ length: visibleMonths }, (_, i) => (
-                              <TableCell key={i} className="text-center">
-                                <div className="space-y-1">
-                                  <div className="text-xs text-gray-500">T: {sales.targets[i] || 0}</div>
-                                  <div className={`text-xs font-medium ${
-                                    (sales.achievements[i] || 0) >= (sales.targets[i] || 0) 
-                                      ? 'text-green-600' 
-                                      : 'text-red-600'
-                                  }`}>
-                                    A: {sales.achievements[i] || 0}
+                            {Array.from({ length: visibleMonths }, (_, i) => {
+                              const monthlyTarget = Number(sales['monthly target'] ?? 0);
+                              const achievement = Number(sales.achievements?.[i] ?? 0);
+                              
+                              return (
+                                <TableCell key={i} className="text-center">
+                                  <div className="space-y-1">
+                                    <div className="text-xs text-gray-500">T: {monthlyTarget.toLocaleString()}</div>
+                                    <div className={`text-xs font-medium ${
+                                      achievement >= monthlyTarget 
+                                        ? 'text-green-600' 
+                                        : 'text-red-600'
+                                    }`}>
+                                      A: {achievement.toLocaleString()}
+                                    </div>
                                   </div>
-                                </div>
-                              </TableCell>
-                            ))}
+                                </TableCell>
+                              );
+                            })}
                             <TableCell>
                               <div className="flex space-x-2">
                                 <Button
