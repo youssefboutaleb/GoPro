@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -137,6 +137,7 @@ export type Database = {
       }
       products: {
         Row: {
+          "aigu/chronique": string | null
           id: string
           name: string
           therapeutic_class:
@@ -144,6 +145,7 @@ export type Database = {
             | null
         }
         Insert: {
+          "aigu/chronique"?: string | null
           id?: string
           name: string
           therapeutic_class?:
@@ -151,6 +153,7 @@ export type Database = {
             | null
         }
         Update: {
+          "aigu/chronique"?: string | null
           id?: string
           name?: string
           therapeutic_class?:
@@ -208,22 +211,22 @@ export type Database = {
         Row: {
           achievements: number[] | null
           id: string
+          "monthly target": number | null
           sales_plan_id: string | null
-          targets: number[] | null
           year: number
         }
         Insert: {
           achievements?: number[] | null
           id?: string
+          "monthly target"?: number | null
           sales_plan_id?: string | null
-          targets?: number[] | null
           year: number
         }
         Update: {
           achievements?: number[] | null
           id?: string
+          "monthly target"?: number | null
           sales_plan_id?: string | null
-          targets?: number[] | null
           year?: number
         }
         Relationships: [
@@ -410,56 +413,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_access_profile: {
-        Args: { profile_id: string }
-        Returns: boolean
-      }
+      can_access_profile: { Args: { profile_id: string }; Returns: boolean }
       get_visit_records_for_delegate: {
         Args: { delegate_user_id: string }
         Returns: {
-          visit_id: string
-          visit_date: string
-          visit_plan_id: string
+          brick_name: string
           doctor_first_name: string
           doctor_last_name: string
           doctor_specialty: string
-          brick_name: string
+          visit_date: string
+          visit_id: string
+          visit_plan_id: string
         }[]
       }
       has_created_action_plan_targeting_current_user: {
         Args: { creator_id: string }
         Returns: boolean
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_current_user_sales_director: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_current_user_supervisor: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_current_user_admin: { Args: never; Returns: boolean }
+      is_current_user_sales_director: { Args: never; Returns: boolean }
+      is_current_user_supervisor: { Args: never; Returns: boolean }
       is_current_user_supervisor_of: {
         Args: { delegate_id: string }
         Returns: boolean
       }
-      set_admin_role: {
-        Args: { user_email: string }
-        Returns: undefined
-      }
-      user_in_target_array: {
-        Args:
-          | { user_id: string; target_array: string[] }
-          | { user_id: string; target_array: string[] }
-        Returns: boolean
-      }
+      set_admin_role: { Args: { user_email: string }; Returns: undefined }
+      user_in_target_array:
+        | {
+            Args: { target_array: string[]; user_id: string }
+            Returns: boolean
+          }
+        | {
+            Args: { target_array: string[]; user_id: string }
+            Returns: boolean
+          }
     }
     Enums: {
       action_status: "Pending" | "Approved" | "Rejected"

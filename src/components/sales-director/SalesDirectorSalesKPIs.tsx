@@ -39,7 +39,7 @@ const SalesDirectorSalesKPIs: React.FC<SalesDirectorSalesKPIsProps> = ({
       const salesPlanIds = salesPlans.map(p => p.id);
       const { data: sales, error: salesError } = await supabase
         .from('sales')
-        .select('sales_plan_id, targets, achievements')
+        .select('sales_plan_id, "monthly target", achievements')
         .in('sales_plan_id', salesPlanIds)
         .eq('year', currentYear);
 
@@ -52,16 +52,16 @@ const SalesDirectorSalesKPIs: React.FC<SalesDirectorSalesKPIsProps> = ({
       let totalAchievementsAnnual = 0;
 
       sales?.forEach(sale => {
-        const targets = sale.targets || [];
+        const monthlyTarget = Number(sale['monthly target'] ?? 0);
         const achievements = sale.achievements || [];
         
-        // Sum YTD (up to selected month)
-        totalTargetsYTD += targets.slice(0, selectedMonth).reduce((sum, val) => sum + (val || 0), 0);
-        totalAchievementsYTD += achievements.slice(0, selectedMonth).reduce((sum, val) => sum + (val || 0), 0);
+        // Sum YTD (up to selected month) - monthly target applies to each month
+        totalTargetsYTD += monthlyTarget * selectedMonth;
+        totalAchievementsYTD += achievements.slice(0, selectedMonth).reduce((sum, val) => sum + (Number(val) || 0), 0);
         
-        // Sum annual
-        totalTargetsAnnual += targets.reduce((sum, val) => sum + (val || 0), 0);
-        totalAchievementsAnnual += achievements.reduce((sum, val) => sum + (val || 0), 0);
+        // Sum annual - monthly target * 12 months
+        totalTargetsAnnual += monthlyTarget * 12;
+        totalAchievementsAnnual += achievements.reduce((sum, val) => sum + (Number(val) || 0), 0);
       });
 
       const achievementRateYTD = totalTargetsYTD > 0 ? (totalAchievementsYTD / totalTargetsYTD) * 100 : 0;

@@ -89,7 +89,7 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
       const { data: salesData } = await supabase
         .from('sales')
         .select(`
-          targets,
+          "monthly target",
           achievements,
           year,
           sales_plans!inner(delegate_id)
@@ -117,9 +117,10 @@ const UsersManager: React.FC<UsersManagerProps> = ({ onBack }) => {
         let totalAchievements = 0;
 
         salesData.forEach(sale => {
+          const monthlyTarget = Number(sale['monthly target'] ?? 0);
           for (let i = 0; i <= currentMonth; i++) {
-            totalTargets += sale.targets[i] || 0;
-            totalAchievements += sale.achievements[i] || 0;
+            totalTargets += monthlyTarget;
+            totalAchievements += Number(sale.achievements?.[i] ?? 0);
           }
         });
 
